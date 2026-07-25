@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Settings - MotoSpareParts ERP{% endblock %}
+{% block content %}
+<h2 class="mb-4">Settings</h2>
+
+<div class="card p-4 mb-4">
+  <h5 class="mb-3">Shop Info <span class="text-muted small">(shown on invoices)</span></h5>
+  <form method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="row g-3">
+      <div class="col-md-6">
+        <label class="form-label">Shop Name</label>
+        <input type="text" name="shop_name" class="form-control" value="{{ shop.shop_name }}">
+      </div>
+      <div class="col-md-6">
+        <label class="form-label">Phone</label>
+        <input type="text" name="phone" class="form-control" value="{{ shop.phone }}">
+      </div>
+      <div class="col-md-6">
+        <label class="form-label">GSTIN</label>
+        <input type="text" name="gstin" class="form-control" value="{{ shop.gstin }}">
+      </div>
+      <div class="col-md-12">
+        <label class="form-label">Address</label>
+        <textarea name="address" class="form-control">{{ shop.address }}</textarea>
+      </div>
+    </div>
+    <button type="submit" class="btn btn-primary mt-3">Save</button>
+  </form>
+</div>
+
+<div class="card p-4 mb-4">
+  <h5 class="mb-3">Export Data (CSV)</h5>
+  <div class="d-flex flex-wrap gap-2">
+    {% for table in exportable %}
+    <a href="{{ url_for('settings.export_csv', table_name=table) }}" class="btn btn-outline-secondary btn-sm">
+      Export {{ table|capitalize }}
+    </a>
+    {% endfor %}
+  </div>
+</div>
+
+<div class="card p-4">
+  <h5 class="mb-3">Backup</h5>
+  <p class="text-muted small">Downloads a copy of your entire database file. Keep this somewhere safe (USB drive, cloud folder, email to yourself).</p>
+  <a href="{{ url_for('settings.backup') }}" class="btn btn-primary">Download Backup</a>
+</div>
+{% endblock %}

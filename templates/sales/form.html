@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+{% block title %}New Sale - MotoSpareParts ERP{% endblock %}
+{% block content %}
+<h2 class="mb-4">New Sale (Billing)</h2>
+
+<form method="post" class="card p-4">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="row g-3 mb-3">
+    <div class="col-md-3">
+      <label class="form-label">Date</label>
+      <input type="date" name="date" class="form-control" value="{{ today }}">
+    </div>
+    <div class="col-md-3">
+      <label class="form-label">Customer <span class="text-muted small">(optional)</span></label>
+      <select name="customer_id" class="form-select">
+        <option value="">Walk-in</option>
+        {% for c in customers %}
+        <option value="{{ c.id }}">{{ c.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-3">
+      <label class="form-label">Mechanic <span class="text-muted small">(optional)</span></label>
+      <select name="mechanic_id" class="form-select">
+        <option value="">-- None --</option>
+        {% for m in mechanics %}
+        <option value="{{ m.id }}">{{ m.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-3">
+      <label class="form-label">Payment Mode</label>
+      <select name="payment_mode" class="form-select">
+        <option value="cash">Cash</option>
+        <option value="upi">UPI</option>
+        <option value="card">Card</option>
+        <option value="credit">Credit / Due</option>
+      </select>
+    </div>
+  </div>
+
+  <h5>Items</h5>
+  <table class="table" id="itemsTable">
+    <thead><tr><th>Product</th><th style="width:100px">Qty</th><th style="width:140px">Price (each)</th><th style="width:80px">GST %</th><th style="width:110px">Line Total</th><th></th></tr></thead>
+    <tbody>
+      <tr>
+        <td>
+          <select name="product_id[]" class="form-select product-select">
+            <option value="">-- Select Product --</option>
+            {% for p in products %}
+            <option value="{{ p.id }}" data-price="{{ p.mrp_discounted_price }}" data-gst="{{ p.gst_rate }}" data-stock="{{ p.current_stock }}">
+              {{ p.part_no }} - {{ p.product_name }} (stock: {{ p.current_stock }})
+            </option>
+            {% endfor %}
+          </select>
+        </td>
+        <td><input type="number" name="qty[]" class="form-control qty-input" min="1" value="1"></td>
+        <td><input type="number" step="0.01" name="selling_price[]" class="form-control price-input"></td>
+        <td><input type="text" class="form-control gst-display" disabled></td>
+        <td><input type="text" class="form-control line-total" disabled></td>
+        <td><button type="button" class="btn btn-outline-danger btn-sm remove-row">×</button></td>
+      </tr>
+    </tbody>
+  </table>
+  <button type="button" id="addRow" class="btn btn-sm btn-outline-primary mb-3">+ Add Line</button>
+
+  <div class="row g-3 mt-2">
+    <div class="col-md-3">
+      <label class="form-label">Amount Paid Now (₹)</label>
+      <input type="number" step="0.01" name="amount_paid" class="form-control" value="0">
+    </div>
+  </div>
+
+  <div class="mt-3 d-flex gap-2">
+    <button type="submit" class="btn btn-primary">Save Sale</button>
+    <a href="{{ url_for('sales.list_sales') }}" class="btn btn-outline-secondary">Cancel</a>
+  </div>
+</form>
+
+<script>
+function wireRow(row) {
+  const select = row.querySelector('.product-select');
+  const priceInput = row.querySelector('.price-input');
+  const gstDisplay = row.querySelector('.gst-display');
+  const qtyInput = row.querySelector('.qty-input');
+  const lineTotal = row.querySelector('.line-total');
+
+  function updateFromProduct() {
+    const opt = select.options[select.selectedIndex];
+    if (opt && opt.value) {
+      priceInput.value = opt.dataset.price;
+      gstDisplay.value = opt.dataset.gst + '%';
+    } else {
+      priceInput.value = '';
+      gstDisplay.value = '';
+    }
+    recalcLine();
+  }
+
+  function recalcLine() {
+    const qty = parseFloat(qtyInput.value) || 0;
+    const price = parseFloat(priceInput.value) || 0;
+    const gst = parseFloat(gstDisplay.value) || 0;
+    const subtotal = qty * price;
+    const total = subtotal + (subtotal * gst / 100);
+    lineTotal.value = total ? '₹' + total.toFixed(2) : '';
+  }
+
+  select.addEventListener('change', updateFromProduct);
+  qtyInput.addEventListener('input', recalcLine);
+  priceInput.addEventListener('input', recalcLine);
+}
+
+document.querySelectorAll('#itemsTable tbody tr').forEach(wireRow);
+
+document.getElementById('addRow').addEventListener('click', function () {
+  const tbody = document.querySelector('#itemsTable tbody');
+  const newRow = tbody.rows[0].cloneNode(true);
+  newRow.querySelectorAll('input').forEach(el => el.value = el.classList.contains('qty-input') ? 1 : '');
+  newRow.querySelector('select').selectedIndex = 0;
+  tbody.appendChild(newRow);
+  wireRow(newRow);
+});
+
+document.querySelector('#itemsTable').addEventListener('click', function (e) {
+  if (e.target.classList.contains('remove-row')) {
+    const tbody = document.querySelector('#itemsTable tbody');
+    if (tbody.rows.length > 1) {
+      e.target.closest('tr').remove();
+    }
+  }
+});
+</script>
+{% endblock %}

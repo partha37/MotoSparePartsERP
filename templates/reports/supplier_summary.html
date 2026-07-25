@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Supplier Summary - MotoSpareParts ERP{% endblock %}
+{% block content %}
+<h2 class="mb-4">Supplier Purchase Summary</h2>
+<form method="get" class="row g-3 mb-3">
+  <div class="col-md-3"><label class="form-label">From</label><input type="date" name="date_from" class="form-control" value="{{ date_from }}"></div>
+  <div class="col-md-3"><label class="form-label">To</label><input type="date" name="date_to" class="form-control" value="{{ date_to }}"></div>
+  <div class="col-md-2 d-flex align-items-end"><button type="submit" class="btn btn-primary w-100">Filter</button></div>
+</form>
+<div class="card p-3">
+<table class="table">
+  <thead><tr><th>Supplier</th><th>Purchases</th><th>Total Spend</th></tr></thead>
+  <tbody>
+    {% for name, v in rows %}
+    <tr><td>{{ name }}</td><td>{{ v.count }}</td><td>₹{{ "%.2f"|format(v.total) }}</td></tr>
+    {% else %}
+    <tr><td colspan="3" class="text-center text-muted">No purchases in this range.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+<a href="{{ url_for('reports.index') }}" class="btn btn-outline-secondary mt-3">Back to Reports</a>
+{% endblock %}

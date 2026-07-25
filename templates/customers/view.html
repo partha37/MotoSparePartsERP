@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}{{ customer.name }} - MotoSpareParts ERP{% endblock %}
+{% block content %}
+<h2 class="mb-4">{{ customer.name }}</h2>
+<div class="card p-4 mb-3">
+  <div class="row">
+    <div class="col-md-4"><strong>Phone:</strong> {{ customer.phone or '-' }}</div>
+    <div class="col-md-4"><strong>Vehicle:</strong> {{ customer.vehicle_model or '-' }}</div>
+    <div class="col-md-4"><strong>Address:</strong> {{ customer.address or '-' }}</div>
+  </div>
+</div>
+<h5>Purchase History</h5>
+<div class="card p-3">
+<table class="table">
+  <thead><tr><th>Date</th><th>Invoice</th><th>Total</th><th>Paid</th><th>Balance</th><th></th></tr></thead>
+  <tbody>
+    {% for s in sales %}
+    <tr>
+      <td>{{ s.date }}</td>
+      <td>{{ s.invoice_no }}</td>
+      <td>₹{{ "%.2f"|format(s.total) }}</td>
+      <td>₹{{ "%.2f"|format(s.amount_paid) }}</td>
+      <td>₹{{ "%.2f"|format(s.balance_due) }}</td>
+      <td><a href="{{ url_for('sales.view_sale', sale_id=s.id) }}" class="btn btn-sm btn-outline-secondary">View</a></td>
+    </tr>
+    {% else %}
+    <tr><td colspan="6" class="text-center text-muted">No purchases yet.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+<a href="{{ url_for('customers.list_customers') }}" class="btn btn-outline-secondary mt-3">Back to Customers</a>
+{% endblock %}

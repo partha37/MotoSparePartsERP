@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Stock Ledger - MotoSpareParts ERP{% endblock %}
+{% block content %}
+<h2 class="mb-4">Stock Ledger (Day-wise)</h2>
+
+<form method="get" class="row g-3 mb-3">
+  <div class="col-md-3">
+    <label class="form-label">From</label>
+    <input type="date" name="date_from" class="form-control" value="{{ date_from }}">
+  </div>
+  <div class="col-md-3">
+    <label class="form-label">To</label>
+    <input type="date" name="date_to" class="form-control" value="{{ date_to }}">
+  </div>
+  <div class="col-md-4">
+    <label class="form-label">Product</label>
+    <select name="product_id" class="form-select">
+      <option value="">All Products</option>
+      {% for p in products %}
+      <option value="{{ p.id }}" {{ 'selected' if selected_product_id == p.id|string else '' }}>{{ p.part_no }} - {{ p.product_name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-md-2 d-flex align-items-end">
+    <button type="submit" class="btn btn-primary w-100">Filter</button>
+  </div>
+</form>
+
+<div class="card p-3">
+<table class="table table-hover align-middle">
+  <thead><tr><th>Date</th><th>Product</th><th>Type</th><th>Qty Change</th><th>Note</th></tr></thead>
+  <tbody>
+    {% for m in movements %}
+    <tr>
+      <td>{{ m.date }}</td>
+      <td>{{ m.product.part_no }} - {{ m.product.product_name }}</td>
+      <td>
+        {% if m.type == 'purchase_in' %}<span class="badge bg-success">Purchase In</span>
+        {% elif m.type == 'sale_out' %}<span class="badge bg-primary">Sale Out</span>
+        {% else %}<span class="badge bg-secondary">{{ m.type }}</span>{% endif %}
+      </td>
+      <td class="{{ 'text-success' if m.qty > 0 else 'text-danger' }} fw-bold">{{ '+' if m.qty > 0 else '' }}{{ m.qty }}</td>
+      <td>{{ m.note }}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="5" class="text-center text-muted">No stock movements in this range.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

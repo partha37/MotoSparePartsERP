@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Purchases - MotoSpareParts ERP{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2>Purchases</h2>
+  <a href="{{ url_for('purchases.new_purchase') }}" class="btn btn-primary">+ New Purchase</a>
+</div>
+<div class="card p-3">
+<table class="table table-hover align-middle">
+  <thead><tr><th>Date</th><th>Supplier</th><th>Invoice No</th><th>Items</th><th>Total</th><th></th></tr></thead>
+  <tbody>
+    {% for p in purchases %}
+    <tr>
+      <td>{{ p.date }}</td>
+      <td>{{ p.supplier.name if p.supplier else '-' }}</td>
+      <td>{{ p.invoice_no }}</td>
+      <td>{{ p.items|length }}</td>
+      <td>₹{{ "%.2f"|format(p.total) }}</td>
+      <td class="text-end"><a href="{{ url_for('purchases.view_purchase', purchase_id=p.id) }}" class="btn btn-sm btn-outline-secondary">View</a></td>
+    </tr>
+    {% else %}
+    <tr><td colspan="6" class="text-center text-muted">No purchases recorded yet.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

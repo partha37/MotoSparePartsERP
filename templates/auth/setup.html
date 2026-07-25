@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Setup - MotoSpareParts ERP{% endblock %}
+{% block content %}
+<div class="row justify-content-center mt-5">
+  <div class="col-md-4">
+    <div class="card p-4">
+      <h3 class="mb-3 text-center">Create Shop Owner Account</h3>
+      <p class="text-muted small">This is a one-time setup for your ERP's login.</p>
+      <form method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="mb-3">
+          <label class="form-label">Username</label>
+          <input type="text" name="username" class="form-control" required autofocus>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Password</label>
+          <input type="password" name="password" class="form-control" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Confirm Password</label>
+          <input type="password" name="confirm" class="form-control" required>
+        </div>
+        <button type="submit" class="btn btn-primary w-100">Create Account</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

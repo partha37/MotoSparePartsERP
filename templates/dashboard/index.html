@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Dashboard - MotoSpareParts ERP{% endblock %}
+{% block content %}
+<h2 class="mb-4">Dashboard</h2>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-3">
+    <div class="card p-3">
+      <div class="text-muted small">Today's Sales</div>
+      <div class="fs-3 fw-bold">₹{{ "%.2f"|format(todays_total) }}</div>
+      <div class="text-muted small">{{ todays_count }} invoice(s)</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card p-3">
+      <div class="text-muted small">Total Products</div>
+      <div class="fs-3 fw-bold">{{ total_products }}</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card p-3">
+      <div class="text-muted small">Stock Value (cost)</div>
+      <div class="fs-3 fw-bold">₹{{ "%.2f"|format(total_stock_value) }}</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card p-3">
+      <div class="text-muted small">Low Stock Items</div>
+      <div class="fs-3 fw-bold text-danger">{{ low_stock_products|length }}</div>
+    </div>
+  </div>
+</div>
+
+{% if low_stock_products %}
+<div class="card p-3 mb-4">
+  <h5 class="text-danger">Low Stock Alert</h5>
+  <table class="table table-sm">
+    <thead><tr><th>Part No</th><th>Product</th><th>Stock</th><th>Reorder Level</th></tr></thead>
+    <tbody>
+      {% for p in low_stock_products %}
+      <tr>
+        <td>{{ p.part_no }}</td>
+        <td>{{ p.product_name }}</td>
+        <td class="text-danger fw-bold">{{ p.current_stock }}</td>
+        <td>{{ p.reorder_level }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+<div class="d-flex gap-2">
+  <a href="{{ url_for('sales.new_sale') }}" class="btn btn-primary">New Sale</a>
+  <a href="{{ url_for('purchases.new_purchase') }}" class="btn btn-outline-primary">New Purchase</a>
+  <a href="{{ url_for('products.new_product') }}" class="btn btn-outline-secondary">Add Product</a>
+</div>
+{% endblock %}

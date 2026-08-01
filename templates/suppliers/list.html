@@ -1,16 +1,18 @@
 {% extends "base.html" %}
 {% block title %}Suppliers - Lokey Auto Spare Parts{% endblock %}
 {% block content %}
+<div class="page-toolbar">
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h2>Suppliers</h2>
   <a href="{{ url_for('suppliers.new_supplier') }}" class="btn btn-primary">{{ icon('plus-lg') }}Add Supplier</a>
+</div>
 </div>
 <div class="card p-3">
 <table class="table table-hover align-middle">
   <thead><tr><th>Name</th><th>Brand</th><th>Phone</th><th>GSTIN</th><th></th></tr></thead>
   <tbody>
     {% for s in suppliers %}
-    <tr>
+    <tr data-href="{{ url_for('suppliers.edit_supplier', supplier_id=s.id) }}">
       <td>{{ s.name }}</td>
       <td>{{ s.brand }}</td>
       <td>{{ s.phone }}</td>

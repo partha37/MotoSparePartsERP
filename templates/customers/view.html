@@ -15,7 +15,7 @@
   <thead><tr><th>Date</th><th>Invoice</th><th>Total</th><th>Paid</th><th>Balance</th><th></th></tr></thead>
   <tbody>
     {% for s in sales %}
-    <tr>
+    <tr data-href="{{ url_for('sales.view_sale', sale_id=s.id) }}">
       <td>{{ s.date }}</td>
       <td>{{ s.invoice_no }}</td>
       <td>₹{{ "%.2f"|format(s.total) }}</td>

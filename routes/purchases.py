@@ -49,6 +49,17 @@ def new_purchase():
                 "purchases/form.html", suppliers=suppliers, products=products, today=date.today().isoformat()
             )
 
+        missing_mrp = []
+        for pid, qty, price, mrp in rows:
+            if not mrp or float(mrp) <= 0:
+                product = Product.query.get(int(pid))
+                missing_mrp.append(product.product_name if product else f"product #{pid}")
+        if missing_mrp:
+            flash("Enter a valid MRP for: " + ", ".join(missing_mrp), "danger")
+            return render_template(
+                "purchases/form.html", suppliers=suppliers, products=products, today=date.today().isoformat()
+            )
+
         purchase = Purchase(
             supplier_id=int(supplier_id), date=purchase_date, invoice_no=invoice_no
         )
@@ -60,7 +71,7 @@ def new_purchase():
         for pid, qty, price, mrp in rows:
             qty = int(qty)
             price = float(price)
-            mrp = float(mrp) if mrp else None
+            mrp = float(mrp)
             product = Product.query.get(int(pid))
             if not product:
                 continue
@@ -71,7 +82,7 @@ def new_purchase():
                 qty=qty,
                 purchase_price=price,
                 remaining_qty=qty,
-                mrp_at_purchase=mrp if mrp else product.mrp,
+                mrp_at_purchase=mrp,
             )
             db.session.add(item)
 
@@ -94,7 +105,7 @@ def new_purchase():
             product.update_cost_from_purchase(price, new_mrp=mrp)
             if round(old_cost or 0, 2) != product.actual_discounted_price:
                 change = f"{product.part_no}: cost ₹{old_cost:.2f} → ₹{product.actual_discounted_price:.2f}"
-                if mrp and round(old_mrp or 0, 2) != product.mrp:
+                if round(old_mrp or 0, 2) != product.mrp:
                     change += f", MRP ₹{old_mrp:.2f} → ₹{product.mrp:.2f}"
                 cost_changes.append(change)
 

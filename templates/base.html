@@ -10,7 +10,7 @@
 </head>
 <body>
 {% if current_user.is_authenticated %}
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4 no-print">
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4 no-print sticky-top">
   <div class="container-fluid">
     <a class="navbar-brand d-flex align-items-center" href="{{ url_for('dashboard.index') }}">
       {{ icon('wrench', 'me-2') }}Lokey Auto Spare Parts
@@ -21,10 +21,10 @@
     <div class="collapse navbar-collapse" id="navMain">
       <ul class="navbar-nav me-auto mb-2 mb-lg-0">
         <li class="nav-item"><a class="nav-link" href="{{ url_for('dashboard.index') }}">{{ icon('speedometer2') }}Dashboard</a></li>
-        <li class="nav-item"><a class="nav-link" href="{{ url_for('products.list_products') }}">{{ icon('box-seam') }}Products</a></li>
-        <li class="nav-item"><a class="nav-link" href="{{ url_for('suppliers.list_suppliers') }}">{{ icon('truck') }}Suppliers</a></li>
-        <li class="nav-item"><a class="nav-link" href="{{ url_for('purchases.list_purchases') }}">{{ icon('cart-plus') }}Purchases</a></li>
         <li class="nav-item"><a class="nav-link" href="{{ url_for('sales.list_sales') }}">{{ icon('receipt') }}Sales</a></li>
+        <li class="nav-item"><a class="nav-link" href="{{ url_for('products.list_products') }}">{{ icon('box-seam') }}Products</a></li>
+        <li class="nav-item"><a class="nav-link" href="{{ url_for('purchases.list_purchases') }}">{{ icon('cart-plus') }}Purchases</a></li>
+        <li class="nav-item"><a class="nav-link" href="{{ url_for('suppliers.list_suppliers') }}">{{ icon('truck') }}Suppliers</a></li>
         <li class="nav-item"><a class="nav-link" href="{{ url_for('customers.list_customers') }}">{{ icon('people') }}Customers</a></li>
         <li class="nav-item"><a class="nav-link" href="{{ url_for('mechanics.list_mechanics') }}">{{ icon('person-gear') }}Mechanics</a></li>
         <li class="nav-item"><a class="nav-link" href="{{ url_for('stock.ledger') }}">{{ icon('clipboard-data') }}Stock Ledger</a></li>
@@ -84,6 +84,26 @@ document.addEventListener('keydown', function (e) {
     form.requestSubmit();
   }
 });
+
+// Clicking anywhere on a row with data-href navigates to it, except clicks
+// that land on an actual link/button/form control inside the row (those
+// keep their own behavior, e.g. Edit/Delete/View).
+document.addEventListener('click', function (e) {
+  const row = e.target.closest('tr[data-href]');
+  if (!row) return;
+  if (e.target.closest('a, button, input, select, textarea, form')) return;
+  window.location = row.dataset.href;
+});
+
+// .page-toolbar (title + search/filter/Add row) sticks just below the navbar
+// while scrolling a long table. The navbar's real height varies (it wraps
+// differently at different widths), so measure it instead of hardcoding it.
+function syncNavbarHeightVar() {
+  const nav = document.querySelector('nav.navbar');
+  if (nav) document.documentElement.style.setProperty('--navbar-height', nav.offsetHeight + 'px');
+}
+syncNavbarHeightVar();
+window.addEventListener('resize', syncNavbarHeightVar);
 </script>
 </body>
 </html>

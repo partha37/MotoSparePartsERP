@@ -26,9 +26,10 @@
   </div>
 
   <h5 class="d-flex align-items-center">{{ icon('box-seam', 'me-1') }}Items</h5>
-  <p class="text-muted small">This purchase's price becomes the product's new current cost. Only fill in MRP if the distributor has revised it — otherwise leave it as-is.</p>
+  <p class="text-muted small">This purchase's price and MRP become the product's new current cost/MRP. MRP is pre-filled from the product's last known value — update it if the distributor has revised it.</p>
+  <p class="text-muted small">Fill in a line completely and a new blank line appears below it automatically. The first line is required; empty extra lines are ignored.</p>
   <table class="table" id="itemsTable">
-    <thead><tr><th>Product</th><th style="width:120px">Qty</th><th style="width:160px">Purchase Price (each)</th><th style="width:140px">MRP (optional update)</th><th></th></tr></thead>
+    <thead><tr><th>Product</th><th style="width:120px">Qty</th><th style="width:160px">Purchase Price (each)</th><th style="width:140px">MRP</th><th></th></tr></thead>
     <tbody>
       <tr>
         <td>
@@ -39,9 +40,9 @@
             {% endfor %}
           </select>
         </td>
-        <td><input type="number" name="qty[]" class="form-control" min="1" aria-label="Quantity"></td>
-        <td><input type="number" step="0.01" name="purchase_price[]" class="form-control" aria-label="Purchase price each"></td>
-        <td><input type="number" step="0.01" name="mrp[]" class="form-control mrp-input" aria-label="MRP (optional update)"></td>
+        <td><input type="number" name="qty[]" class="form-control qty-input" min="1" aria-label="Quantity"></td>
+        <td><input type="number" step="0.01" name="purchase_price[]" class="form-control price-input" aria-label="Purchase price each"></td>
+        <td><input type="number" step="0.01" name="mrp[]" class="form-control mrp-input" aria-label="MRP" min="0.01"></td>
         <td><button type="button" class="btn btn-outline-danger btn-sm remove-row" aria-label="Remove this line">{{ icon('trash') }}</button></td>
       </tr>
     </tbody>
@@ -55,20 +56,28 @@
 </form>
 
 <script>
-function wireRow(row) {
+// Only the first line is required; a completed last line auto-appends a
+// fresh blank one, and blank trailing lines are never required (they're
+// also filtered out server-side if left untouched).
+function isRowFilled(row) {
   const select = row.querySelector('.product-select');
-  SearchableSelect.enhance(select);
-  const mrpInput = row.querySelector('.mrp-input');
-  select.addEventListener('change', function () {
-    const opt = select.options[select.selectedIndex];
-    mrpInput.value = opt && opt.value ? (parseFloat(opt.dataset.mrp) || 0) : '';
+  const qty = row.querySelector('.qty-input');
+  const price = row.querySelector('.price-input');
+  const mrp = row.querySelector('.mrp-input');
+  return !!(select.value && qty.value && price.value && mrp.value);
+}
+
+function updateRequiredFlags() {
+  document.querySelectorAll('#itemsTable tbody tr').forEach(function (row, idx) {
+    const isFirst = idx === 0;
+    SearchableSelect.setRequired(row.querySelector('.product-select'), isFirst);
+    row.querySelector('.qty-input').required = isFirst;
+    row.querySelector('.price-input').required = isFirst;
+    row.querySelector('.mrp-input').required = isFirst;
   });
 }
 
-document.querySelectorAll('#itemsTable tbody tr').forEach(wireRow);
-SearchableSelect.enhance(document.getElementById('f-supplier'));
-
-document.getElementById('addRow').addEventListener('click', function () {
+function addBlankRow() {
   const tbody = document.querySelector('#itemsTable tbody');
   const newRow = tbody.rows[0].cloneNode(true);
   SearchableSelect.reset(newRow);
@@ -76,13 +85,46 @@ document.getElementById('addRow').addEventListener('click', function () {
   newRow.querySelector('select').selectedIndex = 0;
   tbody.appendChild(newRow);
   wireRow(newRow);
-});
+  updateRequiredFlags();
+  return newRow;
+}
+
+function maybeAutoAddRow(row) {
+  const tbody = document.querySelector('#itemsTable tbody');
+  if (row === tbody.lastElementChild && isRowFilled(row)) {
+    addBlankRow();
+  }
+}
+
+function wireRow(row) {
+  const select = row.querySelector('.product-select');
+  SearchableSelect.enhance(select);
+  const qtyInput = row.querySelector('.qty-input');
+  const priceInput = row.querySelector('.price-input');
+  const mrpInput = row.querySelector('.mrp-input');
+
+  select.addEventListener('change', function () {
+    const opt = select.options[select.selectedIndex];
+    mrpInput.value = opt && opt.value ? (parseFloat(opt.dataset.mrp) || 0) : '';
+    maybeAutoAddRow(row);
+  });
+  qtyInput.addEventListener('input', function () { maybeAutoAddRow(row); });
+  priceInput.addEventListener('input', function () { maybeAutoAddRow(row); });
+  mrpInput.addEventListener('input', function () { maybeAutoAddRow(row); });
+}
+
+document.querySelectorAll('#itemsTable tbody tr').forEach(wireRow);
+SearchableSelect.enhance(document.getElementById('f-supplier'));
+updateRequiredFlags();
+
+document.getElementById('addRow').addEventListener('click', addBlankRow);
 
 document.querySelector('#itemsTable').addEventListener('click', function (e) {
   if (e.target.closest('.remove-row')) {
     const tbody = document.querySelector('#itemsTable tbody');
     if (tbody.rows.length > 1) {
       e.target.closest('tr').remove();
+      updateRequiredFlags();
     }
   }
 });

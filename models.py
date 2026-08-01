@@ -160,7 +160,6 @@ class Sale(db.Model):
     customer_id = db.Column(db.Integer, db.ForeignKey("customer.id"), nullable=True)
     mechanic_id = db.Column(db.Integer, db.ForeignKey("mechanic.id"), nullable=True)
     payment_mode = db.Column(db.String(20), default="cash")
-    amount_paid = db.Column(db.Float, default=0)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     items = db.relationship(
@@ -173,8 +172,13 @@ class Sale(db.Model):
         return round(sum(item.line_total for item in self.items), 2)
 
     @property
+    def amount_paid(self):
+        """Sum of all Payment rows against this sale — see the Payment model."""
+        return round(sum(p.amount for p in self.payments), 2)
+
+    @property
     def balance_due(self):
-        return round(self.total - (self.amount_paid or 0), 2)
+        return round(self.total - self.amount_paid, 2)
 
 
 class SaleItem(db.Model):
@@ -191,6 +195,25 @@ class SaleItem(db.Model):
     @property
     def line_total(self):
         return round(self.qty * self.selling_price, 2)
+
+
+class Payment(db.Model):
+    """A single installment paid against a Sale's balance due."""
+
+    id = db.Column(db.Integer, primary_key=True)
+    sale_id = db.Column(db.Integer, db.ForeignKey("sale.id"), nullable=False)
+    date = db.Column(db.Date, default=date.today, nullable=False)
+    amount = db.Column(db.Float, nullable=False)
+    payment_mode = db.Column(db.String(20), default="cash")
+    note = db.Column(db.String(255))
+
+    sale = db.relationship(
+        "Sale", backref=db.backref("payments", order_by="Payment.date, Payment.id")
+    )
+
+    @property
+    def invoice_no(self):
+        return self.sale.invoice_no if self.sale else ""
 
 
 class StockMovement(db.Model):

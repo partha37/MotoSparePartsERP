@@ -23,6 +23,15 @@ def index():
     return render_template("reports/index.html")
 
 
+@reports_bp.route("/outstanding-dues")
+@login_required
+def outstanding_dues():
+    all_sales = Sale.query.order_by(Sale.date.asc(), Sale.id.asc()).all()
+    rows = [s for s in all_sales if s.balance_due > 0]
+    grand_total = round(sum(s.balance_due for s in rows), 2)
+    return render_template("reports/outstanding_dues.html", rows=rows, grand_total=grand_total)
+
+
 @reports_bp.route("/daily-sales")
 @login_required
 def daily_sales():

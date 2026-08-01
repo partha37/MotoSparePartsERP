@@ -12,6 +12,21 @@ body {
   background-color: #f5f6f8;
 }
 
+/* ---- Clickable table rows ---- */
+tr[data-href] {
+  cursor: pointer;
+}
+
+/* ---- Sticky page header/toolbar (title + search/filter/Add row) ---- */
+.page-toolbar {
+  position: sticky;
+  top: var(--navbar-height, 62px);
+  z-index: 1010;
+  background-color: #f5f6f8;
+  padding-top: 1rem;
+  padding-bottom: 0.5rem;
+}
+
 /* ---- Cards ---- */
 .card {
   border: none;

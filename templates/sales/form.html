@@ -46,6 +46,7 @@
 
   <h5 class="d-flex align-items-center">{{ icon('box-seam', 'me-1') }}Items</h5>
   <p class="text-muted small">Pick which stock batch to sell from — price defaults to that batch's own MRP minus the Discount % above (if any), oldest stock listed first. GST is already included in MRP, so it isn't added separately.</p>
+  <p class="text-muted small">Fill in a line completely and a new blank line appears below it automatically. The first line is required; empty extra lines are ignored.</p>
   <table class="table" id="itemsTable">
     <thead><tr><th>Product</th><th style="width:260px">Batch (stock)</th><th style="width:90px">Qty</th><th style="width:130px">Price (each)</th><th style="width:110px">Line Total</th><th></th></tr></thead>
     <tbody>
@@ -106,6 +107,47 @@ function recalcAllRows() {
 function discountFromSelect(select) {
   const opt = select.options[select.selectedIndex];
   return opt ? (parseFloat(opt.dataset.discount) || 0) : 0;
+}
+
+// Only the first line is required; a completed last line auto-appends a
+// fresh blank one, and blank trailing lines are never required (they're
+// also filtered out server-side if left untouched).
+function isRowFilled(row) {
+  const select = row.querySelector('.product-select');
+  const batchSelect = row.querySelector('.batch-select');
+  const qtyInput = row.querySelector('.qty-input');
+  const priceInput = row.querySelector('.price-input');
+  return !!(select.value && batchSelect.value && qtyInput.value && priceInput.value);
+}
+
+function updateRequiredFlags() {
+  document.querySelectorAll('#itemsTable tbody tr').forEach(function (row, idx) {
+    const isFirst = idx === 0;
+    SearchableSelect.setRequired(row.querySelector('.product-select'), isFirst);
+    SearchableSelect.setRequired(row.querySelector('.batch-select'), isFirst);
+    row.querySelector('.qty-input').required = isFirst;
+    row.querySelector('.price-input').required = isFirst;
+  });
+}
+
+function addBlankRow() {
+  const tbody = document.querySelector('#itemsTable tbody');
+  const newRow = tbody.rows[0].cloneNode(true);
+  SearchableSelect.reset(newRow);
+  newRow.querySelectorAll('input').forEach(el => el.value = el.classList.contains('qty-input') ? 1 : '');
+  newRow.querySelector('.product-select').selectedIndex = 0;
+  newRow.querySelector('.batch-select').innerHTML = '<option value="">-- Select Batch --</option>';
+  tbody.appendChild(newRow);
+  wireRow(newRow);
+  updateRequiredFlags();
+  return newRow;
+}
+
+function maybeAutoAddRow(row) {
+  const tbody = document.querySelector('#itemsTable tbody');
+  if (row === tbody.lastElementChild && isRowFilled(row)) {
+    addBlankRow();
+  }
 }
 
 function wireRow(row) {
@@ -177,6 +219,7 @@ function wireRow(row) {
     const price = parseFloat(priceInput.value) || 0;
     const total = qty * price;
     lineTotal.value = total ? '₹' + total.toFixed(2) : '';
+    maybeAutoAddRow(row);
   }
 
   select.addEventListener('change', populateBatches);
@@ -186,6 +229,7 @@ function wireRow(row) {
 }
 
 document.querySelectorAll('#itemsTable tbody tr').forEach(wireRow);
+updateRequiredFlags();
 
 customerSelect.addEventListener('change', function () {
   discountInput.value = discountFromSelect(customerSelect);
@@ -199,22 +243,14 @@ mechanicSelect.addEventListener('change', function () {
 
 discountInput.addEventListener('input', recalcAllRows);
 
-document.getElementById('addRow').addEventListener('click', function () {
-  const tbody = document.querySelector('#itemsTable tbody');
-  const newRow = tbody.rows[0].cloneNode(true);
-  SearchableSelect.reset(newRow);
-  newRow.querySelectorAll('input').forEach(el => el.value = el.classList.contains('qty-input') ? 1 : '');
-  newRow.querySelector('.product-select').selectedIndex = 0;
-  newRow.querySelector('.batch-select').innerHTML = '<option value="">-- Select Batch --</option>';
-  tbody.appendChild(newRow);
-  wireRow(newRow);
-});
+document.getElementById('addRow').addEventListener('click', addBlankRow);
 
 document.querySelector('#itemsTable').addEventListener('click', function (e) {
   if (e.target.closest('.remove-row')) {
     const tbody = document.querySelector('#itemsTable tbody');
     if (tbody.rows.length > 1) {
       e.target.closest('tr').remove();
+      updateRequiredFlags();
     }
   }
 });

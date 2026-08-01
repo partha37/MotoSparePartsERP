@@ -5,7 +5,7 @@ from flask_login import login_required
 
 from extensions import db
 from excel_sync import sync_to_excel
-from models import Sale, SaleItem, Product, PurchaseItem, Customer, Mechanic, StockMovement, ShopSettings
+from models import Sale, SaleItem, Payment, Product, PurchaseItem, Customer, Mechanic, StockMovement, ShopSettings
 
 sales_bp = Blueprint("sales", __name__, url_prefix="/sales")
 
@@ -98,10 +98,20 @@ def new_sale():
             customer_id=int(customer_id) if customer_id else None,
             mechanic_id=int(mechanic_id) if mechanic_id else None,
             payment_mode=payment_mode,
-            amount_paid=amount_paid,
         )
         db.session.add(sale)
         db.session.flush()
+
+        if amount_paid > 0:
+            db.session.add(
+                Payment(
+                    sale_id=sale.id,
+                    date=sale_date,
+                    amount=amount_paid,
+                    payment_mode=payment_mode,
+                    note="Payment at sale",
+                )
+            )
 
         for bid, qty, price in rows:
             qty = int(qty)
@@ -152,4 +162,51 @@ def new_sale():
 def view_sale(sale_id):
     sale = Sale.query.get_or_404(sale_id)
     shop = ShopSettings.query.first() or ShopSettings()
-    return render_template("sales/view.html", sale=sale, shop=shop)
+    return render_template(
+        "sales/view.html", sale=sale, shop=shop, today=date.today().isoformat()
+    )
+
+
+@sales_bp.route("/<int:sale_id>/record-payment", methods=["POST"])
+@login_required
+def record_payment(sale_id):
+    sale = Sale.query.get_or_404(sale_id)
+    payment_date = date.fromisoformat(request.form.get("date") or date.today().isoformat())
+    amount = float(request.form.get("amount") or 0)
+    payment_mode = request.form.get("payment_mode", "cash")
+    note = request.form.get("note", "").strip()
+
+    if amount <= 0:
+        flash("Enter a payment amount greater than zero.", "danger")
+    elif amount > sale.balance_due + 0.01:
+        flash(
+            f"Payment of ₹{amount:.2f} exceeds the balance due of ₹{sale.balance_due:.2f}.",
+            "danger",
+        )
+    else:
+        db.session.add(
+            Payment(
+                sale_id=sale.id,
+                date=payment_date,
+                amount=amount,
+                payment_mode=payment_mode,
+                note=note,
+            )
+        )
+        db.session.commit()
+        sync_to_excel()
+        flash("Payment recorded.", "success")
+
+    return redirect(url_for("sales.view_sale", sale_id=sale.id))
+
+
+@sales_bp.route("/payments/<int:payment_id>/delete", methods=["POST"])
+@login_required
+def delete_payment(payment_id):
+    payment = Payment.query.get_or_404(payment_id)
+    sale_id = payment.sale_id
+    db.session.delete(payment)
+    db.session.commit()
+    sync_to_excel()
+    flash("Payment removed.", "success")
+    return redirect(url_for("sales.view_sale", sale_id=sale_id))

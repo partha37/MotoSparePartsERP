@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Stock Ledger - Lokey Auto Spare Parts{% endblock %}
 {% block content %}
+<div class="page-toolbar">
 <h2 class="mb-4 d-flex align-items-center">{{ icon('clipboard-data', 'me-2') }}Stock Ledger (Day-wise)</h2>
 
 <form method="get" class="row g-3 mb-3">
@@ -25,6 +26,7 @@
     <button type="submit" class="btn btn-primary w-100">{{ icon('funnel') }}Filter</button>
   </div>
 </form>
+</div>
 
 <div class="card p-3">
 <table class="table table-hover align-middle">

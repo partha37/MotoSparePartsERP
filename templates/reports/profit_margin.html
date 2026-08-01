@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Profit Margin - Lokey Auto Spare Parts{% endblock %}
 {% block content %}
+<div class="page-toolbar">
 <h2 class="mb-4 d-flex align-items-center">{{ icon('cash-coin', 'me-2') }}Profit Margin Report</h2>
 <p class="text-muted small">Cost is the actual price paid for the stock batch each sale drew from — falls back to the product's current cost price only for sales made before batch tracking existed.</p>
 <form method="get" class="row g-3 mb-3">
@@ -8,6 +9,7 @@
   <div class="col-md-3"><label class="form-label" for="f-date-to">To</label><input type="date" id="f-date-to" name="date_to" class="form-control" value="{{ date_to }}"></div>
   <div class="col-md-2 d-flex align-items-end"><button type="submit" class="btn btn-primary w-100">{{ icon('funnel') }}Filter</button></div>
 </form>
+</div>
 <div class="card p-3">
 <table class="table">
   <thead><tr><th>Product</th><th>Qty Sold</th><th>Revenue</th><th>Cost</th><th>Profit</th></tr></thead>

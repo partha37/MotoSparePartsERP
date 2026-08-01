@@ -10,7 +10,7 @@ from flask_login import login_required
 
 from extensions import db
 from excel_sync import sync_to_excel, excel_path
-from models import ShopSettings, Product, Customer, Mechanic, Supplier, Sale, Purchase
+from models import ShopSettings, Product, Customer, Mechanic, Supplier, Sale, Purchase, Payment
 
 settings_bp = Blueprint("settings", __name__, url_prefix="/settings")
 
@@ -24,6 +24,7 @@ EXPORTABLE = {
     "sales": (Sale, ["id", "invoice_no", "date", "customer_id", "mechanic_id",
                       "payment_mode", "amount_paid"]),
     "purchases": (Purchase, ["id", "supplier_id", "date", "invoice_no"]),
+    "payments": (Payment, ["id", "sale_id", "invoice_no", "date", "amount", "payment_mode", "note"]),
 }
 
 

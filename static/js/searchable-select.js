@@ -192,5 +192,17 @@
     });
   }
 
-  window.SearchableSelect = { enhance: enhance, reset: reset };
+  // Toggling `select.required` after enhance() doesn't affect the visible
+  // proxy input (its `required` was only copied once, at enhance time), so
+  // native validation would silently check the hidden select instead. This
+  // keeps both in sync whenever required-ness needs to change dynamically
+  // (e.g. line-item rows where only the first row is mandatory).
+  function setRequired(select, val) {
+    select.required = val;
+    const wrapper = select.closest(".searchable-select");
+    const proxy = wrapper ? wrapper.querySelector(".searchable-select-input") : null;
+    if (proxy) proxy.required = val;
+  }
+
+  window.SearchableSelect = { enhance: enhance, reset: reset, setRequired: setRequired };
 })();

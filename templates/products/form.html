@@ -57,9 +57,9 @@
       <label class="form-label" for="f-reorder">Reorder Level</label>
       <input type="number" id="f-reorder" name="reorder_level" class="form-control" value="{{ d.reorder_level if d else 5 }}">
     </div>
-    <div class="col-12"><div class="form-text mt-n2">MRP is GST-inclusive — this is for your records, not used in sale calculations.</div></div>
-
+    {% if product %}
     <div class="col-12"><hr><h5 class="d-flex align-items-center">{{ icon('currency-rupee', 'me-1') }}Pricing</h5></div>
+    <div class="col-12"><div class="form-text mt-n2">MRP is GST-inclusive — this is for your records, not used in sale calculations. It's normally set automatically from purchases; edit it here only to correct a mistake.</div></div>
 
     <div class="col-md-6">
       <label class="form-label required" for="f-mrp">MRP (₹)</label>
@@ -74,7 +74,6 @@
       <div class="form-text">Cost price you pay = MRP minus this discount.</div>
     </div>
 
-    {% if product %}
     <div class="col-md-4">
       <label class="form-label" for="f-cost">Cost Price</label>
       <input type="text" id="f-cost" class="form-control" disabled value="₹{{ '%.2f'|format(product.actual_discounted_price) }}">
@@ -87,6 +86,8 @@
       <label class="form-label" for="f-stock">Current Stock</label>
       <input type="text" id="f-stock" class="form-control" disabled value="{{ product.current_stock }}">
     </div>
+    {% else %}
+    <div class="col-12"><div class="form-text mt-n2">MRP and cost aren't set here — record a purchase for this product and its price/MRP will be set from that.</div></div>
     {% endif %}
   </div>
 
@@ -97,23 +98,46 @@
 </form>
 
 {% if product and purchase_history %}
-<div class="card p-4 mt-4" id="purchase-history">
-  <h5 class="mb-3 d-flex align-items-center">{{ icon('clock-history', 'me-1') }}Purchase History</h5>
-  <p class="text-muted small">Each purchase's price and MRP at the time — the product's current cost/MRP above reflects the most recent one.</p>
+{% set in_stock = [] %}
+{% set out_of_stock = [] %}
+{% for item in purchase_history %}
+  {% if (item.remaining_qty or 0) > 0 %}
+    {% set _ = in_stock.append(item) %}
+  {% else %}
+    {% set _ = out_of_stock.append(item) %}
+  {% endif %}
+{% endfor %}
+{% macro batch_table(items, empty_text) %}
   <table class="table table-sm">
-    <thead><tr><th>Date</th><th>Supplier</th><th>Qty</th><th>Purchase Price</th><th>MRP at Purchase</th></tr></thead>
+    <thead><tr><th>Batch #</th><th>Date</th><th>Supplier</th><th>Qty</th><th>Remaining</th><th>Purchase Price</th><th>MRP at Purchase</th></tr></thead>
     <tbody>
-      {% for item in purchase_history %}
+      {% for item in items %}
       <tr>
+        <td>{{ item.stock_number }}</td>
         <td>{{ item.purchase.date }}</td>
         <td>{{ item.purchase.supplier.name if item.purchase.supplier else '-' }}</td>
         <td>{{ item.qty }}</td>
+        <td>{{ item.remaining_qty or 0 }}</td>
         <td>₹{{ "%.2f"|format(item.purchase_price) }}</td>
         <td>{{ "₹%.2f"|format(item.mrp_at_purchase) if item.mrp_at_purchase is not none else '-' }}</td>
       </tr>
+      {% else %}
+      <tr><td colspan="7" class="text-center text-muted">{{ empty_text }}</td></tr>
       {% endfor %}
     </tbody>
   </table>
+{% endmacro %}
+
+<div class="card p-4 mt-4" id="purchase-history">
+  <h5 class="mb-3 d-flex align-items-center">{{ icon('clock-history', 'me-1') }}In-Stock Batches</h5>
+  {{ batch_table(in_stock, "No batches currently in stock.") }}
+
+  <h5 class="mb-3 mt-4 d-flex align-items-center">{{ icon('archive', 'me-1') }}Out-of-Stock Batches</h5>
+  {{ batch_table(out_of_stock, "No fully sold-out batches yet.") }}
+
+  <h5 class="mb-3 mt-4 d-flex align-items-center">{{ icon('list-ul', 'me-1') }}Entire History</h5>
+  <p class="text-muted small">Each purchase's price and MRP at the time — the product's current cost/MRP above reflects the most recent one.</p>
+  {{ batch_table(purchase_history, "No purchases yet.") }}
 </div>
 {% endif %}
 

@@ -1,12 +1,14 @@
 {% extends "base.html" %}
 {% block title %}Customer-wise Purchases - Lokey Auto Spare Parts{% endblock %}
 {% block content %}
+<div class="page-toolbar">
 <h2 class="mb-4 d-flex align-items-center">{{ icon('people', 'me-2') }}Customer-wise Purchases</h2>
 <form method="get" class="row g-3 mb-3">
   <div class="col-md-3"><label class="form-label" for="f-date-from">From</label><input type="date" id="f-date-from" name="date_from" class="form-control" value="{{ date_from }}"></div>
   <div class="col-md-3"><label class="form-label" for="f-date-to">To</label><input type="date" id="f-date-to" name="date_to" class="form-control" value="{{ date_to }}"></div>
   <div class="col-md-2 d-flex align-items-end"><button type="submit" class="btn btn-primary w-100">{{ icon('funnel') }}Filter</button></div>
 </form>
+</div>
 <div class="card p-3">
 <table class="table">
   <thead><tr><th>Customer</th><th>Invoices</th><th>Total Spend</th></tr></thead>

@@ -1,4 +1,8 @@
+import os
+from functools import lru_cache
+
 from flask import Flask
+from markupsafe import Markup
 
 from config import Config
 from extensions import db, migrate, login_manager, csrf
@@ -17,6 +21,27 @@ def create_app():
     @login_manager.user_loader
     def load_user(user_id):
         return db.session.get(User, int(user_id))
+
+    @lru_cache(maxsize=64)
+    def _read_icon(name):
+        path = os.path.join(app.root_path, "static", "vendor", "bootstrap-icons", f"{name}.svg")
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                return f.read()
+        except FileNotFoundError:
+            app.logger.warning("Icon '%s' not found in static/vendor/bootstrap-icons/", name)
+            return ""
+
+    @app.context_processor
+    def inject_icon_helper():
+        def icon(name, css_class=""):
+            """Inlines a locally-vendored Bootstrap Icon SVG so it inherits `currentColor`
+            (works in dark navbars, colored buttons, etc. — unlike an <img> tag)."""
+            svg = _read_icon(name)
+            if css_class:
+                svg = svg.replace('class="bi bi-' + name + '"', f'class="bi bi-{name} {css_class}"')
+            return Markup(svg)
+        return dict(icon=icon)
 
     from routes.auth import auth_bp
     from routes.dashboard import dashboard_bp

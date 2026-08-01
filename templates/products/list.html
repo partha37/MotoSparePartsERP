@@ -1,21 +1,25 @@
 {% extends "base.html" %}
-{% block title %}Products - MotoSpareParts ERP{% endblock %}
+{% block title %}Products - Lokey Auto Spare Parts{% endblock %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h2>Products</h2>
-  <a href="{{ url_for('products.new_product') }}" class="btn btn-primary">+ Add Product</a>
+  <a href="{{ url_for('products.new_product') }}" class="btn btn-primary">{{ icon('plus-lg') }}Add Product</a>
 </div>
 
 <form method="get" class="mb-3">
-  <input type="text" name="q" value="{{ q }}" class="form-control" placeholder="Search by name or part no...">
+  <div class="input-group">
+    <span class="input-group-text">{{ icon('search') }}</span>
+    <input type="text" name="q" value="{{ q }}" class="form-control" aria-label="Search products"
+           placeholder="Search by name or part no...">
+  </div>
 </form>
 
 <div class="card p-3">
 <table class="table table-hover align-middle">
   <thead>
     <tr>
-      <th>Part No</th><th>Product</th><th>Brand</th><th>MRP</th>
-      <th>Cost Price</th><th>Selling Price</th><th>Margin</th><th>Stock</th><th></th>
+      <th>Part No</th><th>Product</th><th>Brand</th><th>Vehicle</th><th>MRP</th>
+      <th>Cost Price</th><th>Max Margin</th><th>Stock</th><th></th>
     </tr>
   </thead>
   <tbody>
@@ -24,16 +28,21 @@
       <td>{{ p.part_no }}</td>
       <td>{{ p.product_name }}</td>
       <td>{{ p.brand }}</td>
-      <td>₹{{ "%.2f"|format(p.mrp) }}</td>
+      <td>{{ p.vehicle_name or '-' }}</td>
+      <td>
+        ₹{{ "%.2f"|format(p.mrp) }}
+        {% if p.purchase_items|length > 1 %}
+        <br><a href="{{ url_for('products.edit_product', product_id=p.id) }}#purchase-history" class="small d-inline-flex align-items-center">{{ icon('clock-history', 'me-1') }}{{ p.purchase_items|length }} purchases, price history</a>
+        {% endif %}
+      </td>
       <td>₹{{ "%.2f"|format(p.actual_discounted_price) }}</td>
-      <td>₹{{ "%.2f"|format(p.mrp_discounted_price) }}</td>
       <td>₹{{ "%.2f"|format(p.margin_per_unit) }}</td>
-      <td>{{ p.current_stock }}</td>
+      <td>{{ p.current_stock }} {{ p.unit }}</td>
       <td class="text-end">
-        <a href="{{ url_for('products.edit_product', product_id=p.id) }}" class="btn btn-sm btn-outline-secondary">Edit</a>
+        <a href="{{ url_for('products.edit_product', product_id=p.id) }}" class="btn btn-sm btn-outline-secondary">{{ icon('pencil') }}Edit</a>
         <form method="post" action="{{ url_for('products.delete_product', product_id=p.id) }}" class="d-inline" onsubmit="return confirm('Delete this product?');">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+          <button type="submit" class="btn btn-sm btn-outline-danger">{{ icon('trash') }}Delete</button>
         </form>
       </td>
     </tr>

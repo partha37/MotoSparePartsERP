@@ -1,11 +1,11 @@
 {% extends "base.html" %}
-{% block title %}Daily Sales - MotoSpareParts ERP{% endblock %}
+{% block title %}Daily Sales - Lokey Auto Spare Parts{% endblock %}
 {% block content %}
-<h2 class="mb-4">Daily Sales Summary</h2>
+<h2 class="mb-4 d-flex align-items-center">{{ icon('calendar3', 'me-2') }}Daily Sales Summary</h2>
 <form method="get" class="row g-3 mb-3">
-  <div class="col-md-3"><label class="form-label">From</label><input type="date" name="date_from" class="form-control" value="{{ date_from }}"></div>
-  <div class="col-md-3"><label class="form-label">To</label><input type="date" name="date_to" class="form-control" value="{{ date_to }}"></div>
-  <div class="col-md-2 d-flex align-items-end"><button type="submit" class="btn btn-primary w-100">Filter</button></div>
+  <div class="col-md-3"><label class="form-label" for="f-date-from">From</label><input type="date" id="f-date-from" name="date_from" class="form-control" value="{{ date_from }}"></div>
+  <div class="col-md-3"><label class="form-label" for="f-date-to">To</label><input type="date" id="f-date-to" name="date_to" class="form-control" value="{{ date_to }}"></div>
+  <div class="col-md-2 d-flex align-items-end"><button type="submit" class="btn btn-primary w-100">{{ icon('funnel') }}Filter</button></div>
 </form>
 <div class="card p-3">
 <table class="table">
@@ -20,5 +20,5 @@
   <tfoot><tr><th colspan="2" class="text-end">Grand Total</th><th>₹{{ "%.2f"|format(grand_total) }}</th></tr></tfoot>
 </table>
 </div>
-<a href="{{ url_for('reports.index') }}" class="btn btn-outline-secondary mt-3">Back to Reports</a>
+<a href="{{ url_for('reports.index') }}" class="btn btn-outline-secondary mt-3">{{ icon('arrow-left') }}Back to Reports</a>
 {% endblock %}

@@ -4,7 +4,8 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import login_required
 
 from extensions import db
-from models import Sale, SaleItem, Product, Customer, Mechanic, StockMovement, ShopSettings
+from excel_sync import sync_to_excel
+from models import Sale, SaleItem, Product, PurchaseItem, Customer, Mechanic, StockMovement, ShopSettings
 
 sales_bp = Blueprint("sales", __name__, url_prefix="/sales")
 
@@ -13,6 +14,24 @@ def _next_invoice_no():
     last = Sale.query.order_by(Sale.id.desc()).first()
     next_id = (last.id + 1) if last else 1
     return f"INV-{next_id:05d}"
+
+
+def _attach_available_batches(products):
+    """For each product, attach `.available_batches` — its sellable stock batches
+    (oldest purchase first), so the sales form can offer a specific batch/MRP to sell from."""
+    for product in products:
+        batches = [b for b in product.purchase_items if (b.remaining_qty or 0) > 0]
+        batches.sort(key=lambda b: (b.purchase.date, b.id))
+        product.available_batches = [
+            {
+                "id": b.id,
+                "label": f"{b.stock_number} — {b.remaining_qty} left — MRP ₹{b.effective_mrp:.2f}",
+                "price": b.effective_mrp,
+                "stock": b.remaining_qty,
+            }
+            for b in batches
+        ]
+    return products
 
 
 @sales_bp.route("/")
@@ -25,7 +44,7 @@ def list_sales():
 @sales_bp.route("/new", methods=["GET", "POST"])
 @login_required
 def new_sale():
-    products = Product.query.order_by(Product.product_name.asc()).all()
+    products = _attach_available_batches(Product.query.order_by(Product.product_name.asc()).all())
     customers = Customer.query.order_by(Customer.name.asc()).all()
     mechanics = Mechanic.query.order_by(Mechanic.name.asc()).all()
 
@@ -36,14 +55,14 @@ def new_sale():
         payment_mode = request.form.get("payment_mode", "cash")
         amount_paid = float(request.form.get("amount_paid") or 0)
 
-        product_ids = request.form.getlist("product_id[]")
+        batch_ids = request.form.getlist("purchase_item_id[]")
         qtys = request.form.getlist("qty[]")
         prices = request.form.getlist("selling_price[]")
 
         rows = [
-            (pid, qty, price)
-            for pid, qty, price in zip(product_ids, qtys, prices)
-            if pid and qty and price
+            (bid, qty, price)
+            for bid, qty, price in zip(batch_ids, qtys, prices)
+            if bid and qty and price
         ]
 
         if not rows:
@@ -53,13 +72,18 @@ def new_sale():
                 mechanics=mechanics, today=date.today().isoformat()
             )
 
-        # Validate stock availability before committing anything.
+        # Validate batch availability before committing anything.
         shortages = []
-        for pid, qty, _price in rows:
-            product = Product.query.get(int(pid))
+        for bid, qty, _price in rows:
+            batch = PurchaseItem.query.get(int(bid))
             qty = int(qty)
-            if product and qty > product.current_stock:
-                shortages.append(f"{product.product_name} (have {product.current_stock}, need {qty})")
+            if not batch:
+                shortages.append("Selected stock batch no longer exists — please re-pick it.")
+            elif qty > (batch.remaining_qty or 0):
+                shortages.append(
+                    f"{batch.product.product_name} ({batch.stock_number}): "
+                    f"have {batch.remaining_qty}, need {qty}"
+                )
 
         if shortages:
             flash("Not enough stock for: " + ", ".join(shortages), "danger")
@@ -79,12 +103,13 @@ def new_sale():
         db.session.add(sale)
         db.session.flush()
 
-        for pid, qty, price in rows:
+        for bid, qty, price in rows:
             qty = int(qty)
             price = float(price)
-            product = Product.query.get(int(pid))
-            if not product:
+            batch = PurchaseItem.query.get(int(bid))
+            if not batch:
                 continue
+            product = batch.product
 
             db.session.add(
                 SaleItem(
@@ -92,10 +117,11 @@ def new_sale():
                     product_id=product.id,
                     qty=qty,
                     selling_price=price,
-                    gst_rate=product.gst_rate,
+                    purchase_item_id=batch.id,
                 )
             )
 
+            batch.remaining_qty = (batch.remaining_qty or 0) - qty
             product.current_stock = (product.current_stock or 0) - qty
 
             db.session.add(
@@ -106,11 +132,12 @@ def new_sale():
                     qty=-qty,
                     reference_type="sale",
                     reference_id=sale.id,
-                    note=f"Sale {sale.invoice_no}",
+                    note=f"Sale {sale.invoice_no} (batch {batch.stock_number})",
                 )
             )
 
         db.session.commit()
+        sync_to_excel()
         flash("Sale recorded and stock updated.", "success")
         return redirect(url_for("sales.view_sale", sale_id=sale.id))
 

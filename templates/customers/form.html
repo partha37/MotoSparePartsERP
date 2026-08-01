@@ -1,30 +1,35 @@
 {% extends "base.html" %}
-{% block title %}{{ 'Edit' if customer else 'Add' }} Customer - MotoSpareParts ERP{% endblock %}
+{% block title %}{{ 'Edit' if customer else 'Add' }} Customer - Lokey Auto Spare Parts{% endblock %}
 {% block content %}
 <h2 class="mb-4">{{ 'Edit' if customer else 'Add' }} Customer</h2>
 <form method="post" class="card p-4">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <div class="row g-3">
     <div class="col-md-6">
-      <label class="form-label">Name</label>
-      <input type="text" name="name" class="form-control" required value="{{ customer.name if customer else '' }}">
+      <label class="form-label required" for="f-name">Name</label>
+      <input type="text" id="f-name" name="name" class="form-control" autocomplete="off" required value="{{ customer.name if customer else '' }}">
     </div>
     <div class="col-md-6">
-      <label class="form-label">Phone</label>
-      <input type="text" name="phone" class="form-control" value="{{ customer.phone if customer else '' }}">
+      <label class="form-label" for="f-phone">Phone</label>
+      <input type="text" id="f-phone" name="phone" class="form-control" autocomplete="off" value="{{ customer.phone if customer else '' }}">
     </div>
     <div class="col-md-6">
-      <label class="form-label">Vehicle Model</label>
-      <input type="text" name="vehicle_model" class="form-control" value="{{ customer.vehicle_model if customer else '' }}">
+      <label class="form-label" for="f-vehicle">Vehicle Model</label>
+      <input type="text" id="f-vehicle" name="vehicle_model" class="form-control" value="{{ customer.vehicle_model if customer else '' }}">
+    </div>
+    <div class="col-md-6">
+      <label class="form-label" for="f-discount">Discount % <span class="text-muted small">(auto-applied at checkout)</span></label>
+      <input type="number" step="0.01" id="f-discount" name="discount_pct" class="form-control" value="{{ customer.discount_pct if customer else 0 }}">
+      <div class="form-text">Selling price for this customer defaults to MRP minus this discount — still editable per sale.</div>
     </div>
     <div class="col-md-12">
-      <label class="form-label">Address</label>
-      <textarea name="address" class="form-control">{{ customer.address if customer else '' }}</textarea>
+      <label class="form-label" for="f-address">Address</label>
+      <textarea id="f-address" name="address" class="form-control" autocomplete="off">{{ customer.address if customer else '' }}</textarea>
     </div>
   </div>
   <div class="mt-4 d-flex gap-2">
-    <button type="submit" class="btn btn-primary">Save</button>
-    <a href="{{ url_for('customers.list_customers') }}" class="btn btn-outline-secondary">Cancel</a>
+    <button type="submit" class="btn btn-primary">{{ icon('save') }}Save</button>
+    <a href="{{ url_for('customers.list_customers') }}" class="btn btn-outline-secondary">{{ icon('x-lg') }}Cancel</a>
   </div>
 </form>
 {% endblock %}

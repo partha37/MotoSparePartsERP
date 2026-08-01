@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}{{ 'Edit' if product else 'Add' }} Product - MotoSpareParts ERP{% endblock %}
+{% block title %}{{ 'Edit' if product else 'Add' }} Product - Lokey Auto Spare Parts{% endblock %}
 {% block content %}
 {% set d = form_data or product %}
 <h2 class="mb-4">{{ 'Edit' if product else 'Add' }} Product</h2>
@@ -8,86 +8,116 @@
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <div class="row g-3">
     <div class="col-md-6">
-      <label class="form-label">Product Name</label>
-      <input type="text" name="product_name" class="form-control" required
+      <label class="form-label required" for="f-product-name">Product Name</label>
+      <input type="text" id="f-product-name" name="product_name" class="form-control" required
              value="{{ d.product_name if d else '' }}">
     </div>
     <div class="col-md-3">
-      <label class="form-label">Part No</label>
-      <input type="text" name="part_no" class="form-control" required
+      <label class="form-label required" for="f-part-no">Part No</label>
+      <input type="text" id="f-part-no" name="part_no" class="form-control" required
              value="{{ d.part_no if d else '' }}">
     </div>
     <div class="col-md-3">
-      <label class="form-label">Brand</label>
-      <input type="text" name="brand" class="form-control" placeholder="Honda / TVS / Bajaj"
+      <label class="form-label" for="f-brand">Brand</label>
+      <input type="text" id="f-brand" name="brand" class="form-control" placeholder="Honda / TVS / Bajaj"
              value="{{ d.brand if d else '' }}">
     </div>
 
     <div class="col-md-3">
-      <label class="form-label">Category</label>
-      <input type="text" name="category" class="form-control"
+      <label class="form-label" for="f-category">Category</label>
+      <input type="text" id="f-category" name="category" class="form-control"
              value="{{ d.category if d else '' }}">
     </div>
-    <div class="col-md-2">
-      <label class="form-label">Unit</label>
-      <input type="text" name="unit" class="form-control" value="{{ d.unit if d else 'pc' }}">
+    <div class="col-md-3">
+      <label class="form-label" for="f-vehicle">Vehicle Name <span class="text-muted small">(optional)</span></label>
+      <input type="text" id="f-vehicle" name="vehicle_name" class="form-control" placeholder="e.g. Honda Activa"
+             value="{{ d.vehicle_name if d else '' }}">
     </div>
     <div class="col-md-2">
-      <label class="form-label">HSN Code</label>
-      <input type="text" name="hsn_code" class="form-control" value="{{ d.hsn_code if d else '' }}">
+      <label class="form-label" for="f-unit">Unit <span class="text-muted small">(optional)</span></label>
+      {% set known_units = ['pc', 'set', 'pair', 'litre', 'kg', 'box', 'roll', 'meter'] %}
+      <select id="f-unit" name="unit" class="form-select">
+        {% for u in known_units %}
+        <option value="{{ u }}" {{ 'selected' if (d.unit if d else 'pc') == u else '' }}>{{ u }}</option>
+        {% endfor %}
+        {% if d and d.unit and d.unit not in known_units %}
+        <option value="{{ d.unit }}" selected>{{ d.unit }}</option>
+        {% endif %}
+      </select>
     </div>
     <div class="col-md-2">
-      <label class="form-label">GST %</label>
-      <input type="number" step="0.01" name="gst_rate" class="form-control" value="{{ d.gst_rate if d else 18 }}">
+      <label class="form-label" for="f-hsn">HSN Code</label>
+      <input type="text" id="f-hsn" name="hsn_code" class="form-control" value="{{ d.hsn_code if d else '' }}">
+    </div>
+    <div class="col-md-2">
+      <label class="form-label" for="f-gst">GST % <span class="text-muted small">(reference only)</span></label>
+      <input type="number" step="0.01" id="f-gst" name="gst_rate" class="form-control" value="{{ d.gst_rate if d else 18 }}">
     </div>
     <div class="col-md-3">
-      <label class="form-label">Reorder Level</label>
-      <input type="number" name="reorder_level" class="form-control" value="{{ d.reorder_level if d else 5 }}">
+      <label class="form-label" for="f-reorder">Reorder Level</label>
+      <input type="number" id="f-reorder" name="reorder_level" class="form-control" value="{{ d.reorder_level if d else 5 }}">
     </div>
+    <div class="col-12"><div class="form-text mt-n2">MRP is GST-inclusive — this is for your records, not used in sale calculations.</div></div>
 
-    <div class="col-12"><hr><h5>Pricing</h5></div>
+    <div class="col-12"><hr><h5 class="d-flex align-items-center">{{ icon('currency-rupee', 'me-1') }}Pricing</h5></div>
 
-    <div class="col-md-3">
-      <label class="form-label">MRP (₹)</label>
-      <input type="number" step="0.01" name="mrp" class="form-control" required
+    <div class="col-md-6">
+      <label class="form-label required" for="f-mrp">MRP (₹)</label>
+      <input type="number" step="0.01" id="f-mrp" name="mrp" class="form-control" required
              value="{{ d.mrp if d else '' }}">
+      <div class="form-text">Selling price is decided per sale at checkout, not fixed here.</div>
     </div>
-    <div class="col-md-4">
-      <label class="form-label">Actual Discount % <span class="text-muted small">(from distributor)</span></label>
-      <input type="number" step="0.01" name="actual_discount_pct" class="form-control"
+    <div class="col-md-6">
+      <label class="form-label" for="f-discount">Actual Discount % <span class="text-muted small">(from distributor)</span></label>
+      <input type="number" step="0.01" id="f-discount" name="actual_discount_pct" class="form-control"
              value="{{ d.actual_discount_pct if d else 0 }}">
       <div class="form-text">Cost price you pay = MRP minus this discount.</div>
     </div>
-    <div class="col-md-4">
-      <label class="form-label">Selling Discount % <span class="text-muted small">(to customer)</span></label>
-      <input type="number" step="0.01" name="selling_discount_pct" class="form-control"
-             value="{{ d.selling_discount_pct if d else 0 }}">
-      <div class="form-text">Price you charge customer = MRP minus this discount.</div>
-    </div>
 
     {% if product %}
-    <div class="col-md-3">
-      <label class="form-label">Cost Price</label>
-      <input type="text" class="form-control" disabled value="₹{{ '%.2f'|format(product.actual_discounted_price) }}">
+    <div class="col-md-4">
+      <label class="form-label" for="f-cost">Cost Price</label>
+      <input type="text" id="f-cost" class="form-control" disabled value="₹{{ '%.2f'|format(product.actual_discounted_price) }}">
     </div>
-    <div class="col-md-3">
-      <label class="form-label">Selling Price</label>
-      <input type="text" class="form-control" disabled value="₹{{ '%.2f'|format(product.mrp_discounted_price) }}">
+    <div class="col-md-4">
+      <label class="form-label" for="f-margin">Max Margin <span class="text-muted small">(if sold at full MRP)</span></label>
+      <input type="text" id="f-margin" class="form-control" disabled value="₹{{ '%.2f'|format(product.margin_per_unit) }}">
     </div>
-    <div class="col-md-3">
-      <label class="form-label">Margin/Unit</label>
-      <input type="text" class="form-control" disabled value="₹{{ '%.2f'|format(product.margin_per_unit) }}">
-    </div>
-    <div class="col-md-3">
-      <label class="form-label">Current Stock</label>
-      <input type="text" class="form-control" disabled value="{{ product.current_stock }}">
+    <div class="col-md-4">
+      <label class="form-label" for="f-stock">Current Stock</label>
+      <input type="text" id="f-stock" class="form-control" disabled value="{{ product.current_stock }}">
     </div>
     {% endif %}
   </div>
 
   <div class="mt-4 d-flex gap-2">
-    <button type="submit" class="btn btn-primary">Save</button>
-    <a href="{{ url_for('products.list_products') }}" class="btn btn-outline-secondary">Cancel</a>
+    <button type="submit" class="btn btn-primary">{{ icon('save') }}Save</button>
+    <a href="{{ url_for('products.list_products') }}" class="btn btn-outline-secondary">{{ icon('x-lg') }}Cancel</a>
   </div>
 </form>
+
+{% if product and purchase_history %}
+<div class="card p-4 mt-4" id="purchase-history">
+  <h5 class="mb-3 d-flex align-items-center">{{ icon('clock-history', 'me-1') }}Purchase History</h5>
+  <p class="text-muted small">Each purchase's price and MRP at the time — the product's current cost/MRP above reflects the most recent one.</p>
+  <table class="table table-sm">
+    <thead><tr><th>Date</th><th>Supplier</th><th>Qty</th><th>Purchase Price</th><th>MRP at Purchase</th></tr></thead>
+    <tbody>
+      {% for item in purchase_history %}
+      <tr>
+        <td>{{ item.purchase.date }}</td>
+        <td>{{ item.purchase.supplier.name if item.purchase.supplier else '-' }}</td>
+        <td>{{ item.qty }}</td>
+        <td>₹{{ "%.2f"|format(item.purchase_price) }}</td>
+        <td>{{ "₹%.2f"|format(item.mrp_at_purchase) if item.mrp_at_purchase is not none else '-' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+<script>
+SearchableSelect.enhance(document.getElementById('f-unit'));
+</script>
 {% endblock %}

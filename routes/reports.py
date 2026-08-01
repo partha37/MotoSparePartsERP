@@ -49,13 +49,11 @@ def mechanic_wise():
     date_from, date_to = _date_range_args()
     sales = Sale.query.filter(Sale.date >= date_from, Sale.date <= date_to).all()
 
-    by_mechanic = defaultdict(lambda: {"count": 0, "total": 0.0, "commission": 0.0})
+    by_mechanic = defaultdict(lambda: {"count": 0, "total": 0.0})
     for s in sales:
         key = s.mechanic.name if s.mechanic else "No mechanic"
         by_mechanic[key]["count"] += 1
         by_mechanic[key]["total"] += s.total
-        if s.mechanic:
-            by_mechanic[key]["commission"] += s.total * (s.mechanic.commission_pct or 0) / 100
 
     rows = sorted(by_mechanic.items(), key=lambda kv: kv[1]["total"], reverse=True)
 
@@ -119,9 +117,15 @@ def profit_margin():
     by_product = defaultdict(lambda: {"qty": 0, "revenue": 0.0, "cost": 0.0})
     for item in items:
         key = f"{item.product.part_no} - {item.product.product_name}"
+        # Use the actual batch's purchase price when known (accurate historical cost);
+        # fall back to the product's current cost for sales made before batch tracking existed.
+        unit_cost = (
+            item.purchase_item.purchase_price if item.purchase_item
+            else (item.product.actual_discounted_price or 0)
+        )
         by_product[key]["qty"] += item.qty
-        by_product[key]["revenue"] += item.line_subtotal
-        by_product[key]["cost"] += item.qty * (item.product.actual_discounted_price or 0)
+        by_product[key]["revenue"] += item.line_total
+        by_product[key]["cost"] += item.qty * unit_cost
 
     rows = []
     total_profit = 0.0

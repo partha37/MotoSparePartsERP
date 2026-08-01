@@ -2,6 +2,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import login_required
 
 from extensions import db
+from excel_sync import sync_to_excel
 from models import Customer, Sale
 
 customers_bp = Blueprint("customers", __name__, url_prefix="/customers")
@@ -12,6 +13,7 @@ def _apply_form(customer, form):
     customer.phone = form.get("phone", "").strip()
     customer.address = form.get("address", "").strip()
     customer.vehicle_model = form.get("vehicle_model", "").strip()
+    customer.discount_pct = float(form.get("discount_pct") or 0)
 
 
 @customers_bp.route("/")
@@ -29,6 +31,7 @@ def new_customer():
         _apply_form(customer, request.form)
         db.session.add(customer)
         db.session.commit()
+        sync_to_excel()
         flash("Customer added.", "success")
         return redirect(url_for("customers.list_customers"))
     return render_template("customers/form.html", customer=None)
@@ -41,6 +44,7 @@ def edit_customer(customer_id):
     if request.method == "POST":
         _apply_form(customer, request.form)
         db.session.commit()
+        sync_to_excel()
         flash("Customer updated.", "success")
         return redirect(url_for("customers.list_customers"))
     return render_template("customers/form.html", customer=customer)
@@ -63,5 +67,6 @@ def delete_customer(customer_id):
         return redirect(url_for("customers.list_customers"))
     db.session.delete(customer)
     db.session.commit()
+    sync_to_excel()
     flash("Customer deleted.", "success")
     return redirect(url_for("customers.list_customers"))

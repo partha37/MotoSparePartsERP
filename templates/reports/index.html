@@ -1,22 +1,22 @@
 {% extends "base.html" %}
-{% block title %}Reports - MotoSpareParts ERP{% endblock %}
+{% block title %}Reports - Lokey Auto Spare Parts{% endblock %}
 {% block content %}
 <h2 class="mb-4">Reports</h2>
 <div class="row g-3">
   {% set reports = [
-    ('reports.daily_sales', 'Daily Sales Summary', 'Total sales per day.'),
-    ('reports.mechanic_wise', 'Mechanic-wise Sales', 'Sales and commission per mechanic.'),
-    ('reports.customer_wise', 'Customer-wise Purchases', 'Total spend per customer.'),
-    ('reports.best_sellers', 'Best-selling Products', 'Top products by quantity sold.'),
-    ('reports.profit_margin', 'Profit Margin Report', 'Revenue vs cost per product.'),
-    ('reports.supplier_summary', 'Supplier Purchase Summary', 'Total purchases per supplier.'),
-    ('reports.low_stock', 'Low Stock Report', 'Products at or below reorder level.'),
+    ('reports.daily_sales', 'calendar3', 'Daily Sales Summary', 'Total sales per day.'),
+    ('reports.mechanic_wise', 'person-gear', 'Mechanic-wise Sales', 'Sales per mechanic.'),
+    ('reports.customer_wise', 'people', 'Customer-wise Purchases', 'Total spend per customer.'),
+    ('reports.best_sellers', 'graph-up-arrow', 'Best-selling Products', 'Top products by quantity sold.'),
+    ('reports.profit_margin', 'cash-coin', 'Profit Margin Report', 'Revenue vs cost per product.'),
+    ('reports.supplier_summary', 'truck', 'Supplier Purchase Summary', 'Total purchases per supplier.'),
+    ('reports.low_stock', 'exclamation-triangle', 'Low Stock Report', 'Products at or below reorder level.'),
   ] %}
-  {% for endpoint, title, desc in reports %}
+  {% for endpoint, icon_name, title, desc in reports %}
   <div class="col-md-4">
     <a href="{{ url_for(endpoint) }}" class="text-decoration-none">
       <div class="card p-3 h-100">
-        <h5>{{ title }}</h5>
+        <h5 class="d-flex align-items-center">{{ icon(icon_name, 'me-2 text-primary') }}{{ title }}</h5>
         <div class="text-muted small">{{ desc }}</div>
       </div>
     </a>

@@ -1,7 +1,7 @@
 {% extends "base.html" %}
-{% block title %}Low Stock - MotoSpareParts ERP{% endblock %}
+{% block title %}Low Stock - Lokey Auto Spare Parts{% endblock %}
 {% block content %}
-<h2 class="mb-4">Low Stock Report</h2>
+<h2 class="mb-4 d-flex align-items-center">{{ icon('exclamation-triangle', 'me-2') }}Low Stock Report</h2>
 <div class="card p-3">
 <table class="table">
   <thead><tr><th>Part No</th><th>Product</th><th>Current Stock</th><th>Reorder Level</th></tr></thead>
@@ -17,5 +17,5 @@
   </tbody>
 </table>
 </div>
-<a href="{{ url_for('reports.index') }}" class="btn btn-outline-secondary mt-3">Back to Reports</a>
+<a href="{{ url_for('reports.index') }}" class="btn btn-outline-secondary mt-3">{{ icon('arrow-left') }}Back to Reports</a>
 {% endblock %}

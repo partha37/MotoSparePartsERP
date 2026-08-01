@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}{{ customer.name }} - MotoSpareParts ERP{% endblock %}
+{% block title %}{{ customer.name }} - Lokey Auto Spare Parts{% endblock %}
 {% block content %}
 <h2 class="mb-4">{{ customer.name }}</h2>
 <div class="card p-4 mb-3">
@@ -21,7 +21,7 @@
       <td>₹{{ "%.2f"|format(s.total) }}</td>
       <td>₹{{ "%.2f"|format(s.amount_paid) }}</td>
       <td>₹{{ "%.2f"|format(s.balance_due) }}</td>
-      <td><a href="{{ url_for('sales.view_sale', sale_id=s.id) }}" class="btn btn-sm btn-outline-secondary">View</a></td>
+      <td><a href="{{ url_for('sales.view_sale', sale_id=s.id) }}" class="btn btn-sm btn-outline-secondary">{{ icon('eye') }}View</a></td>
     </tr>
     {% else %}
     <tr><td colspan="6" class="text-center text-muted">No purchases yet.</td></tr>
@@ -29,5 +29,5 @@
   </tbody>
 </table>
 </div>
-<a href="{{ url_for('customers.list_customers') }}" class="btn btn-outline-secondary mt-3">Back to Customers</a>
+<a href="{{ url_for('customers.list_customers') }}" class="btn btn-outline-secondary mt-3">{{ icon('arrow-left') }}Back to Customers</a>
 {% endblock %}

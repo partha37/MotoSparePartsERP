@@ -9,17 +9,17 @@ from flask import (
 from flask_login import login_required
 
 from extensions import db
+from excel_sync import sync_to_excel, excel_path
 from models import ShopSettings, Product, Customer, Mechanic, Supplier, Sale, Purchase
 
 settings_bp = Blueprint("settings", __name__, url_prefix="/settings")
 
 EXPORTABLE = {
-    "products": (Product, ["id", "part_no", "product_name", "brand", "category", "mrp",
-                            "actual_discount_pct", "actual_discounted_price",
-                            "selling_discount_pct", "mrp_discounted_price",
+    "products": (Product, ["id", "part_no", "product_name", "brand", "category", "vehicle_name",
+                            "unit", "mrp", "actual_discount_pct", "actual_discounted_price",
                             "current_stock", "reorder_level"]),
-    "customers": (Customer, ["id", "name", "phone", "address", "vehicle_model"]),
-    "mechanics": (Mechanic, ["id", "name", "phone", "garage_name", "commission_pct"]),
+    "customers": (Customer, ["id", "name", "phone", "address", "vehicle_model", "discount_pct"]),
+    "mechanics": (Mechanic, ["id", "name", "phone", "garage_name", "discount_pct"]),
     "suppliers": (Supplier, ["id", "name", "brand", "phone", "address", "gstin"]),
     "sales": (Sale, ["id", "invoice_no", "date", "customer_id", "mechanic_id",
                       "payment_mode", "amount_paid"]),
@@ -42,6 +42,7 @@ def index():
         shop.phone = request.form.get("phone", "").strip()
         shop.gstin = request.form.get("gstin", "").strip()
         db.session.commit()
+        sync_to_excel()
         flash("Shop settings saved.", "success")
         return redirect(url_for("settings.index"))
 
@@ -69,6 +70,17 @@ def export_csv(table_name):
         mimetype="text/csv",
         headers={"Content-Disposition": f"attachment; filename={table_name}.csv"},
     )
+
+
+@settings_bp.route("/export/excel")
+@login_required
+def export_excel():
+    sync_to_excel()
+    path = excel_path()
+    if not os.path.exists(path):
+        flash("Excel mirror hasn't been created yet — make any change first.", "warning")
+        return redirect(url_for("settings.index"))
+    return send_file(path, as_attachment=True, download_name="erp_data.xlsx")
 
 
 @settings_bp.route("/backup")

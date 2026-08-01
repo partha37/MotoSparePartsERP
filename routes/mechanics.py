@@ -2,6 +2,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import login_required
 
 from extensions import db
+from excel_sync import sync_to_excel
 from models import Mechanic, Sale
 
 mechanics_bp = Blueprint("mechanics", __name__, url_prefix="/mechanics")
@@ -11,7 +12,7 @@ def _apply_form(mechanic, form):
     mechanic.name = form.get("name", "").strip()
     mechanic.phone = form.get("phone", "").strip()
     mechanic.garage_name = form.get("garage_name", "").strip()
-    mechanic.commission_pct = float(form.get("commission_pct") or 0)
+    mechanic.discount_pct = float(form.get("discount_pct") or 0)
 
 
 @mechanics_bp.route("/")
@@ -29,6 +30,7 @@ def new_mechanic():
         _apply_form(mechanic, request.form)
         db.session.add(mechanic)
         db.session.commit()
+        sync_to_excel()
         flash("Mechanic added.", "success")
         return redirect(url_for("mechanics.list_mechanics"))
     return render_template("mechanics/form.html", mechanic=None)
@@ -41,6 +43,7 @@ def edit_mechanic(mechanic_id):
     if request.method == "POST":
         _apply_form(mechanic, request.form)
         db.session.commit()
+        sync_to_excel()
         flash("Mechanic updated.", "success")
         return redirect(url_for("mechanics.list_mechanics"))
     return render_template("mechanics/form.html", mechanic=mechanic)
@@ -63,5 +66,6 @@ def delete_mechanic(mechanic_id):
         return redirect(url_for("mechanics.list_mechanics"))
     db.session.delete(mechanic)
     db.session.commit()
+    sync_to_excel()
     flash("Mechanic deleted.", "success")
     return redirect(url_for("mechanics.list_mechanics"))

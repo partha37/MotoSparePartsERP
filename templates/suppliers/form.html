@@ -1,34 +1,34 @@
 {% extends "base.html" %}
-{% block title %}{{ 'Edit' if supplier else 'Add' }} Supplier - MotoSpareParts ERP{% endblock %}
+{% block title %}{{ 'Edit' if supplier else 'Add' }} Supplier - Lokey Auto Spare Parts{% endblock %}
 {% block content %}
 <h2 class="mb-4">{{ 'Edit' if supplier else 'Add' }} Supplier</h2>
 <form method="post" class="card p-4">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <div class="row g-3">
     <div class="col-md-6">
-      <label class="form-label">Name</label>
-      <input type="text" name="name" class="form-control" required value="{{ supplier.name if supplier else '' }}">
+      <label class="form-label required" for="f-name">Name</label>
+      <input type="text" id="f-name" name="name" class="form-control" autocomplete="off" required value="{{ supplier.name if supplier else '' }}">
     </div>
     <div class="col-md-6">
-      <label class="form-label">Brand</label>
-      <input type="text" name="brand" class="form-control" placeholder="Honda / TVS / Bajaj" value="{{ supplier.brand if supplier else '' }}">
+      <label class="form-label" for="f-brand">Brand</label>
+      <input type="text" id="f-brand" name="brand" class="form-control" placeholder="Honda / TVS / Bajaj" value="{{ supplier.brand if supplier else '' }}">
     </div>
-    <div class="col-md-4">
-      <label class="form-label">Phone</label>
-      <input type="text" name="phone" class="form-control" value="{{ supplier.phone if supplier else '' }}">
+    <div class="col-md-6">
+      <label class="form-label" for="f-phone">Phone</label>
+      <input type="text" id="f-phone" name="phone" class="form-control" autocomplete="off" value="{{ supplier.phone if supplier else '' }}">
     </div>
-    <div class="col-md-4">
-      <label class="form-label">GSTIN</label>
-      <input type="text" name="gstin" class="form-control" value="{{ supplier.gstin if supplier else '' }}">
+    <div class="col-md-6">
+      <label class="form-label" for="f-gstin">GSTIN</label>
+      <input type="text" id="f-gstin" name="gstin" class="form-control" value="{{ supplier.gstin if supplier else '' }}">
     </div>
     <div class="col-md-12">
-      <label class="form-label">Address</label>
-      <textarea name="address" class="form-control">{{ supplier.address if supplier else '' }}</textarea>
+      <label class="form-label" for="f-address">Address</label>
+      <textarea id="f-address" name="address" class="form-control" autocomplete="off">{{ supplier.address if supplier else '' }}</textarea>
     </div>
   </div>
   <div class="mt-4 d-flex gap-2">
-    <button type="submit" class="btn btn-primary">Save</button>
-    <a href="{{ url_for('suppliers.list_suppliers') }}" class="btn btn-outline-secondary">Cancel</a>
+    <button type="submit" class="btn btn-primary">{{ icon('save') }}Save</button>
+    <a href="{{ url_for('suppliers.list_suppliers') }}" class="btn btn-outline-secondary">{{ icon('x-lg') }}Cancel</a>
   </div>
 </form>
 {% endblock %}

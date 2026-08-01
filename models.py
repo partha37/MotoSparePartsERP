@@ -29,6 +29,7 @@ class Product(db.Model):
     part_no = db.Column(db.String(80), unique=True, nullable=False, index=True)
     brand = db.Column(db.String(50))
     category = db.Column(db.String(80))
+    vehicle_name = db.Column(db.String(150))  # vehicle model(s) this part fits, e.g. "Honda Activa"
     unit = db.Column(db.String(20), default="pc")
     hsn_code = db.Column(db.String(20))
     gst_rate = db.Column(db.Float, default=18.0)
@@ -36,8 +37,6 @@ class Product(db.Model):
     mrp = db.Column(db.Float, nullable=False, default=0)
     actual_discount_pct = db.Column(db.Float, default=0)
     actual_discounted_price = db.Column(db.Float, default=0)
-    selling_discount_pct = db.Column(db.Float, default=0)
-    mrp_discounted_price = db.Column(db.Float, default=0)
 
     current_stock = db.Column(db.Integer, default=0)
     reorder_level = db.Column(db.Integer, default=5)
@@ -46,16 +45,26 @@ class Product(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     def recalc_prices(self):
+        """Recomputes cost price only — selling price is decided per-sale at checkout, not stored here."""
         self.actual_discounted_price = round(
             self.mrp * (1 - (self.actual_discount_pct or 0) / 100), 2
         )
-        self.mrp_discounted_price = round(
-            self.mrp * (1 - (self.selling_discount_pct or 0) / 100), 2
+
+    def update_cost_from_purchase(self, purchase_price, new_mrp=None):
+        """Makes this purchase's price the product's new current cost; optionally updates MRP too
+        (e.g. the distributor revised the printed MRP). Each purchase still keeps its own price on
+        PurchaseItem — this only updates the product's "current" reference fields."""
+        if new_mrp is not None and new_mrp > 0:
+            self.mrp = new_mrp
+        self.actual_discount_pct = (
+            round((self.mrp - purchase_price) / self.mrp * 100, 2) if self.mrp else 0
         )
+        self.recalc_prices()
 
     @property
     def margin_per_unit(self):
-        return round((self.mrp_discounted_price or 0) - (self.actual_discounted_price or 0), 2)
+        """Best-case margin if sold at full MRP — actual margin depends on the price/discount used at checkout."""
+        return round((self.mrp or 0) - (self.actual_discounted_price or 0), 2)
 
     @property
     def is_low_stock(self):
@@ -82,6 +91,7 @@ class Customer(db.Model):
     phone = db.Column(db.String(20))
     address = db.Column(db.String(255))
     vehicle_model = db.Column(db.String(100))
+    discount_pct = db.Column(db.Float, default=0)  # standing discount off MRP, auto-applied at checkout
 
     sales = db.relationship("Sale", backref="customer", lazy=True)
 
@@ -91,7 +101,7 @@ class Mechanic(db.Model):
     name = db.Column(db.String(150), nullable=False)
     phone = db.Column(db.String(20))
     garage_name = db.Column(db.String(150))
-    commission_pct = db.Column(db.Float, default=0)
+    discount_pct = db.Column(db.Float, default=0)  # standing discount for customers this mechanic refers
 
     sales = db.relationship("Sale", backref="mechanic", lazy=True)
 
@@ -113,17 +123,34 @@ class Purchase(db.Model):
 
 
 class PurchaseItem(db.Model):
+    """Also doubles as a sellable stock batch: `remaining_qty` tracks how much of this
+    specific purchase is still in stock, so a sale can draw from a particular batch and use
+    that batch's own MRP rather than the product's blended "current" MRP."""
+
     id = db.Column(db.Integer, primary_key=True)
     purchase_id = db.Column(db.Integer, db.ForeignKey("purchase.id"), nullable=False)
     product_id = db.Column(db.Integer, db.ForeignKey("product.id"), nullable=False)
     qty = db.Column(db.Integer, nullable=False)
     purchase_price = db.Column(db.Float, nullable=False)
+    mrp_at_purchase = db.Column(db.Float)  # snapshot of the MRP that was in effect for this purchase
+    remaining_qty = db.Column(db.Integer)  # how much of this batch hasn't been sold yet
 
-    product = db.relationship("Product")
+    product = db.relationship("Product", backref="purchase_items")
 
     @property
     def total(self):
         return round(self.qty * self.purchase_price, 2)
+
+    @property
+    def stock_number(self):
+        """A date-based batch label, e.g. 26072026-14, unique via the row id suffix."""
+        return f"{self.purchase.date.strftime('%d%m%Y')}-{self.id}"
+
+    @property
+    def effective_mrp(self):
+        """MRP to charge for this batch — falls back to the product's current MRP for
+        batches recorded before mrp_at_purchase existed."""
+        return self.mrp_at_purchase if self.mrp_at_purchase is not None else self.product.mrp
 
 
 class Sale(db.Model):
@@ -141,16 +168,9 @@ class Sale(db.Model):
     )
 
     @property
-    def subtotal(self):
-        return round(sum(item.qty * item.selling_price for item in self.items), 2)
-
-    @property
-    def gst_amount(self):
-        return round(sum(item.gst_amount for item in self.items), 2)
-
-    @property
     def total(self):
-        return round(self.subtotal + self.gst_amount, 2)
+        """What the customer pays. MRP already includes GST, so this is not added on top of it."""
+        return round(sum(item.line_total for item in self.items), 2)
 
     @property
     def balance_due(self):
@@ -163,21 +183,14 @@ class SaleItem(db.Model):
     product_id = db.Column(db.Integer, db.ForeignKey("product.id"), nullable=False)
     qty = db.Column(db.Integer, nullable=False)
     selling_price = db.Column(db.Float, nullable=False)
-    gst_rate = db.Column(db.Float, default=0)
+    purchase_item_id = db.Column(db.Integer, db.ForeignKey("purchase_item.id"), nullable=True)
 
     product = db.relationship("Product")
-
-    @property
-    def line_subtotal(self):
-        return round(self.qty * self.selling_price, 2)
-
-    @property
-    def gst_amount(self):
-        return round(self.line_subtotal * (self.gst_rate or 0) / 100, 2)
+    purchase_item = db.relationship("PurchaseItem")
 
     @property
     def line_total(self):
-        return round(self.line_subtotal + self.gst_amount, 2)
+        return round(self.qty * self.selling_price, 2)
 
 
 class StockMovement(db.Model):

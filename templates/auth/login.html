@@ -1,21 +1,21 @@
 {% extends "base.html" %}
-{% block title %}Login - MotoSpareParts ERP{% endblock %}
+{% block title %}Login - Lokey Auto Spare Parts{% endblock %}
 {% block content %}
 <div class="row justify-content-center mt-5">
   <div class="col-md-4">
     <div class="card p-4">
-      <h3 class="mb-3 text-center">Shop Login</h3>
+      <h3 class="mb-3 text-center d-flex align-items-center justify-content-center">{{ icon('wrench', 'me-2') }}Shop Login</h3>
       <form method="post">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="mb-3">
-          <label class="form-label">Username</label>
-          <input type="text" name="username" class="form-control" required autofocus>
+          <label class="form-label" for="f-username">Username</label>
+          <input type="text" id="f-username" name="username" class="form-control" autocomplete="username" required autofocus>
         </div>
         <div class="mb-3">
-          <label class="form-label">Password</label>
-          <input type="password" name="password" class="form-control" required>
+          <label class="form-label" for="f-password">Password</label>
+          <input type="password" id="f-password" name="password" class="form-control" autocomplete="current-password" required>
         </div>
-        <button type="submit" class="btn btn-primary w-100">Log In</button>
+        <button type="submit" class="btn btn-primary w-100">{{ icon('box-arrow-right') }}Log In</button>
       </form>
     </div>
   </div>

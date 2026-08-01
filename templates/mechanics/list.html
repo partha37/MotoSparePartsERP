@@ -1,25 +1,25 @@
 {% extends "base.html" %}
-{% block title %}Mechanics - MotoSpareParts ERP{% endblock %}
+{% block title %}Mechanics - Lokey Auto Spare Parts{% endblock %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h2>Mechanics</h2>
-  <a href="{{ url_for('mechanics.new_mechanic') }}" class="btn btn-primary">+ Add Mechanic</a>
+  <a href="{{ url_for('mechanics.new_mechanic') }}" class="btn btn-primary">{{ icon('plus-lg') }}Add Mechanic</a>
 </div>
 <div class="card p-3">
 <table class="table table-hover align-middle">
-  <thead><tr><th>Name</th><th>Garage</th><th>Phone</th><th>Commission %</th><th></th></tr></thead>
+  <thead><tr><th>Name</th><th>Garage</th><th>Phone</th><th>Discount %</th><th></th></tr></thead>
   <tbody>
     {% for m in mechanics %}
     <tr>
       <td><a href="{{ url_for('mechanics.view_mechanic', mechanic_id=m.id) }}">{{ m.name }}</a></td>
       <td>{{ m.garage_name }}</td>
       <td>{{ m.phone }}</td>
-      <td>{{ m.commission_pct }}%</td>
+      <td>{{ m.discount_pct or 0 }}%</td>
       <td class="text-end">
-        <a href="{{ url_for('mechanics.edit_mechanic', mechanic_id=m.id) }}" class="btn btn-sm btn-outline-secondary">Edit</a>
+        <a href="{{ url_for('mechanics.edit_mechanic', mechanic_id=m.id) }}" class="btn btn-sm btn-outline-secondary">{{ icon('pencil') }}Edit</a>
         <form method="post" action="{{ url_for('mechanics.delete_mechanic', mechanic_id=m.id) }}" class="d-inline" onsubmit="return confirm('Delete this mechanic?');">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+          <button type="submit" class="btn btn-sm btn-outline-danger">{{ icon('trash') }}Delete</button>
         </form>
       </td>
     </tr>

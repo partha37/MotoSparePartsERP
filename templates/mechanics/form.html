@@ -1,30 +1,31 @@
 {% extends "base.html" %}
-{% block title %}{{ 'Edit' if mechanic else 'Add' }} Mechanic - MotoSpareParts ERP{% endblock %}
+{% block title %}{{ 'Edit' if mechanic else 'Add' }} Mechanic - Lokey Auto Spare Parts{% endblock %}
 {% block content %}
 <h2 class="mb-4">{{ 'Edit' if mechanic else 'Add' }} Mechanic</h2>
 <form method="post" class="card p-4">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <div class="row g-3">
     <div class="col-md-6">
-      <label class="form-label">Name</label>
-      <input type="text" name="name" class="form-control" required value="{{ mechanic.name if mechanic else '' }}">
+      <label class="form-label required" for="f-name">Name</label>
+      <input type="text" id="f-name" name="name" class="form-control" autocomplete="off" required value="{{ mechanic.name if mechanic else '' }}">
     </div>
     <div class="col-md-6">
-      <label class="form-label">Garage Name</label>
-      <input type="text" name="garage_name" class="form-control" value="{{ mechanic.garage_name if mechanic else '' }}">
+      <label class="form-label" for="f-garage">Garage Name</label>
+      <input type="text" id="f-garage" name="garage_name" class="form-control" value="{{ mechanic.garage_name if mechanic else '' }}">
     </div>
     <div class="col-md-6">
-      <label class="form-label">Phone</label>
-      <input type="text" name="phone" class="form-control" value="{{ mechanic.phone if mechanic else '' }}">
+      <label class="form-label" for="f-phone">Phone</label>
+      <input type="text" id="f-phone" name="phone" class="form-control" autocomplete="off" value="{{ mechanic.phone if mechanic else '' }}">
     </div>
     <div class="col-md-6">
-      <label class="form-label">Commission %</label>
-      <input type="number" step="0.01" name="commission_pct" class="form-control" value="{{ mechanic.commission_pct if mechanic else 0 }}">
+      <label class="form-label" for="f-discount">Discount % <span class="text-muted small">(auto-applied to sales they refer)</span></label>
+      <input type="number" step="0.01" id="f-discount" name="discount_pct" class="form-control" value="{{ (mechanic.discount_pct or 0) if mechanic else 0 }}">
+      <div class="form-text">Standing discount for customers this mechanic refers.</div>
     </div>
   </div>
   <div class="mt-4 d-flex gap-2">
-    <button type="submit" class="btn btn-primary">Save</button>
-    <a href="{{ url_for('mechanics.list_mechanics') }}" class="btn btn-outline-secondary">Cancel</a>
+    <button type="submit" class="btn btn-primary">{{ icon('save') }}Save</button>
+    <a href="{{ url_for('mechanics.list_mechanics') }}" class="btn btn-outline-secondary">{{ icon('x-lg') }}Cancel</a>
   </div>
 </form>
 {% endblock %}

@@ -2,6 +2,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import login_required
 
 from extensions import db
+from excel_sync import sync_to_excel
 from models import Supplier, Purchase
 
 suppliers_bp = Blueprint("suppliers", __name__, url_prefix="/suppliers")
@@ -30,6 +31,7 @@ def new_supplier():
         _apply_form(supplier, request.form)
         db.session.add(supplier)
         db.session.commit()
+        sync_to_excel()
         flash("Supplier added.", "success")
         return redirect(url_for("suppliers.list_suppliers"))
     return render_template("suppliers/form.html", supplier=None)
@@ -42,6 +44,7 @@ def edit_supplier(supplier_id):
     if request.method == "POST":
         _apply_form(supplier, request.form)
         db.session.commit()
+        sync_to_excel()
         flash("Supplier updated.", "success")
         return redirect(url_for("suppliers.list_suppliers"))
     return render_template("suppliers/form.html", supplier=supplier)
@@ -56,5 +59,6 @@ def delete_supplier(supplier_id):
         return redirect(url_for("suppliers.list_suppliers"))
     db.session.delete(supplier)
     db.session.commit()
+    sync_to_excel()
     flash("Supplier deleted.", "success")
     return redirect(url_for("suppliers.list_suppliers"))

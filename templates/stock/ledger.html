@@ -1,20 +1,20 @@
 {% extends "base.html" %}
-{% block title %}Stock Ledger - MotoSpareParts ERP{% endblock %}
+{% block title %}Stock Ledger - Lokey Auto Spare Parts{% endblock %}
 {% block content %}
-<h2 class="mb-4">Stock Ledger (Day-wise)</h2>
+<h2 class="mb-4 d-flex align-items-center">{{ icon('clipboard-data', 'me-2') }}Stock Ledger (Day-wise)</h2>
 
 <form method="get" class="row g-3 mb-3">
   <div class="col-md-3">
-    <label class="form-label">From</label>
-    <input type="date" name="date_from" class="form-control" value="{{ date_from }}">
+    <label class="form-label" for="f-date-from">From</label>
+    <input type="date" id="f-date-from" name="date_from" class="form-control" value="{{ date_from }}">
   </div>
   <div class="col-md-3">
-    <label class="form-label">To</label>
-    <input type="date" name="date_to" class="form-control" value="{{ date_to }}">
+    <label class="form-label" for="f-date-to">To</label>
+    <input type="date" id="f-date-to" name="date_to" class="form-control" value="{{ date_to }}">
   </div>
   <div class="col-md-4">
-    <label class="form-label">Product</label>
-    <select name="product_id" class="form-select">
+    <label class="form-label" for="f-product">Product</label>
+    <select id="f-product" name="product_id" class="form-select">
       <option value="">All Products</option>
       {% for p in products %}
       <option value="{{ p.id }}" {{ 'selected' if selected_product_id == p.id|string else '' }}>{{ p.part_no }} - {{ p.product_name }}</option>
@@ -22,7 +22,7 @@
     </select>
   </div>
   <div class="col-md-2 d-flex align-items-end">
-    <button type="submit" class="btn btn-primary w-100">Filter</button>
+    <button type="submit" class="btn btn-primary w-100">{{ icon('funnel') }}Filter</button>
   </div>
 </form>
 
@@ -48,4 +48,8 @@
   </tbody>
 </table>
 </div>
+
+<script>
+SearchableSelect.enhance(document.getElementById('f-product'));
+</script>
 {% endblock %}

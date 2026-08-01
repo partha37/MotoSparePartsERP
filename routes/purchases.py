@@ -4,6 +4,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import login_required
 
 from extensions import db
+from excel_sync import sync_to_excel
 from models import Purchase, PurchaseItem, Product, Supplier, StockMovement
 
 purchases_bp = Blueprint("purchases", __name__, url_prefix="/purchases")
@@ -34,10 +35,11 @@ def new_purchase():
         product_ids = request.form.getlist("product_id[]")
         qtys = request.form.getlist("qty[]")
         prices = request.form.getlist("purchase_price[]")
+        mrps = request.form.getlist("mrp[]")
 
         rows = [
-            (pid, qty, price)
-            for pid, qty, price in zip(product_ids, qtys, prices)
+            (pid, qty, price, mrp)
+            for pid, qty, price, mrp in zip(product_ids, qtys, prices, mrps)
             if pid and qty and price
         ]
 
@@ -53,15 +55,23 @@ def new_purchase():
         db.session.add(purchase)
         db.session.flush()  # get purchase.id
 
-        for pid, qty, price in rows:
+        cost_changes = []
+
+        for pid, qty, price, mrp in rows:
             qty = int(qty)
             price = float(price)
+            mrp = float(mrp) if mrp else None
             product = Product.query.get(int(pid))
             if not product:
                 continue
 
             item = PurchaseItem(
-                purchase_id=purchase.id, product_id=product.id, qty=qty, purchase_price=price
+                purchase_id=purchase.id,
+                product_id=product.id,
+                qty=qty,
+                purchase_price=price,
+                remaining_qty=qty,
+                mrp_at_purchase=mrp if mrp else product.mrp,
             )
             db.session.add(item)
 
@@ -79,8 +89,20 @@ def new_purchase():
                 )
             )
 
+            old_cost = product.actual_discounted_price
+            old_mrp = product.mrp
+            product.update_cost_from_purchase(price, new_mrp=mrp)
+            if round(old_cost or 0, 2) != product.actual_discounted_price:
+                change = f"{product.part_no}: cost ₹{old_cost:.2f} → ₹{product.actual_discounted_price:.2f}"
+                if mrp and round(old_mrp or 0, 2) != product.mrp:
+                    change += f", MRP ₹{old_mrp:.2f} → ₹{product.mrp:.2f}"
+                cost_changes.append(change)
+
         db.session.commit()
+        sync_to_excel()
         flash("Purchase recorded and stock updated.", "success")
+        if cost_changes:
+            flash("Updated product cost: " + "; ".join(cost_changes), "info")
         return redirect(url_for("purchases.list_purchases"))
 
     return render_template(

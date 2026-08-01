@@ -1,36 +1,41 @@
 {% extends "base.html" %}
-{% block title %}New Sale - MotoSpareParts ERP{% endblock %}
+{% block title %}New Sale - Lokey Auto Spare Parts{% endblock %}
 {% block content %}
-<h2 class="mb-4">New Sale (Billing)</h2>
+<h2 class="mb-4 d-flex align-items-center">{{ icon('receipt', 'me-2') }}New Sale (Billing)</h2>
 
 <form method="post" class="card p-4">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <div class="row g-3 mb-3">
-    <div class="col-md-3">
-      <label class="form-label">Date</label>
-      <input type="date" name="date" class="form-control" value="{{ today }}">
+    <div class="col-md-2">
+      <label class="form-label" for="f-date">Date</label>
+      <input type="date" id="f-date" name="date" class="form-control" value="{{ today }}">
     </div>
     <div class="col-md-3">
-      <label class="form-label">Customer <span class="text-muted small">(optional)</span></label>
-      <select name="customer_id" class="form-select">
-        <option value="">Walk-in</option>
+      <label class="form-label" for="customerSelect">Customer <span class="text-muted small">(optional)</span></label>
+      <select name="customer_id" id="customerSelect" class="form-select">
+        <option value="" data-discount="0">Walk-in</option>
         {% for c in customers %}
-        <option value="{{ c.id }}">{{ c.name }}</option>
+        <option value="{{ c.id }}" data-discount="{{ c.discount_pct or 0 }}">{{ c.name }}{% if c.discount_pct %} ({{ c.discount_pct }}% off){% endif %}</option>
         {% endfor %}
       </select>
     </div>
     <div class="col-md-3">
-      <label class="form-label">Mechanic <span class="text-muted small">(optional)</span></label>
-      <select name="mechanic_id" class="form-select">
-        <option value="">-- None --</option>
+      <label class="form-label" for="f-mechanic">Mechanic <span class="text-muted small">(optional)</span></label>
+      <select id="f-mechanic" name="mechanic_id" class="form-select">
+        <option value="" data-discount="0">-- None --</option>
         {% for m in mechanics %}
-        <option value="{{ m.id }}">{{ m.name }}</option>
+        <option value="{{ m.id }}" data-discount="{{ m.discount_pct or 0 }}">{{ m.name }}{% if m.discount_pct %} ({{ m.discount_pct }}% off){% endif %}</option>
         {% endfor %}
       </select>
     </div>
-    <div class="col-md-3">
-      <label class="form-label">Payment Mode</label>
-      <select name="payment_mode" class="form-select">
+    <div class="col-md-2">
+      <label class="form-label" for="f-discount-pct">Discount %</label>
+      <input type="number" step="0.01" id="f-discount-pct" class="form-control" value="0">
+      <div class="form-text">Applies to every line below</div>
+    </div>
+    <div class="col-md-2">
+      <label class="form-label" for="f-payment">Payment Mode</label>
+      <select id="f-payment" name="payment_mode" class="form-select">
         <option value="cash">Cash</option>
         <option value="upi">UPI</option>
         <option value="card">Card</option>
@@ -39,91 +44,174 @@
     </div>
   </div>
 
-  <h5>Items</h5>
+  <h5 class="d-flex align-items-center">{{ icon('box-seam', 'me-1') }}Items</h5>
+  <p class="text-muted small">Pick which stock batch to sell from — price defaults to that batch's own MRP minus the Discount % above (if any), oldest stock listed first. GST is already included in MRP, so it isn't added separately.</p>
   <table class="table" id="itemsTable">
-    <thead><tr><th>Product</th><th style="width:100px">Qty</th><th style="width:140px">Price (each)</th><th style="width:80px">GST %</th><th style="width:110px">Line Total</th><th></th></tr></thead>
+    <thead><tr><th>Product</th><th style="width:260px">Batch (stock)</th><th style="width:90px">Qty</th><th style="width:130px">Price (each)</th><th style="width:110px">Line Total</th><th></th></tr></thead>
     <tbody>
       <tr>
         <td>
-          <select name="product_id[]" class="form-select product-select">
+          <select name="product_filter[]" class="form-select product-select" aria-label="Product">
             <option value="">-- Select Product --</option>
             {% for p in products %}
-            <option value="{{ p.id }}" data-price="{{ p.mrp_discounted_price }}" data-gst="{{ p.gst_rate }}" data-stock="{{ p.current_stock }}">
-              {{ p.part_no }} - {{ p.product_name }} (stock: {{ p.current_stock }})
+            <option value="{{ p.id }}" data-batches='{{ p.available_batches|tojson }}'>
+              {{ p.part_no }} - {{ p.product_name }}
             </option>
             {% endfor %}
           </select>
         </td>
-        <td><input type="number" name="qty[]" class="form-control qty-input" min="1" value="1"></td>
-        <td><input type="number" step="0.01" name="selling_price[]" class="form-control price-input"></td>
-        <td><input type="text" class="form-control gst-display" disabled></td>
-        <td><input type="text" class="form-control line-total" disabled></td>
-        <td><button type="button" class="btn btn-outline-danger btn-sm remove-row">×</button></td>
+        <td>
+          <select name="purchase_item_id[]" class="form-select batch-select" aria-label="Stock batch">
+            <option value="">-- Select Batch --</option>
+          </select>
+        </td>
+        <td><input type="number" name="qty[]" class="form-control qty-input" min="1" value="1" aria-label="Quantity"></td>
+        <td><input type="number" step="0.01" name="selling_price[]" class="form-control price-input" aria-label="Price each"></td>
+        <td><input type="text" name="line_total_display[]" class="form-control line-total" disabled aria-label="Line total"></td>
+        <td><button type="button" class="btn btn-outline-danger btn-sm remove-row" aria-label="Remove this line">{{ icon('trash') }}</button></td>
       </tr>
     </tbody>
   </table>
-  <button type="button" id="addRow" class="btn btn-sm btn-outline-primary mb-3">+ Add Line</button>
+  <button type="button" id="addRow" class="btn btn-sm btn-outline-primary mb-3">{{ icon('plus-lg') }}Add Line</button>
 
   <div class="row g-3 mt-2">
     <div class="col-md-3">
-      <label class="form-label">Amount Paid Now (₹)</label>
-      <input type="number" step="0.01" name="amount_paid" class="form-control" value="0">
+      <label class="form-label" for="f-amount-paid">Amount Paid Now (₹)</label>
+      <input type="number" step="0.01" id="f-amount-paid" name="amount_paid" class="form-control" value="0">
     </div>
   </div>
 
   <div class="mt-3 d-flex gap-2">
-    <button type="submit" class="btn btn-primary">Save Sale</button>
-    <a href="{{ url_for('sales.list_sales') }}" class="btn btn-outline-secondary">Cancel</a>
+    <button type="submit" class="btn btn-primary">{{ icon('save') }}Save Sale</button>
+    <a href="{{ url_for('sales.list_sales') }}" class="btn btn-outline-secondary">{{ icon('x-lg') }}Cancel</a>
   </div>
 </form>
 
 <script>
+const customerSelect = document.getElementById('customerSelect');
+const mechanicSelect = document.getElementById('f-mechanic');
+const discountInput = document.getElementById('f-discount-pct');
+SearchableSelect.enhance(customerSelect);
+SearchableSelect.enhance(mechanicSelect);
+SearchableSelect.enhance(document.getElementById('f-payment'));
+
+function currentDiscount() {
+  return parseFloat(discountInput.value) || 0;
+}
+
+function recalcAllRows() {
+  document.querySelectorAll('#itemsTable tbody tr').forEach(row => row._applyDiscount());
+}
+
+function discountFromSelect(select) {
+  const opt = select.options[select.selectedIndex];
+  return opt ? (parseFloat(opt.dataset.discount) || 0) : 0;
+}
+
 function wireRow(row) {
   const select = row.querySelector('.product-select');
+  const batchSelect = row.querySelector('.batch-select');
+  SearchableSelect.enhance(select);
+  SearchableSelect.enhance(batchSelect);
   const priceInput = row.querySelector('.price-input');
-  const gstDisplay = row.querySelector('.gst-display');
   const qtyInput = row.querySelector('.qty-input');
   const lineTotal = row.querySelector('.line-total');
 
-  function updateFromProduct() {
+  function resetBatchSelect() {
+    batchSelect.innerHTML = '<option value="">-- Select Batch --</option>';
+    if (batchSelect.refreshSearchable) batchSelect.refreshSearchable();
+  }
+
+  function populateBatches() {
+    resetBatchSelect();
     const opt = select.options[select.selectedIndex];
-    if (opt && opt.value) {
-      priceInput.value = opt.dataset.price;
-      gstDisplay.value = opt.dataset.gst + '%';
+    if (!opt || !opt.value) {
+      priceInput.value = '';
+      qtyInput.removeAttribute('max');
+      recalcLine();
+      return;
+    }
+    const batches = JSON.parse(opt.dataset.batches || '[]');
+    batches.forEach(function (b) {
+      const o = document.createElement('option');
+      o.value = b.id;
+      o.textContent = b.label;
+      o.dataset.price = b.price;
+      o.dataset.stock = b.stock;
+      batchSelect.appendChild(o);
+    });
+    if (batches.length) {
+      batchSelect.selectedIndex = 1; // oldest batch, auto-picked as the default
+      if (batchSelect.refreshSearchable) batchSelect.refreshSearchable();
+      updatePriceFromBatch();
     } else {
       priceInput.value = '';
-      gstDisplay.value = '';
+      qtyInput.removeAttribute('max');
+      recalcLine();
     }
+  }
+
+  function updatePriceFromBatch() {
+    const bOpt = batchSelect.options[batchSelect.selectedIndex];
+    if (!bOpt || !bOpt.value) {
+      priceInput.value = '';
+      qtyInput.removeAttribute('max');
+      recalcLine();
+      return;
+    }
+    const basePrice = parseFloat(bOpt.dataset.price) || 0;
+    const discount = currentDiscount();
+    priceInput.value = (basePrice * (1 - discount / 100)).toFixed(2);
+    qtyInput.max = bOpt.dataset.stock;
     recalcLine();
   }
+
+  row._applyDiscount = function () {
+    if (batchSelect.value) {
+      updatePriceFromBatch();
+    }
+  };
 
   function recalcLine() {
     const qty = parseFloat(qtyInput.value) || 0;
     const price = parseFloat(priceInput.value) || 0;
-    const gst = parseFloat(gstDisplay.value) || 0;
-    const subtotal = qty * price;
-    const total = subtotal + (subtotal * gst / 100);
+    const total = qty * price;
     lineTotal.value = total ? '₹' + total.toFixed(2) : '';
   }
 
-  select.addEventListener('change', updateFromProduct);
+  select.addEventListener('change', populateBatches);
+  batchSelect.addEventListener('change', updatePriceFromBatch);
   qtyInput.addEventListener('input', recalcLine);
   priceInput.addEventListener('input', recalcLine);
 }
 
 document.querySelectorAll('#itemsTable tbody tr').forEach(wireRow);
 
+customerSelect.addEventListener('change', function () {
+  discountInput.value = discountFromSelect(customerSelect);
+  recalcAllRows();
+});
+
+mechanicSelect.addEventListener('change', function () {
+  discountInput.value = discountFromSelect(mechanicSelect);
+  recalcAllRows();
+});
+
+discountInput.addEventListener('input', recalcAllRows);
+
 document.getElementById('addRow').addEventListener('click', function () {
   const tbody = document.querySelector('#itemsTable tbody');
   const newRow = tbody.rows[0].cloneNode(true);
+  SearchableSelect.reset(newRow);
   newRow.querySelectorAll('input').forEach(el => el.value = el.classList.contains('qty-input') ? 1 : '');
-  newRow.querySelector('select').selectedIndex = 0;
+  newRow.querySelector('.product-select').selectedIndex = 0;
+  newRow.querySelector('.batch-select').innerHTML = '<option value="">-- Select Batch --</option>';
   tbody.appendChild(newRow);
   wireRow(newRow);
 });
 
 document.querySelector('#itemsTable').addEventListener('click', function (e) {
-  if (e.target.classList.contains('remove-row')) {
+  if (e.target.closest('.remove-row')) {
     const tbody = document.querySelector('#itemsTable tbody');
     if (tbody.rows.length > 1) {
       e.target.closest('tr').remove();

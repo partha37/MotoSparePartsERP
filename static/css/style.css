@@ -1,10 +1,136 @@
+:root {
+  --brand: #1e4b8c;
+  --brand-dark: #163a6e;
+  --brand-light: #eaf1fb;
+  --brand-rgb: 30, 75, 140;
+  --accent: #e8720c;
+  --accent-dark: #c25e09;
+  --accent-light: #fdf0e3;
+}
+
 body {
   background-color: #f5f6f8;
 }
 
+/* ---- Cards ---- */
 .card {
   border: none;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+/* ---- Brand reskin ----
+   Bootstrap 5.3 ships per-component CSS variables (e.g. .btn-primary sets its
+   own --bs-btn-bg), so overriding those here cascades correctly through
+   hover/active/focus states without needing to recompile Bootstrap's Sass. */
+a {
+  color: var(--brand);
+}
+a:hover {
+  color: var(--brand-dark);
+}
+
+.navbar-dark.bg-dark {
+  background-color: #142743 !important;
+}
+
+.navbar-dark .navbar-nav .nav-link.active,
+.navbar-dark .navbar-nav .nav-link:hover {
+  color: #fff;
+}
+
+.btn-primary {
+  --bs-btn-bg: var(--brand);
+  --bs-btn-border-color: var(--brand);
+  --bs-btn-hover-bg: var(--brand-dark);
+  --bs-btn-hover-border-color: var(--brand-dark);
+  --bs-btn-active-bg: var(--brand-dark);
+  --bs-btn-active-border-color: var(--brand-dark);
+  --bs-btn-focus-shadow-rgb: var(--brand-rgb);
+  --bs-btn-disabled-bg: var(--brand);
+  --bs-btn-disabled-border-color: var(--brand);
+}
+
+.btn-outline-primary {
+  --bs-btn-color: var(--brand);
+  --bs-btn-border-color: var(--brand);
+  --bs-btn-hover-bg: var(--brand);
+  --bs-btn-hover-border-color: var(--brand);
+  --bs-btn-active-bg: var(--brand);
+  --bs-btn-active-border-color: var(--brand);
+  --bs-btn-focus-shadow-rgb: var(--brand-rgb);
+}
+
+.text-primary {
+  color: var(--brand) !important;
+}
+
+.form-control:focus,
+.form-select:focus {
+  border-color: var(--brand);
+  box-shadow: 0 0 0 0.25rem rgba(var(--brand-rgb), 0.25);
+}
+
+/* ---- Icons (inlined SVGs from static/vendor/bootstrap-icons/, sized via the `icon()` Jinja helper) ---- */
+.bi {
+  vertical-align: -0.125em;
+  flex-shrink: 0;
+}
+.nav-link .bi {
+  margin-right: 0.4rem;
+  opacity: 0.85;
+}
+.btn .bi {
+  margin-right: 0.35rem;
+}
+.btn.btn-sm .bi {
+  margin-right: 0.25rem;
+}
+
+/* ---- Required field marker ---- */
+label.required::after {
+  content: " *";
+  color: var(--accent-dark);
+  font-weight: 700;
+}
+
+/* ---- Dashboard stat cards ---- */
+.stat-card {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 1rem;
+}
+.stat-card-icon {
+  width: 48px;
+  height: 48px;
+  min-width: 48px;
+  border-radius: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--brand-light);
+  color: var(--brand);
+}
+.stat-card-icon.accent {
+  background: var(--accent-light);
+  color: var(--accent-dark);
+}
+.stat-card-icon .bi {
+  width: 24px;
+  height: 24px;
+  margin: 0;
+}
+
+/* ---- Searchable select (type-to-filter combobox layered over a real <select>) ---- */
+.searchable-select-menu {
+  z-index: 1050;
+  max-height: 260px;
+  overflow-y: auto;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+.searchable-select-menu .list-group-item {
+  cursor: pointer;
+  padding: 0.4rem 0.75rem;
 }
 
 @media print {

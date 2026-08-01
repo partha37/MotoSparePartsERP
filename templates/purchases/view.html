@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Purchase #{{ purchase.id }} - MotoSpareParts ERP{% endblock %}
+{% block title %}Purchase #{{ purchase.id }} - Lokey Auto Spare Parts{% endblock %}
 {% block content %}
 <h2 class="mb-4">Purchase #{{ purchase.id }}</h2>
 <div class="card p-4 mb-3">
@@ -27,5 +27,5 @@
     </tfoot>
   </table>
 </div>
-<a href="{{ url_for('purchases.list_purchases') }}" class="btn btn-outline-secondary mt-3">Back to Purchases</a>
+<a href="{{ url_for('purchases.list_purchases') }}" class="btn btn-outline-secondary mt-3">{{ icon('arrow-left') }}Back to Purchases</a>
 {% endblock %}

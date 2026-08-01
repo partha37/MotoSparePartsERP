@@ -1,9 +1,9 @@
 {% extends "base.html" %}
-{% block title %}Suppliers - MotoSpareParts ERP{% endblock %}
+{% block title %}Suppliers - Lokey Auto Spare Parts{% endblock %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h2>Suppliers</h2>
-  <a href="{{ url_for('suppliers.new_supplier') }}" class="btn btn-primary">+ Add Supplier</a>
+  <a href="{{ url_for('suppliers.new_supplier') }}" class="btn btn-primary">{{ icon('plus-lg') }}Add Supplier</a>
 </div>
 <div class="card p-3">
 <table class="table table-hover align-middle">
@@ -16,10 +16,10 @@
       <td>{{ s.phone }}</td>
       <td>{{ s.gstin }}</td>
       <td class="text-end">
-        <a href="{{ url_for('suppliers.edit_supplier', supplier_id=s.id) }}" class="btn btn-sm btn-outline-secondary">Edit</a>
+        <a href="{{ url_for('suppliers.edit_supplier', supplier_id=s.id) }}" class="btn btn-sm btn-outline-secondary">{{ icon('pencil') }}Edit</a>
         <form method="post" action="{{ url_for('suppliers.delete_supplier', supplier_id=s.id) }}" class="d-inline" onsubmit="return confirm('Delete this supplier?');">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+          <button type="submit" class="btn btn-sm btn-outline-danger">{{ icon('trash') }}Delete</button>
         </form>
       </td>
     </tr>

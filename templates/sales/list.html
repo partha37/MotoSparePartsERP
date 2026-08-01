@@ -1,9 +1,9 @@
 {% extends "base.html" %}
-{% block title %}Sales - MotoSpareParts ERP{% endblock %}
+{% block title %}Sales - Lokey Auto Spare Parts{% endblock %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h2>Sales</h2>
-  <a href="{{ url_for('sales.new_sale') }}" class="btn btn-primary">+ New Sale</a>
+  <a href="{{ url_for('sales.new_sale') }}" class="btn btn-primary">{{ icon('plus-lg') }}New Sale</a>
 </div>
 <div class="card p-3">
 <table class="table table-hover align-middle">
@@ -17,7 +17,7 @@
       <td>{{ s.mechanic.name if s.mechanic else '-' }}</td>
       <td>₹{{ "%.2f"|format(s.total) }}</td>
       <td class="{{ 'text-danger fw-bold' if s.balance_due > 0 else '' }}">₹{{ "%.2f"|format(s.balance_due) }}</td>
-      <td class="text-end"><a href="{{ url_for('sales.view_sale', sale_id=s.id) }}" class="btn btn-sm btn-outline-secondary">View</a></td>
+      <td class="text-end"><a href="{{ url_for('sales.view_sale', sale_id=s.id) }}" class="btn btn-sm btn-outline-secondary">{{ icon('eye') }}View</a></td>
     </tr>
     {% else %}
     <tr><td colspan="7" class="text-center text-muted">No sales recorded yet.</td></tr>

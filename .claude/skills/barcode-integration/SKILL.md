@@ -41,7 +41,7 @@ In [templates/sales/form.html](../../../templates/sales/form.html):
 
 1. Add an auto-focused "Scan Barcode" text input above `#itemsTable`.
 2. On Enter keypress (with `preventDefault()` + `stopPropagation()` per above): AJAX GET to the lookup endpoint with the scanned text.
-3. **If a row for this product+batch already exists in the table**, increment that row's `.qty-input` value by 1 (respecting the existing `qtyInput.max` cap tied to batch stock at [templates/sales/form.html:150](../../../templates/sales/form.html#L150)) and call `recalcLine()`.
+3. **If a row for this product+batch already exists in the table**, increment that row's `.qty-input` value by 1 (respecting the existing `qtyInput.max` cap tied to batch stock at [templates/sales/form.html:207](../../../templates/sales/form.html#L207)) and call `recalcLine()`.
 4. **Otherwise**, clone the existing empty row the same way `#addRow` does — including its `SearchableSelect.reset(newRow)` call before touching anything inside the clone — select the matched product on the row's `.product-select` (submitted as `product_filter[]`; it only drives which batches get listed, it is *not* the value the server reads), and reuse `populateBatches()` / `updatePriceFromBatch()` so the oldest batch and its price auto-fill exactly like a manual selection would. Remember the `.refreshSearchable()` call on both `.product-select` and `.batch-select` after setting them programmatically.
 5. Clear the scan box and refocus it after every scan so the cashier can keep scanning without touching the mouse.
 6. Do not change `routes/sales.py::new_sale` — it already reads `purchase_item_id[]` (not the product select) + `qty[]` + `selling_price[]` per line regardless of how the row was populated.

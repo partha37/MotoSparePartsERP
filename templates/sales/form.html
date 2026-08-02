@@ -41,7 +41,7 @@
 
   <h5 class="d-flex align-items-center">{{ icon('box-seam', 'me-1') }}Items</h5>
   <p class="text-muted small">Pick which stock batch to sell from — price defaults to that batch's MRP minus the selected customer's/mechanic's discount rate for that product's brand (if any), oldest stock listed first. GST is already included in MRP, so it isn't added separately.</p>
-  <p class="text-muted small">Fill in a line completely and a new blank line appears below it automatically. The first line is required; empty extra lines are ignored.</p>
+  <p class="text-muted small">Fill in a line completely and a new blank line appears below it automatically. The first line is required; a line you've started filling in must be completed before saving; empty untouched lines are ignored.</p>
   <table class="table" id="itemsTable">
     <thead><tr><th>Product</th><th style="width:260px">Batch (stock)</th><th style="width:90px">Qty</th><th style="width:110px">Discount %</th><th style="width:130px">Price (each)</th><th style="width:110px">Line Total</th><th></th></tr></thead>
     <tbody>
@@ -116,9 +116,12 @@ function recalcAllRows() {
   document.querySelectorAll('#itemsTable tbody tr').forEach(row => row._applyDiscount());
 }
 
-// Only the first line is required; a completed last line auto-appends a
-// fresh blank one, and blank trailing lines are never required (they're
-// also filtered out server-side if left untouched).
+// Only the first line is required outright; a completed last line
+// auto-appends a fresh blank one, and untouched trailing lines are never
+// required. But a trailing line the user has *started* filling in (any one
+// field) must be completed before saving — it's no longer safe to silently
+// drop it, since that would save a sale that looks complete on screen but
+// is missing a line the user clearly meant to add.
 function isRowFilled(row) {
   const select = row.querySelector('.product-select');
   const batchSelect = row.querySelector('.batch-select');
@@ -127,13 +130,23 @@ function isRowFilled(row) {
   return !!(select.value && batchSelect.value && qtyInput.value && priceInput.value);
 }
 
+function rowHasAnyValue(row) {
+  // Qty is deliberately excluded: a fresh blank row always defaults it to 1
+  // (see addBlankRow) as a convenience, so it's never a signal that the user
+  // has actually started filling in this row — only product/batch/price are.
+  const select = row.querySelector('.product-select');
+  const batchSelect = row.querySelector('.batch-select');
+  const priceInput = row.querySelector('.price-input');
+  return !!(select.value || batchSelect.value || priceInput.value);
+}
+
 function updateRequiredFlags() {
   document.querySelectorAll('#itemsTable tbody tr').forEach(function (row, idx) {
-    const isFirst = idx === 0;
-    SearchableSelect.setRequired(row.querySelector('.product-select'), isFirst);
-    SearchableSelect.setRequired(row.querySelector('.batch-select'), isFirst);
-    row.querySelector('.qty-input').required = isFirst;
-    row.querySelector('.price-input').required = isFirst;
+    const required = idx === 0 || rowHasAnyValue(row);
+    SearchableSelect.setRequired(row.querySelector('.product-select'), required);
+    SearchableSelect.setRequired(row.querySelector('.batch-select'), required);
+    row.querySelector('.qty-input').required = required;
+    row.querySelector('.price-input').required = required;
   });
 }
 
@@ -151,6 +164,7 @@ function addBlankRow() {
 }
 
 function maybeAutoAddRow(row) {
+  updateRequiredFlags();
   const tbody = document.querySelector('#itemsTable tbody');
   if (row === tbody.lastElementChild && isRowFilled(row)) {
     addBlankRow();

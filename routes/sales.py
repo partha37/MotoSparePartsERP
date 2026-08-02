@@ -63,18 +63,31 @@ def new_sale():
         payment_mode = request.form.get("payment_mode", "cash")
         amount_paid = float(request.form.get("amount_paid") or 0)
 
+        product_ids = request.form.getlist("product_filter[]")
         batch_ids = request.form.getlist("purchase_item_id[]")
         qtys = request.form.getlist("qty[]")
         prices = request.form.getlist("selling_price[]")
 
-        rows = [
-            (bid, qty, price)
-            for bid, qty, price in zip(batch_ids, qtys, prices)
-            if bid and qty and price
+        raw_rows = list(zip(product_ids, batch_ids, qtys, prices))
+        rows = [(bid, qty, price) for pid, bid, qty, price in raw_rows if bid and qty and price]
+        # Qty is excluded from the "did the user touch this row" check: a fresh
+        # blank row's qty always defaults to 1 client-side (see addBlankRow in
+        # sales/form.html), so its presence alone doesn't indicate real intent —
+        # only a picked product/batch or a typed price does.
+        partial_rows = [
+            pid for pid, bid, qty, price in raw_rows
+            if (pid or bid or price) and not (bid and qty and price)
         ]
 
         if not rows:
             flash("Add at least one product to the sale.", "danger")
+            return render_template(
+                "sales/form.html", products=products, customers=customers,
+                mechanics=mechanics, today=date.today().isoformat()
+            )
+
+        if partial_rows:
+            flash("Some lines have a product/batch selected but are missing Qty or Price — fill them in or remove the line.", "danger")
             return render_template(
                 "sales/form.html", products=products, customers=customers,
                 mechanics=mechanics, today=date.today().isoformat()

@@ -9,14 +9,18 @@
 </div>
 <div class="card p-3">
 <table class="table table-hover align-middle">
-  <thead><tr><th>Name</th><th>Garage</th><th>Phone</th><th>Discount %</th><th></th></tr></thead>
+  <thead><tr><th>Name</th><th>Garage</th><th>Phone</th><th>Brand Discounts</th><th></th></tr></thead>
   <tbody>
     {% for m in mechanics %}
     <tr data-href="{{ url_for('mechanics.view_mechanic', mechanic_id=m.id) }}">
       <td><a href="{{ url_for('mechanics.view_mechanic', mechanic_id=m.id) }}">{{ m.name }}</a></td>
       <td>{{ m.garage_name }}</td>
       <td>{{ m.phone }}</td>
-      <td>{{ m.discount_pct or 0 }}%</td>
+      <td>
+        {% if m.brand_discounts %}
+        {% for bd in m.brand_discounts %}{{ bd.brand_name }} {{ bd.discount_pct|int }}%{% if not loop.last %}, {% endif %}{% endfor %}
+        {% else %}-{% endif %}
+      </td>
       <td class="text-end">
         <a href="{{ url_for('mechanics.edit_mechanic', mechanic_id=m.id) }}" class="btn btn-sm btn-outline-secondary">{{ icon('pencil') }}Edit</a>
         <form method="post" action="{{ url_for('mechanics.delete_mechanic', mechanic_id=m.id) }}" class="d-inline" onsubmit="return confirm('Delete this mechanic?');">

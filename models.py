@@ -23,11 +23,20 @@ class ShopSettings(db.Model):
     gstin = db.Column(db.String(20), default="")
 
 
+class Brand(db.Model):
+    """Shared master list of brands (Honda, TVS, Bajaj, Universal, ...) used
+    consistently across Products, Suppliers, and Customer/Mechanic brand-wise
+    discounts, instead of free-typed text scattered across each of them."""
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), unique=True, nullable=False)
+
+
 class Product(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     product_name = db.Column(db.String(150), nullable=False)
     part_no = db.Column(db.String(80), unique=True, nullable=False, index=True)
-    brand = db.Column(db.String(50))
+    brand_id = db.Column(db.Integer, db.ForeignKey("brand.id"), nullable=True)
     category = db.Column(db.String(80))
     vehicle_name = db.Column(db.String(150))  # vehicle model(s) this part fits, e.g. "Honda Activa"
     unit = db.Column(db.String(20), default="pc")
@@ -43,6 +52,8 @@ class Product(db.Model):
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    brand = db.relationship("Brand", backref="products")
 
     def recalc_prices(self):
         """Recomputes cost price only — selling price is decided per-sale at checkout, not stored here."""
@@ -70,6 +81,10 @@ class Product(db.Model):
     def is_low_stock(self):
         return self.current_stock <= self.reorder_level
 
+    @property
+    def brand_name(self):
+        return self.brand.name if self.brand else ""
+
     def __repr__(self):
         return f"<Product {self.part_no} {self.product_name}>"
 
@@ -77,12 +92,17 @@ class Product(db.Model):
 class Supplier(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(150), nullable=False)
-    brand = db.Column(db.String(50))
+    brand_id = db.Column(db.Integer, db.ForeignKey("brand.id"), nullable=True)
     phone = db.Column(db.String(20))
     address = db.Column(db.String(255))
     gstin = db.Column(db.String(20))
 
     purchases = db.relationship("Purchase", backref="supplier", lazy=True)
+    brand = db.relationship("Brand", backref="suppliers")
+
+    @property
+    def brand_name(self):
+        return self.brand.name if self.brand else ""
 
 
 class Customer(db.Model):
@@ -91,9 +111,38 @@ class Customer(db.Model):
     phone = db.Column(db.String(20))
     address = db.Column(db.String(255))
     vehicle_model = db.Column(db.String(100))
-    discount_pct = db.Column(db.Float, default=0)  # standing discount off MRP, auto-applied at checkout
 
     sales = db.relationship("Sale", backref="customer", lazy=True)
+
+    def discount_for_brand(self, brand_id):
+        """Standing discount off MRP for a given product brand, auto-applied at checkout."""
+        if not brand_id:
+            return 0
+        for bd in self.brand_discounts:
+            if bd.brand_id == brand_id:
+                return bd.discount_pct or 0
+        return 0
+
+
+class CustomerBrandDiscount(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    customer_id = db.Column(db.Integer, db.ForeignKey("customer.id"), nullable=False)
+    brand_id = db.Column(db.Integer, db.ForeignKey("brand.id"), nullable=False)
+    discount_pct = db.Column(db.Float, default=0)
+
+    customer = db.relationship(
+        "Customer",
+        backref=db.backref("brand_discounts", cascade="all, delete-orphan"),
+    )
+    brand = db.relationship("Brand")
+
+    @property
+    def customer_name(self):
+        return self.customer.name if self.customer else ""
+
+    @property
+    def brand_name(self):
+        return self.brand.name if self.brand else ""
 
 
 class Mechanic(db.Model):
@@ -101,9 +150,38 @@ class Mechanic(db.Model):
     name = db.Column(db.String(150), nullable=False)
     phone = db.Column(db.String(20))
     garage_name = db.Column(db.String(150))
-    discount_pct = db.Column(db.Float, default=0)  # standing discount for customers this mechanic refers
 
     sales = db.relationship("Sale", backref="mechanic", lazy=True)
+
+    def discount_for_brand(self, brand_id):
+        """Standing discount for customers this mechanic refers, per product brand."""
+        if not brand_id:
+            return 0
+        for bd in self.brand_discounts:
+            if bd.brand_id == brand_id:
+                return bd.discount_pct or 0
+        return 0
+
+
+class MechanicBrandDiscount(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    mechanic_id = db.Column(db.Integer, db.ForeignKey("mechanic.id"), nullable=False)
+    brand_id = db.Column(db.Integer, db.ForeignKey("brand.id"), nullable=False)
+    discount_pct = db.Column(db.Float, default=0)
+
+    mechanic = db.relationship(
+        "Mechanic",
+        backref=db.backref("brand_discounts", cascade="all, delete-orphan"),
+    )
+    brand = db.relationship("Brand")
+
+    @property
+    def mechanic_name(self):
+        return self.mechanic.name if self.mechanic else ""
+
+    @property
+    def brand_name(self):
+        return self.brand.name if self.brand else ""
 
 
 class Purchase(db.Model):

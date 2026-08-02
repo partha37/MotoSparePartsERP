@@ -18,8 +18,8 @@ from openpyxl import Workbook
 from openpyxl.utils import get_column_letter
 
 from models import (
-    Product, Supplier, Customer, Mechanic,
-    Purchase, PurchaseItem, Sale, SaleItem, StockMovement, ShopSettings, Payment,
+    Product, Supplier, Customer, CustomerBrandDiscount, Mechanic, MechanicBrandDiscount,
+    Purchase, PurchaseItem, Sale, SaleItem, StockMovement, ShopSettings, Payment, Brand,
 )
 
 EXCEL_FILENAME = "erp_data.xlsx"
@@ -29,13 +29,14 @@ EXCEL_FILENAME = "erp_data.xlsx"
 # resolved by _cell_value below.
 SHEETS = {
     "Products": (Product, [
-        "id", "part_no", "product_name", "brand", "category", "vehicle_name", "unit", "hsn_code",
+        "id", "part_no", "product_name", "brand_name", "category", "vehicle_name", "unit", "hsn_code",
         "gst_rate", "mrp", "actual_discount_pct", "actual_discounted_price",
         "margin_per_unit", "current_stock", "reorder_level",
     ]),
-    "Suppliers": (Supplier, ["id", "name", "brand", "phone", "address", "gstin"]),
-    "Customers": (Customer, ["id", "name", "phone", "address", "vehicle_model", "discount_pct"]),
-    "Mechanics": (Mechanic, ["id", "name", "phone", "garage_name", "discount_pct"]),
+    "Suppliers": (Supplier, ["id", "name", "brand_name", "phone", "address", "gstin"]),
+    "Brands": (Brand, ["id", "name"]),
+    "Customers": (Customer, ["id", "name", "phone", "address", "vehicle_model"]),
+    "Mechanics": (Mechanic, ["id", "name", "phone", "garage_name"]),
     "Purchases": (Purchase, [
         "id", "date", "invoice_no", "supplier_id", "supplier_name", "total",
     ]),
@@ -57,6 +58,12 @@ SHEETS = {
     ]),
     "Payments": (Payment, [
         "id", "sale_id", "invoice_no", "date", "amount", "payment_mode", "note",
+    ]),
+    "CustomerBrandDiscounts": (CustomerBrandDiscount, [
+        "id", "customer_id", "customer_name", "brand_name", "discount_pct",
+    ]),
+    "MechanicBrandDiscounts": (MechanicBrandDiscount, [
+        "id", "mechanic_id", "mechanic_name", "brand_name", "discount_pct",
     ]),
 }
 

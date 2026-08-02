@@ -3,7 +3,7 @@ from flask_login import login_required
 
 from extensions import db
 from excel_sync import sync_to_excel
-from models import Customer, Sale
+from models import Customer, CustomerBrandDiscount, Sale, Brand
 
 customers_bp = Blueprint("customers", __name__, url_prefix="/customers")
 
@@ -13,7 +13,20 @@ def _apply_form(customer, form):
     customer.phone = form.get("phone", "").strip()
     customer.address = form.get("address", "").strip()
     customer.vehicle_model = form.get("vehicle_model", "").strip()
-    customer.discount_pct = float(form.get("discount_pct") or 0)
+
+
+def _sync_brand_discounts(customer, form):
+    CustomerBrandDiscount.query.filter_by(customer_id=customer.id).delete()
+    brand_ids = form.getlist("brand_id[]")
+    pcts = form.getlist("brand_discount_pct[]")
+    for brand_id, pct in zip(brand_ids, pcts):
+        pct = float(pct) if pct else 0
+        if brand_id and pct:
+            db.session.add(CustomerBrandDiscount(customer_id=customer.id, brand_id=int(brand_id), discount_pct=pct))
+
+
+def _all_brands():
+    return Brand.query.order_by(Brand.name.asc()).all()
 
 
 @customers_bp.route("/")
@@ -30,11 +43,13 @@ def new_customer():
         customer = Customer()
         _apply_form(customer, request.form)
         db.session.add(customer)
+        db.session.flush()
+        _sync_brand_discounts(customer, request.form)
         db.session.commit()
         sync_to_excel()
         flash("Customer added.", "success")
         return redirect(url_for("customers.list_customers"))
-    return render_template("customers/form.html", customer=None)
+    return render_template("customers/form.html", customer=None, brands=_all_brands())
 
 
 @customers_bp.route("/<int:customer_id>/edit", methods=["GET", "POST"])
@@ -43,11 +58,12 @@ def edit_customer(customer_id):
     customer = Customer.query.get_or_404(customer_id)
     if request.method == "POST":
         _apply_form(customer, request.form)
+        _sync_brand_discounts(customer, request.form)
         db.session.commit()
         sync_to_excel()
         flash("Customer updated.", "success")
         return redirect(url_for("customers.list_customers"))
-    return render_template("customers/form.html", customer=customer)
+    return render_template("customers/form.html", customer=customer, brands=_all_brands())
 
 
 @customers_bp.route("/<int:customer_id>")

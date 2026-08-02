@@ -148,6 +148,64 @@ label.required::after {
   padding: 0.4rem 0.75rem;
 }
 
+/* ---- Left side pane (Settings/Logout) — a slim full-height rail with a
+   toggle icon at its top ("breadcrumb"), collapsed to icon-only by default.
+   Hovering widens it to reveal labels; Settings/Logout stay pinned to the
+   bottom of the rail. Kept out of the top navbar since these are
+   account/app-level actions, not day-to-day navigation. ---- */
+body.has-side-pane {
+  padding-left: 44px;
+}
+.side-pane {
+  position: fixed;
+  top: var(--navbar-height, 62px);
+  bottom: 0;
+  left: 0;
+  z-index: 1030;
+  width: 44px;
+  display: flex;
+  flex-direction: column;
+  background-color: #142743;
+  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.15);
+  overflow: hidden;
+  transition: width 0.2s ease;
+}
+.side-pane:hover,
+.side-pane:focus-within {
+  width: 190px;
+}
+.side-pane-top {
+  display: flex;
+  align-items: center;
+  padding: 0.9rem 0.8rem;
+  color: #fff;
+}
+.side-pane-bottom {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 0.5rem;
+}
+.side-pane-link {
+  display: flex;
+  align-items: center;
+  padding: 0.65rem 0.8rem;
+  color: #fff !important;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.side-pane-link:hover {
+  background-color: rgba(255, 255, 255, 0.12);
+}
+.side-pane-label {
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+.side-pane:hover .side-pane-label,
+.side-pane:focus-within .side-pane-label {
+  opacity: 1;
+}
+
 @media print {
   .no-print {
     display: none !important;

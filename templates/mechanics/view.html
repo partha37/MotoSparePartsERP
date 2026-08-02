@@ -6,7 +6,12 @@
   <div class="row">
     <div class="col-md-4"><strong>Garage:</strong> {{ mechanic.garage_name or '-' }}</div>
     <div class="col-md-4"><strong>Phone:</strong> {{ mechanic.phone or '-' }}</div>
-    <div class="col-md-4"><strong>Discount:</strong> {{ mechanic.discount_pct or 0 }}%</div>
+    <div class="col-md-4">
+      <strong>Brand Discounts:</strong>
+      {% if mechanic.brand_discounts %}
+      {% for bd in mechanic.brand_discounts %}{{ bd.brand_name }} {{ bd.discount_pct|int }}%{% if not loop.last %}, {% endif %}{% endfor %}
+      {% else %}-{% endif %}
+    </div>
   </div>
 </div>
 <h5>Sales via this Mechanic</h5>

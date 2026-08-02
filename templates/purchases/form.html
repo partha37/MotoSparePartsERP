@@ -11,7 +11,7 @@
       <select id="f-supplier" name="supplier_id" class="form-select" required>
         <option value="">-- Select Supplier --</option>
         {% for s in suppliers %}
-        <option value="{{ s.id }}">{{ s.name }} {{ '(' + s.brand + ')' if s.brand else '' }}</option>
+        <option value="{{ s.id }}">{{ s.name }} {{ '(' + s.brand.name + ')' if s.brand else '' }}</option>
         {% endfor %}
       </select>
     </div>

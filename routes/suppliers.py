@@ -3,17 +3,21 @@ from flask_login import login_required
 
 from extensions import db
 from excel_sync import sync_to_excel
-from models import Supplier, Purchase
+from models import Supplier, Purchase, Brand
 
 suppliers_bp = Blueprint("suppliers", __name__, url_prefix="/suppliers")
 
 
 def _apply_form(supplier, form):
     supplier.name = form.get("name", "").strip()
-    supplier.brand = form.get("brand", "").strip()
+    supplier.brand_id = int(form.get("brand_id")) if form.get("brand_id") else None
     supplier.phone = form.get("phone", "").strip()
     supplier.address = form.get("address", "").strip()
     supplier.gstin = form.get("gstin", "").strip()
+
+
+def _all_brands():
+    return Brand.query.order_by(Brand.name.asc()).all()
 
 
 @suppliers_bp.route("/")
@@ -34,7 +38,7 @@ def new_supplier():
         sync_to_excel()
         flash("Supplier added.", "success")
         return redirect(url_for("suppliers.list_suppliers"))
-    return render_template("suppliers/form.html", supplier=None)
+    return render_template("suppliers/form.html", supplier=None, brands=_all_brands())
 
 
 @suppliers_bp.route("/<int:supplier_id>/edit", methods=["GET", "POST"])
@@ -47,7 +51,7 @@ def edit_supplier(supplier_id):
         sync_to_excel()
         flash("Supplier updated.", "success")
         return redirect(url_for("suppliers.list_suppliers"))
-    return render_template("suppliers/form.html", supplier=supplier)
+    return render_template("suppliers/form.html", supplier=supplier, brands=_all_brands())
 
 
 @suppliers_bp.route("/<int:supplier_id>/delete", methods=["POST"])

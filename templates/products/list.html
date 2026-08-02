@@ -29,7 +29,7 @@
     <tr class="{{ 'table-danger' if p.is_low_stock else '' }}" data-href="{{ url_for('products.edit_product', product_id=p.id) }}">
       <td>{{ p.part_no }}</td>
       <td>{{ p.product_name }}</td>
-      <td>{{ p.brand }}</td>
+      <td>{{ p.brand.name if p.brand else '-' }}</td>
       <td>{{ p.vehicle_name or '-' }}</td>
       <td>
         ₹{{ "%.2f"|format(p.mrp) }}

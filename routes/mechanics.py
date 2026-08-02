@@ -3,7 +3,7 @@ from flask_login import login_required
 
 from extensions import db
 from excel_sync import sync_to_excel
-from models import Mechanic, Sale
+from models import Mechanic, MechanicBrandDiscount, Sale, Brand
 
 mechanics_bp = Blueprint("mechanics", __name__, url_prefix="/mechanics")
 
@@ -12,7 +12,20 @@ def _apply_form(mechanic, form):
     mechanic.name = form.get("name", "").strip()
     mechanic.phone = form.get("phone", "").strip()
     mechanic.garage_name = form.get("garage_name", "").strip()
-    mechanic.discount_pct = float(form.get("discount_pct") or 0)
+
+
+def _sync_brand_discounts(mechanic, form):
+    MechanicBrandDiscount.query.filter_by(mechanic_id=mechanic.id).delete()
+    brand_ids = form.getlist("brand_id[]")
+    pcts = form.getlist("brand_discount_pct[]")
+    for brand_id, pct in zip(brand_ids, pcts):
+        pct = float(pct) if pct else 0
+        if brand_id and pct:
+            db.session.add(MechanicBrandDiscount(mechanic_id=mechanic.id, brand_id=int(brand_id), discount_pct=pct))
+
+
+def _all_brands():
+    return Brand.query.order_by(Brand.name.asc()).all()
 
 
 @mechanics_bp.route("/")
@@ -29,11 +42,13 @@ def new_mechanic():
         mechanic = Mechanic()
         _apply_form(mechanic, request.form)
         db.session.add(mechanic)
+        db.session.flush()
+        _sync_brand_discounts(mechanic, request.form)
         db.session.commit()
         sync_to_excel()
         flash("Mechanic added.", "success")
         return redirect(url_for("mechanics.list_mechanics"))
-    return render_template("mechanics/form.html", mechanic=None)
+    return render_template("mechanics/form.html", mechanic=None, brands=_all_brands())
 
 
 @mechanics_bp.route("/<int:mechanic_id>/edit", methods=["GET", "POST"])
@@ -42,11 +57,12 @@ def edit_mechanic(mechanic_id):
     mechanic = Mechanic.query.get_or_404(mechanic_id)
     if request.method == "POST":
         _apply_form(mechanic, request.form)
+        _sync_brand_discounts(mechanic, request.form)
         db.session.commit()
         sync_to_excel()
         flash("Mechanic updated.", "success")
         return redirect(url_for("mechanics.list_mechanics"))
-    return render_template("mechanics/form.html", mechanic=mechanic)
+    return render_template("mechanics/form.html", mechanic=mechanic, brands=_all_brands())
 
 
 @mechanics_bp.route("/<int:mechanic_id>")

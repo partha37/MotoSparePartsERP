@@ -3,7 +3,7 @@ from flask_login import login_required
 
 from extensions import db
 from excel_sync import sync_to_excel
-from models import Product, PurchaseItem, SaleItem
+from models import Product, PurchaseItem, SaleItem, Brand
 
 products_bp = Blueprint("products", __name__, url_prefix="/products")
 
@@ -11,7 +11,7 @@ products_bp = Blueprint("products", __name__, url_prefix="/products")
 def _apply_form_to_product(product, form):
     product.product_name = form.get("product_name", "").strip()
     product.part_no = form.get("part_no", "").strip()
-    product.brand = form.get("brand", "").strip()
+    product.brand_id = int(form.get("brand_id")) if form.get("brand_id") else None
     product.category = form.get("category", "").strip()
     product.vehicle_name = form.get("vehicle_name", "").strip()
     product.unit = form.get("unit", "pc").strip() or "pc"
@@ -37,13 +37,17 @@ def list_products():
     return render_template("products/list.html", products=products, q=q)
 
 
+def _all_brands():
+    return Brand.query.order_by(Brand.name.asc()).all()
+
+
 @products_bp.route("/new", methods=["GET", "POST"])
 @login_required
 def new_product():
     if request.method == "POST":
         if Product.query.filter_by(part_no=request.form.get("part_no", "").strip()).first():
             flash("A product with this Part No already exists.", "danger")
-            return render_template("products/form.html", product=None, form_data=request.form)
+            return render_template("products/form.html", product=None, form_data=request.form, brands=_all_brands())
 
         product = Product(current_stock=0)
         _apply_form_to_product(product, request.form)
@@ -53,7 +57,7 @@ def new_product():
         flash("Product added.", "success")
         return redirect(url_for("products.list_products"))
 
-    return render_template("products/form.html", product=None, form_data=None)
+    return render_template("products/form.html", product=None, form_data=None, brands=_all_brands())
 
 
 @products_bp.route("/<int:product_id>/edit", methods=["GET", "POST"])
@@ -70,7 +74,7 @@ def edit_product(product_id):
             flash("Another product already uses this Part No.", "danger")
             return render_template(
                 "products/form.html", product=product, form_data=request.form,
-                purchase_history=purchase_history
+                purchase_history=purchase_history, brands=_all_brands()
             )
 
         _apply_form_to_product(product, request.form)
@@ -80,7 +84,8 @@ def edit_product(product_id):
         return redirect(url_for("products.list_products"))
 
     return render_template(
-        "products/form.html", product=product, form_data=None, purchase_history=purchase_history
+        "products/form.html", product=product, form_data=None,
+        purchase_history=purchase_history, brands=_all_brands()
     )
 
 

@@ -34,6 +34,14 @@ def _attach_available_batches(products):
     return products
 
 
+def _attach_brand_discount_maps(owners):
+    """Attach `.brand_discount_map` ({brand_id: pct}) to each Customer/Mechanic, so
+    the sales form can look up the right rate per product line client-side."""
+    for owner in owners:
+        owner.brand_discount_map = {bd.brand_id: bd.discount_pct or 0 for bd in owner.brand_discounts}
+    return owners
+
+
 @sales_bp.route("/")
 @login_required
 def list_sales():
@@ -45,8 +53,8 @@ def list_sales():
 @login_required
 def new_sale():
     products = _attach_available_batches(Product.query.order_by(Product.product_name.asc()).all())
-    customers = Customer.query.order_by(Customer.name.asc()).all()
-    mechanics = Mechanic.query.order_by(Mechanic.name.asc()).all()
+    customers = _attach_brand_discount_maps(Customer.query.order_by(Customer.name.asc()).all())
+    mechanics = _attach_brand_discount_maps(Mechanic.query.order_by(Mechanic.name.asc()).all())
 
     if request.method == "POST":
         sale_date = date.fromisoformat(request.form.get("date") or date.today().isoformat())

@@ -19,8 +19,13 @@
     </div>
     <div class="col-md-3">
       <label class="form-label" for="f-brand">Brand</label>
-      <input type="text" id="f-brand" name="brand" class="form-control" placeholder="Honda / TVS / Bajaj"
-             value="{{ d.brand if d else '' }}">
+      <select id="f-brand" name="brand_id" class="form-select">
+        <option value="">-- None --</option>
+        {% for b in brands %}
+        <option value="{{ b.id }}" {{ 'selected' if d and (d.brand_id|string) == b.id|string else '' }}>{{ b.name }}</option>
+        {% endfor %}
+      </select>
+      <div class="form-text">Manage the brand list from <a href="{{ url_for('brands.list_brands') }}">Catalog &raquo; Brands</a>.</div>
     </div>
 
     <div class="col-md-3">
@@ -143,5 +148,6 @@
 
 <script>
 SearchableSelect.enhance(document.getElementById('f-unit'));
+SearchableSelect.enhance(document.getElementById('f-brand'));
 </script>
 {% endblock %}

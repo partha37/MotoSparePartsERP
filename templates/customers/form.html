@@ -17,14 +17,46 @@
       <label class="form-label" for="f-vehicle">Vehicle Model</label>
       <input type="text" id="f-vehicle" name="vehicle_model" class="form-control" value="{{ customer.vehicle_model if customer else '' }}">
     </div>
-    <div class="col-md-6">
-      <label class="form-label" for="f-discount">Discount % <span class="text-muted small">(auto-applied at checkout)</span></label>
-      <input type="number" step="0.01" id="f-discount" name="discount_pct" class="form-control" value="{{ customer.discount_pct if customer else 0 }}">
-      <div class="form-text">Selling price for this customer defaults to MRP minus this discount — still editable per sale.</div>
-    </div>
     <div class="col-md-12">
       <label class="form-label" for="f-address">Address</label>
       <textarea id="f-address" name="address" class="form-control" autocomplete="off">{{ customer.address if customer else '' }}</textarea>
+    </div>
+    <div class="col-12">
+      <hr>
+      <h5 class="d-flex align-items-center">{{ icon('percent', 'me-1') }}Brand-wise Discount %</h5>
+      <p class="text-muted small">Selling price for this customer auto-fills at checkout using the discount set here for that product's brand — still editable per sale line. Leave a brand out for no discount on it.</p>
+      <table class="table table-sm" id="brandDiscountTable">
+        <thead><tr><th>Brand</th><th style="width:160px">Discount %</th><th></th></tr></thead>
+        <tbody>
+          {% for bd in (customer.brand_discounts if customer else []) %}
+          <tr>
+            <td>
+              <select name="brand_id[]" class="form-select brand-select" aria-label="Brand">
+                <option value="">-- Select Brand --</option>
+                {% for b in brands %}
+                <option value="{{ b.id }}" {{ 'selected' if b.id == bd.brand_id else '' }}>{{ b.name }}</option>
+                {% endfor %}
+              </select>
+            </td>
+            <td><input type="number" step="0.01" name="brand_discount_pct[]" class="form-control pct-input" aria-label="Discount %" value="{{ bd.discount_pct }}"></td>
+            <td><button type="button" class="btn btn-outline-danger btn-sm remove-row" aria-label="Remove this brand rate">{{ icon('trash') }}</button></td>
+          </tr>
+          {% endfor %}
+          <tr>
+            <td>
+              <select name="brand_id[]" class="form-select brand-select" aria-label="Brand">
+                <option value="">-- Select Brand --</option>
+                {% for b in brands %}
+                <option value="{{ b.id }}">{{ b.name }}</option>
+                {% endfor %}
+              </select>
+            </td>
+            <td><input type="number" step="0.01" name="brand_discount_pct[]" class="form-control pct-input" aria-label="Discount %" placeholder="0"></td>
+            <td><button type="button" class="btn btn-outline-danger btn-sm remove-row" aria-label="Remove this brand rate">{{ icon('trash') }}</button></td>
+          </tr>
+        </tbody>
+      </table>
+      <button type="button" id="addBrandRow" class="btn btn-sm btn-outline-primary">{{ icon('plus-lg') }}Add Brand Rate</button>
     </div>
   </div>
   <div class="mt-4 d-flex gap-2">
@@ -32,4 +64,48 @@
     <a href="{{ url_for('customers.list_customers') }}" class="btn btn-outline-secondary">{{ icon('x-lg') }}Cancel</a>
   </div>
 </form>
+
+<script>
+function isBrandRowFilled(row) {
+  const brand = row.querySelector('.brand-select');
+  const pct = row.querySelector('.pct-input');
+  return !!(brand.value && pct.value);
+}
+
+function wireBrandRow(row) {
+  SearchableSelect.enhance(row.querySelector('.brand-select'));
+  row.querySelector('.brand-select').addEventListener('change', function () { maybeAutoAddBrandRow(row); });
+  row.querySelector('.pct-input').addEventListener('input', function () { maybeAutoAddBrandRow(row); });
+}
+
+function addBlankBrandRow() {
+  const tbody = document.querySelector('#brandDiscountTable tbody');
+  const newRow = tbody.lastElementChild.cloneNode(true);
+  SearchableSelect.reset(newRow);
+  newRow.querySelectorAll('input').forEach(el => el.value = '');
+  newRow.querySelector('.brand-select').selectedIndex = 0;
+  tbody.appendChild(newRow);
+  wireBrandRow(newRow);
+  return newRow;
+}
+
+function maybeAutoAddBrandRow(row) {
+  const tbody = document.querySelector('#brandDiscountTable tbody');
+  if (row === tbody.lastElementChild && isBrandRowFilled(row)) {
+    addBlankBrandRow();
+  }
+}
+
+document.querySelectorAll('#brandDiscountTable tbody tr').forEach(wireBrandRow);
+document.getElementById('addBrandRow').addEventListener('click', addBlankBrandRow);
+
+document.querySelector('#brandDiscountTable').addEventListener('click', function (e) {
+  if (e.target.closest('.remove-row')) {
+    const tbody = document.querySelector('#brandDiscountTable tbody');
+    if (tbody.rows.length > 1) {
+      e.target.closest('tr').remove();
+    }
+  }
+});
+</script>
 {% endblock %}

@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit' if brand else 'Add' }} Brand - Lokey Auto Spare Parts{% endblock %}
+{% block content %}
+<h2 class="mb-4">{{ 'Edit' if brand else 'Add' }} Brand</h2>
+<form method="post" class="card p-4">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="row g-3">
+    <div class="col-md-6">
+      <label class="form-label required" for="f-name">Name</label>
+      <input type="text" id="f-name" name="name" class="form-control" autocomplete="off" required
+             placeholder="e.g. Honda" value="{{ brand.name if brand else '' }}">
+      <div class="form-text">Used consistently across Products, Suppliers, and Customer/Mechanic brand-wise discounts.</div>
+    </div>
+  </div>
+  <div class="mt-4 d-flex gap-2">
+    <button type="submit" class="btn btn-primary">{{ icon('save') }}Save</button>
+    <a href="{{ url_for('brands.list_brands') }}" class="btn btn-outline-secondary">{{ icon('x-lg') }}Cancel</a>
+  </div>
+</form>
+{% endblock %}

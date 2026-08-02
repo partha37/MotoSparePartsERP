@@ -10,21 +10,27 @@ from flask_login import login_required
 
 from extensions import db
 from excel_sync import sync_to_excel, excel_path
-from models import ShopSettings, Product, Customer, Mechanic, Supplier, Sale, Purchase, Payment
+from models import (
+    ShopSettings, Product, Customer, CustomerBrandDiscount, Mechanic, MechanicBrandDiscount,
+    Supplier, Sale, Purchase, Payment, Brand,
+)
 
 settings_bp = Blueprint("settings", __name__, url_prefix="/settings")
 
 EXPORTABLE = {
-    "products": (Product, ["id", "part_no", "product_name", "brand", "category", "vehicle_name",
+    "products": (Product, ["id", "part_no", "product_name", "brand_name", "category", "vehicle_name",
                             "unit", "mrp", "actual_discount_pct", "actual_discounted_price",
                             "current_stock", "reorder_level"]),
-    "customers": (Customer, ["id", "name", "phone", "address", "vehicle_model", "discount_pct"]),
-    "mechanics": (Mechanic, ["id", "name", "phone", "garage_name", "discount_pct"]),
-    "suppliers": (Supplier, ["id", "name", "brand", "phone", "address", "gstin"]),
+    "customers": (Customer, ["id", "name", "phone", "address", "vehicle_model"]),
+    "mechanics": (Mechanic, ["id", "name", "phone", "garage_name"]),
+    "suppliers": (Supplier, ["id", "name", "brand_name", "phone", "address", "gstin"]),
     "sales": (Sale, ["id", "invoice_no", "date", "customer_id", "mechanic_id",
                       "payment_mode", "amount_paid"]),
     "purchases": (Purchase, ["id", "supplier_id", "date", "invoice_no"]),
     "payments": (Payment, ["id", "sale_id", "invoice_no", "date", "amount", "payment_mode", "note"]),
+    "brands": (Brand, ["id", "name"]),
+    "customer_brand_discounts": (CustomerBrandDiscount, ["id", "customer_id", "customer_name", "brand_name", "discount_pct"]),
+    "mechanic_brand_discounts": (MechanicBrandDiscount, ["id", "mechanic_id", "mechanic_name", "brand_name", "discount_pct"]),
 }
 
 

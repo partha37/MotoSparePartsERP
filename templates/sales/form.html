@@ -6,34 +6,29 @@
 <form method="post" class="card p-4">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <div class="row g-3 mb-3">
-    <div class="col-md-2">
+    <div class="col-md-3">
       <label class="form-label" for="f-date">Date</label>
       <input type="date" id="f-date" name="date" class="form-control" value="{{ today }}">
     </div>
     <div class="col-md-3">
       <label class="form-label" for="customerSelect">Customer <span class="text-muted small">(optional)</span></label>
       <select name="customer_id" id="customerSelect" class="form-select">
-        <option value="" data-discount="0">Walk-in</option>
+        <option value="" data-brand-discounts="{}">Walk-in</option>
         {% for c in customers %}
-        <option value="{{ c.id }}" data-discount="{{ c.discount_pct or 0 }}">{{ c.name }}{% if c.discount_pct %} ({{ c.discount_pct }}% off){% endif %}</option>
+        <option value="{{ c.id }}" data-brand-discounts='{{ c.brand_discount_map|tojson }}'>{{ c.name }}{% if c.brand_discount_map %} (brand rates set){% endif %}</option>
         {% endfor %}
       </select>
     </div>
     <div class="col-md-3">
       <label class="form-label" for="f-mechanic">Mechanic <span class="text-muted small">(optional)</span></label>
       <select id="f-mechanic" name="mechanic_id" class="form-select">
-        <option value="" data-discount="0">-- None --</option>
+        <option value="" data-brand-discounts="{}">-- None --</option>
         {% for m in mechanics %}
-        <option value="{{ m.id }}" data-discount="{{ m.discount_pct or 0 }}">{{ m.name }}{% if m.discount_pct %} ({{ m.discount_pct }}% off){% endif %}</option>
+        <option value="{{ m.id }}" data-brand-discounts='{{ m.brand_discount_map|tojson }}'>{{ m.name }}{% if m.brand_discount_map %} (brand rates set){% endif %}</option>
         {% endfor %}
       </select>
     </div>
-    <div class="col-md-2">
-      <label class="form-label" for="f-discount-pct">Discount %</label>
-      <input type="number" step="0.01" id="f-discount-pct" class="form-control" value="0">
-      <div class="form-text">Applies to every line below</div>
-    </div>
-    <div class="col-md-2">
+    <div class="col-md-3">
       <label class="form-label" for="f-payment">Payment Mode</label>
       <select id="f-payment" name="payment_mode" class="form-select">
         <option value="cash">Cash</option>
@@ -45,17 +40,17 @@
   </div>
 
   <h5 class="d-flex align-items-center">{{ icon('box-seam', 'me-1') }}Items</h5>
-  <p class="text-muted small">Pick which stock batch to sell from — price defaults to that batch's own MRP minus the Discount % above (if any), oldest stock listed first. GST is already included in MRP, so it isn't added separately.</p>
+  <p class="text-muted small">Pick which stock batch to sell from — price defaults to that batch's MRP minus the selected customer's/mechanic's discount rate for that product's brand (if any), oldest stock listed first. GST is already included in MRP, so it isn't added separately.</p>
   <p class="text-muted small">Fill in a line completely and a new blank line appears below it automatically. The first line is required; empty extra lines are ignored.</p>
   <table class="table" id="itemsTable">
-    <thead><tr><th>Product</th><th style="width:260px">Batch (stock)</th><th style="width:90px">Qty</th><th style="width:130px">Price (each)</th><th style="width:110px">Line Total</th><th></th></tr></thead>
+    <thead><tr><th>Product</th><th style="width:260px">Batch (stock)</th><th style="width:90px">Qty</th><th style="width:110px">Discount %</th><th style="width:130px">Price (each)</th><th style="width:110px">Line Total</th><th></th></tr></thead>
     <tbody>
       <tr>
         <td>
           <select name="product_filter[]" class="form-select product-select" aria-label="Product">
             <option value="">-- Select Product --</option>
             {% for p in products %}
-            <option value="{{ p.id }}" data-batches='{{ p.available_batches|tojson }}'>
+            <option value="{{ p.id }}" data-batches='{{ p.available_batches|tojson }}' data-brand-id="{{ p.brand_id or '' }}">
               {{ p.part_no }} - {{ p.product_name }}
             </option>
             {% endfor %}
@@ -67,6 +62,7 @@
           </select>
         </td>
         <td><input type="number" name="qty[]" class="form-control qty-input" min="1" value="1" aria-label="Quantity"></td>
+        <td><input type="number" step="0.01" class="form-control discount-input" aria-label="Discount %" value="0"></td>
         <td><input type="number" step="0.01" name="selling_price[]" class="form-control price-input" aria-label="Price each"></td>
         <td><input type="text" name="line_total_display[]" class="form-control line-total" disabled aria-label="Line total"></td>
         <td><button type="button" class="btn btn-outline-danger btn-sm remove-row" aria-label="Remove this line">{{ icon('trash') }}</button></td>
@@ -91,22 +87,33 @@
 <script>
 const customerSelect = document.getElementById('customerSelect');
 const mechanicSelect = document.getElementById('f-mechanic');
-const discountInput = document.getElementById('f-discount-pct');
 SearchableSelect.enhance(customerSelect);
 SearchableSelect.enhance(mechanicSelect);
 SearchableSelect.enhance(document.getElementById('f-payment'));
 
-function currentDiscount() {
-  return parseFloat(discountInput.value) || 0;
+// Whichever of Customer/Mechanic was most recently changed supplies the
+// brand-wise discount rates for every line — same "last selection wins"
+// rule as before, just keyed by brand now instead of one blanket number.
+let activeDiscountSelect = null;
+
+function brandDiscountsFromSelect(select) {
+  const opt = select.options[select.selectedIndex];
+  if (!opt) return {};
+  try {
+    return JSON.parse(opt.dataset.brandDiscounts || '{}');
+  } catch (e) {
+    return {};
+  }
+}
+
+function currentDiscountForBrand(brandId) {
+  if (!activeDiscountSelect || !brandId) return 0;
+  const map = brandDiscountsFromSelect(activeDiscountSelect);
+  return map[brandId] !== undefined ? (parseFloat(map[brandId]) || 0) : 0;
 }
 
 function recalcAllRows() {
   document.querySelectorAll('#itemsTable tbody tr').forEach(row => row._applyDiscount());
-}
-
-function discountFromSelect(select) {
-  const opt = select.options[select.selectedIndex];
-  return opt ? (parseFloat(opt.dataset.discount) || 0) : 0;
 }
 
 // Only the first line is required; a completed last line auto-appends a
@@ -134,7 +141,7 @@ function addBlankRow() {
   const tbody = document.querySelector('#itemsTable tbody');
   const newRow = tbody.rows[0].cloneNode(true);
   SearchableSelect.reset(newRow);
-  newRow.querySelectorAll('input').forEach(el => el.value = el.classList.contains('qty-input') ? 1 : '');
+  newRow.querySelectorAll('input').forEach(el => el.value = el.classList.contains('qty-input') ? 1 : (el.classList.contains('discount-input') ? 0 : ''));
   newRow.querySelector('.product-select').selectedIndex = 0;
   newRow.querySelector('.batch-select').innerHTML = '<option value="">-- Select Batch --</option>';
   tbody.appendChild(newRow);
@@ -157,6 +164,7 @@ function wireRow(row) {
   SearchableSelect.enhance(batchSelect);
   const priceInput = row.querySelector('.price-input');
   const qtyInput = row.querySelector('.qty-input');
+  const discountInput = row.querySelector('.discount-input');
   const lineTotal = row.querySelector('.line-total');
 
   function resetBatchSelect() {
@@ -169,6 +177,7 @@ function wireRow(row) {
     const opt = select.options[select.selectedIndex];
     if (!opt || !opt.value) {
       priceInput.value = '';
+      discountInput.value = 0;
       qtyInput.removeAttribute('max');
       recalcLine();
       return;
@@ -188,6 +197,7 @@ function wireRow(row) {
       updatePriceFromBatch();
     } else {
       priceInput.value = '';
+      discountInput.value = 0;
       qtyInput.removeAttribute('max');
       recalcLine();
     }
@@ -197,14 +207,27 @@ function wireRow(row) {
     const bOpt = batchSelect.options[batchSelect.selectedIndex];
     if (!bOpt || !bOpt.value) {
       priceInput.value = '';
+      discountInput.value = 0;
       qtyInput.removeAttribute('max');
       recalcLine();
       return;
     }
     const basePrice = parseFloat(bOpt.dataset.price) || 0;
-    const discount = currentDiscount();
+    const productOpt = select.options[select.selectedIndex];
+    const brandId = productOpt ? (productOpt.dataset.brandId || '') : '';
+    const discount = currentDiscountForBrand(brandId);
+    discountInput.value = discount;
     priceInput.value = (basePrice * (1 - discount / 100)).toFixed(2);
     qtyInput.max = bOpt.dataset.stock;
+    recalcLine();
+  }
+
+  function updatePriceFromDiscountInput() {
+    const bOpt = batchSelect.options[batchSelect.selectedIndex];
+    if (!bOpt || !bOpt.value) return;
+    const basePrice = parseFloat(bOpt.dataset.price) || 0;
+    const discount = parseFloat(discountInput.value) || 0;
+    priceInput.value = (basePrice * (1 - discount / 100)).toFixed(2);
     recalcLine();
   }
 
@@ -226,22 +249,21 @@ function wireRow(row) {
   batchSelect.addEventListener('change', updatePriceFromBatch);
   qtyInput.addEventListener('input', recalcLine);
   priceInput.addEventListener('input', recalcLine);
+  discountInput.addEventListener('input', updatePriceFromDiscountInput);
 }
 
 document.querySelectorAll('#itemsTable tbody tr').forEach(wireRow);
 updateRequiredFlags();
 
 customerSelect.addEventListener('change', function () {
-  discountInput.value = discountFromSelect(customerSelect);
+  activeDiscountSelect = customerSelect;
   recalcAllRows();
 });
 
 mechanicSelect.addEventListener('change', function () {
-  discountInput.value = discountFromSelect(mechanicSelect);
+  activeDiscountSelect = mechanicSelect;
   recalcAllRows();
 });
-
-discountInput.addEventListener('input', recalcAllRows);
 
 document.getElementById('addRow').addEventListener('click', addBlankRow);
 

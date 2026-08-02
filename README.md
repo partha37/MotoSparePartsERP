@@ -14,6 +14,11 @@ flask db upgrade
 
 ## Running the app
 
+For day-to-day use on the shop PC, see [DEPLOYMENT.md](DEPLOYMENT.md) —
+double-click `start.bat`.
+
+For development:
+
 ```
 venv\Scripts\activate
 python app.py

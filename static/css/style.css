@@ -1,4 +1,8 @@
 :root {
+  /* Button/accent colors — deliberately fixed across themes (a navy button
+     with white text reads fine on either background); only --link-color and
+     the stat-icon/page-bg pairs below need a lighter dark-mode variant, since
+     those sit directly on the page background rather than inside a button. */
   --brand: #1e4b8c;
   --brand-dark: #163a6e;
   --brand-light: #eaf1fb;
@@ -6,10 +10,32 @@
   --accent: #e8720c;
   --accent-dark: #c25e09;
   --accent-light: #fdf0e3;
+
+  --page-bg: #f5f6f8;
+  --link-color: var(--brand);
+  --link-hover-color: var(--brand-dark);
+  --stat-icon-bg: var(--brand-light);
+  --stat-icon-color: var(--brand);
+  --stat-icon-bg-accent: var(--accent-light);
+  --stat-icon-color-accent: var(--accent-dark);
+}
+
+/* Dark mode is the default look (see base.html, <html data-bs-theme="dark">).
+   Bootstrap's own dark-mode variables already re-theme cards/forms/tables/
+   alerts; these overrides only cover the custom brand-colored bits above
+   that would otherwise render as near-invisible dark-navy-on-near-black. */
+[data-bs-theme="dark"] {
+  --page-bg: #16191d;
+  --link-color: #6ea8fe;
+  --link-hover-color: #9dc4ff;
+  --stat-icon-bg: rgba(110, 168, 254, 0.15);
+  --stat-icon-color: #9dc4ff;
+  --stat-icon-bg-accent: rgba(255, 176, 102, 0.18);
+  --stat-icon-color-accent: #ffc98c;
 }
 
 body {
-  background-color: #f5f6f8;
+  background-color: var(--page-bg);
 }
 
 /* ---- Clickable table rows ---- */
@@ -22,7 +48,7 @@ tr[data-href] {
   position: sticky;
   top: var(--navbar-height, 62px);
   z-index: 1010;
-  background-color: #f5f6f8;
+  background-color: var(--page-bg);
   padding-top: 1rem;
   padding-bottom: 0.5rem;
 }
@@ -38,10 +64,10 @@ tr[data-href] {
    own --bs-btn-bg), so overriding those here cascades correctly through
    hover/active/focus states without needing to recompile Bootstrap's Sass. */
 a {
-  color: var(--brand);
+  color: var(--link-color);
 }
 a:hover {
-  color: var(--brand-dark);
+  color: var(--link-hover-color);
 }
 
 .navbar-dark.bg-dark {
@@ -76,7 +102,7 @@ a:hover {
 }
 
 .text-primary {
-  color: var(--brand) !important;
+  color: var(--link-color) !important;
 }
 
 .form-control:focus,
@@ -123,12 +149,12 @@ label.required::after {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--brand-light);
-  color: var(--brand);
+  background: var(--stat-icon-bg);
+  color: var(--stat-icon-color);
 }
 .stat-card-icon.accent {
-  background: var(--accent-light);
-  color: var(--accent-dark);
+  background: var(--stat-icon-bg-accent);
+  color: var(--stat-icon-color-accent);
 }
 .stat-card-icon .bi {
   width: 24px;
@@ -204,6 +230,18 @@ body.has-side-pane {
 .side-pane:hover .side-pane-label,
 .side-pane:focus-within .side-pane-label {
   opacity: 1;
+}
+
+/* ---- Dark/light theme toggle button (navbar, top right) ---- */
+#themeToggleBtn .theme-icon-sun,
+#themeToggleBtn .theme-icon-moon {
+  margin: 0;
+}
+html[data-bs-theme="dark"] #themeToggleBtn .theme-icon-moon {
+  display: none;
+}
+html[data-bs-theme="light"] #themeToggleBtn .theme-icon-sun {
+  display: none;
 }
 
 @media print {

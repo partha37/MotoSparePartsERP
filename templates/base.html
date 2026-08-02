@@ -1,9 +1,19 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-bs-theme="dark">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Lokey Auto Spare Parts{% endblock %}</title>
+  <script>
+    // Applied before the stylesheets load so a saved "light" preference
+    // doesn't flash dark first. Dark is the default when nothing is saved.
+    (function () {
+      var stored = localStorage.getItem('theme');
+      if (stored === 'light' || stored === 'dark') {
+        document.documentElement.setAttribute('data-bs-theme', stored);
+      }
+    })();
+  </script>
   <link href="{{ url_for('static', filename='vendor/bootstrap/css/bootstrap.min.css') }}" rel="stylesheet">
   <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
   <script src="{{ url_for('static', filename='js/searchable-select.js') }}"></script>
@@ -40,6 +50,13 @@
         </li>
         <li class="nav-item"><a class="nav-link" href="{{ url_for('stock.ledger') }}">{{ icon('clipboard-data') }}Stock Ledger</a></li>
         <li class="nav-item"><a class="nav-link" href="{{ url_for('reports.index') }}">{{ icon('bar-chart') }}Reports</a></li>
+      </ul>
+      <ul class="navbar-nav">
+        <li class="nav-item">
+          <button type="button" id="themeToggleBtn" class="btn btn-sm btn-outline-light" title="Toggle dark / light mode">
+            {{ icon('sun', 'theme-icon-sun') }}{{ icon('moon-stars', 'theme-icon-moon') }}
+          </button>
+        </li>
       </ul>
     </div>
   </div>
@@ -123,6 +140,18 @@ function syncNavbarHeightVar() {
 }
 syncNavbarHeightVar();
 window.addEventListener('resize', syncNavbarHeightVar);
+
+// Dark/light theme toggle — persists the choice so it survives reloads and
+// future visits; dark is the default when nothing has been saved yet.
+const themeToggleBtn = document.getElementById('themeToggleBtn');
+if (themeToggleBtn) {
+  themeToggleBtn.addEventListener('click', function () {
+    const current = document.documentElement.getAttribute('data-bs-theme');
+    const next = current === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-bs-theme', next);
+    localStorage.setItem('theme', next);
+  });
+}
 </script>
 </body>
 </html>

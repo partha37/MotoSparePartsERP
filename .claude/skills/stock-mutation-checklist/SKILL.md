@@ -20,6 +20,10 @@ Nothing in this codebase makes stock changes automatic — every route that chan
 
 `PurchaseItem` doubles as a sellable batch (`remaining_qty`, `mrp_at_purchase`, `stock_number`, `effective_mrp`). If your route creates a purchase line, `remaining_qty` must start equal to `qty`. If it's a sale line, it must decrement the *specific* `PurchaseItem.remaining_qty` referenced by `purchase_item_id` — never subtract from a different batch or from the product's aggregate stock alone. `routes/sales.py::new_sale` blocks the whole sale if the chosen batch doesn't have enough `remaining_qty`; follow that same all-or-nothing validation pattern rather than allowing partial/cross-batch fulfillment.
 
+## Not every new money-related table needs this checklist
+
+`Payment` (installments recorded against a `Sale.balance_due`) is deliberately **not** stock-affecting — `routes/sales.py::record_payment` and the initial-payment path in `new_sale` only insert a `Payment` row and call `sync_to_excel()`; they must NOT touch `Product.current_stock` or write a `StockMovement` row. Only Purchase/Sale line items and manual stock adjustments go through the three-step checklist above.
+
 ## Reference implementations to copy from
 
 - `routes/purchases.py::new_purchase` — stock-in pattern, plus `Product.update_cost_from_purchase()` for updating the product's headline cost/MRP.

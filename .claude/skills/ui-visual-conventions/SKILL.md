@@ -15,13 +15,24 @@ Bootstrap CSS/JS lives at `static/vendor/bootstrap/{css,js}/` and [templates/bas
 
 `app.py`'s `inject_icon_helper()` context processor exposes a Jinja global `icon(name, css_class="")` that reads `static/vendor/bootstrap-icons/<name>.svg`, caches it (`@lru_cache`), and returns it as inline `Markup` — e.g. `{{ icon('receipt', 'me-2') }}New Sale`. Icons are inlined SVG (not an icon font, not `<img>`) specifically so they inherit `currentColor` and work correctly in the dark navbar, colored buttons, and any future dark-mode without per-icon color overrides.
 
-- **Only 42 icon names currently exist** in `static/vendor/bootstrap-icons/` (matching what's used in the templates so far). If you need a new icon, download that specific Bootstrap Icons SVG into that folder — don't reference a name that isn't there, since `_read_icon` silently returns an empty string (with a server-log warning) rather than failing loudly, so a typo'd icon name just renders nothing with no visible error.
+- **Only 44 icon names currently exist** in `static/vendor/bootstrap-icons/` (matching what's used in the templates so far). If you need a new icon, download that specific Bootstrap Icons SVG into that folder — don't reference a name that isn't there, since `_read_icon` silently returns an empty string (with a server-log warning) rather than failing loudly, so a typo'd icon name just renders nothing with no visible error.
 - Usage pattern: icon first, text immediately after, inside the same element (`<h5>{{ icon('box-seam', 'me-1') }}Items</h5>`, `<button>{{ icon('save') }}Save</button>`) — spacing comes from the `.bi` CSS rules in `style.css` (`.nav-link .bi`, `.btn .bi`) plus an optional `me-*` class passed as the second argument, not manual margin on the icon itself unless overriding the default.
 - Never add Bootstrap Icons via CDN/webfont or an `<i class="bi bi-...">` tag — that bypasses the `currentColor` theming and reintroduces a CDN dependency (see below).
 
 ## Brand color system — use Bootstrap classes/variables, never hardcode hex
 
-`static/css/style.css` defines `--brand` (navy, #1e4b8c), `--brand-dark`, `--brand-light`, `--accent` (orange, #e8720c), `--accent-dark`, `--accent-light` as CSS custom properties, then overrides Bootstrap 5.3's per-component CSS variables (`.btn-primary`'s `--bs-btn-bg`, etc.) so standard Bootstrap classes automatically pick up the shop's brand colors without touching Bootstrap's own CSS file. **Practical rule: use `btn-primary`, `btn-outline-primary`, `text-primary`, links, etc. as normal — never write a hardcoded hex color or inline `style="color: ..."` in a template.** If a new component needs the brand/accent color, reference the CSS variable (`var(--brand)`, `var(--accent)`) in `style.css`, matching the existing pattern, rather than picking a new color.
+`static/css/style.css` defines `--brand` (navy, #1e4b8c), `--brand-dark`, `--brand-light`, `--accent` (orange, #e8720c), `--accent-dark`, `--accent-light` as CSS custom properties, then overrides Bootstrap 5.3's per-component CSS variables (`.btn-primary`'s `--bs-btn-bg`, etc.) so standard Bootstrap classes automatically pick up the shop's brand colors without touching Bootstrap's own CSS file. **Practical rule: use `btn-primary`, `btn-outline-primary`, `text-primary`, links, etc. as normal — never write a hardcoded hex color or inline `style="color: ..."` in a template.** If a new component needs the brand/accent color, reference the CSS variable (`var(--brand)`, `var(--accent)`) in `style.css`, matching the existing pattern, rather than picking a new color. `--brand`/`--accent` themselves are deliberately fixed across light/dark (a navy button with white text reads fine on either background) — they are not swapped per-theme like the variables below.
+
+## Dark/light theme toggle — `data-bs-theme`, not a second stylesheet
+
+The app supports both a dark and a light theme via Bootstrap 5.3's native `data-bs-theme` attribute on `<html>`, toggled by a button in the navbar (`#themeToggleBtn` in [templates/base.html](../../../templates/base.html)) and persisted in `localStorage['theme']`. **Dark is the default** when nothing is saved yet. A tiny inline `<script>` in `<head>` (before the stylesheets load) reads `localStorage` and sets `data-bs-theme` immediately, so a saved "light" preference doesn't flash dark-then-light on load — any future page-load-time personalization should follow this same before-CSS pattern, not a post-load JS toggle that causes a flash.
+
+Bootstrap's own dark-mode CSS variables already re-theme standard components (cards, forms, tables, alerts) automatically — you don't need to do anything for those. What `style.css` adds on top is a small set of **theme-aware custom properties** for the pieces this app added beyond stock Bootstrap, defined once in `:root` (the light values) and overridden in `[data-bs-theme="dark"]`:
+- `--page-bg` (body background)
+- `--link-color` / `--link-hover-color` (anchors and `.text-primary`, since `--brand` alone is too dark to read on a near-black background)
+- `--stat-icon-bg` / `--stat-icon-color` and their `-accent` counterparts (the `.stat-card-icon` tiles — see below)
+
+**Rule for any new UI element that sits directly on the page background (not inside a Bootstrap-themed component like a card or button): add a `--your-thing` variable pair here (`:root` + `[data-bs-theme="dark"]` override) instead of hardcoding a color that only looks right in one theme.** Verify anything new in both themes — click the navbar toggle — before calling a UI change done; a color that "looks fine" in whichever theme you happened to be looking at can be unreadable in the other.
 
 ## Required-field marker
 
@@ -51,7 +62,7 @@ Also note: options whose visible label starts with `--` (e.g. `-- Select Product
 
 ## Layout skeleton (established in base.html)
 
-- `<nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4 no-print">` — one flat list of blueprint links, no dropdowns, no nesting. A new blueprint gets one more `<li class="nav-item">` here, not a submenu.
+- `<nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4 no-print">` — one flat list of blueprint links, no dropdowns, no nesting. A new blueprint gets one more `<li class="nav-item">` here, not a submenu. The dark/light theme toggle button lives in its own trailing `<ul class="navbar-nav">` on the right — don't mix it into the blueprint-links list.
 - `<div class="container-fluid px-4">` wraps all page content — full-width, not a centered fixed-width container. New pages should not wrap themselves in an additional `.container`.
 - Flash messages render once, globally, in `base.html` via `alert alert-{{ category }} alert-dismissible fade show no-print` — never build a page-specific flash/toast mechanism; use `flash(message, category)` server-side and let the existing block render it.
 

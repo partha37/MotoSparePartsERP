@@ -16,7 +16,7 @@ pip install -r requirements.txt
 set FLASK_APP=app.py
 flask db upgrade
 
-# run the app
+# run the app (development — auto-reload, debug console)
 venv\Scripts\activate
 python app.py
 # open http://127.0.0.1:5000 — first visit prompts you to create the shop-owner login
@@ -28,6 +28,8 @@ flask db upgrade
 ```
 
 There is no test suite, linter, or build step configured.
+
+**Daily/production use is `serve.py` (waitress), not `python app.py`.** `app.py`'s dev server has `debug=True` (auto-reload, interactive debugger) — fine while developing, wrong to leave running for real billing. `start.bat`/`stop.bat` wrap `serve.py` for the shop owner (double-click to start/stop, console window = the running process). See [DEPLOYMENT.md](DEPLOYMENT.md) for the full setup (including the `.env`-based `SECRET_KEY` `config.py` now loads via `python-dotenv`, silent/hidden startup options, and backup guidance) — don't duplicate that detail here, just be aware `python app.py` is a dev-only path when reasoning about how the app actually runs day to day.
 
 ## Architecture
 

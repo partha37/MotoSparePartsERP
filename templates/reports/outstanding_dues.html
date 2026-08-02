@@ -8,7 +8,7 @@
   <tbody>
     {% for s in rows %}
     <tr class="table-danger" data-href="{{ url_for('sales.view_sale', sale_id=s.id) }}">
-      <td>{{ s.date }}</td>
+      <td>{{ ist(s.created_at) }}</td>
       <td>{{ s.invoice_no }}</td>
       <td>{{ s.customer.name if s.customer else 'Walk-in' }}</td>
       <td>{{ s.mechanic.name if s.mechanic else '-' }}</td>

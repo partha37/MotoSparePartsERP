@@ -22,7 +22,7 @@
   <tbody>
     {% for s in sales %}
     <tr data-href="{{ url_for('sales.view_sale', sale_id=s.id) }}">
-      <td>{{ s.date }}</td>
+      <td>{{ ist(s.created_at) }}</td>
       <td>{{ s.invoice_no }}</td>
       <td>₹{{ "%.2f"|format(s.total) }}</td>
       <td>₹{{ "%.2f"|format(s.amount_paid) }}</td>

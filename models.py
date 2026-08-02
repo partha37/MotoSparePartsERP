@@ -284,6 +284,7 @@ class Payment(db.Model):
     amount = db.Column(db.Float, nullable=False)
     payment_mode = db.Column(db.String(20), default="cash")
     note = db.Column(db.String(255))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     sale = db.relationship(
         "Sale", backref=db.backref("payments", order_by="Payment.date, Payment.id")

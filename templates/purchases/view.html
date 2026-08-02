@@ -5,7 +5,7 @@
 <div class="card p-4 mb-3">
   <div class="row">
     <div class="col-md-4"><strong>Supplier:</strong> {{ purchase.supplier.name if purchase.supplier else '-' }}</div>
-    <div class="col-md-4"><strong>Date:</strong> {{ purchase.date }}</div>
+    <div class="col-md-4"><strong>Date:</strong> {{ ist(purchase.created_at) }}</div>
     <div class="col-md-4"><strong>Invoice No:</strong> {{ purchase.invoice_no or '-' }}</div>
   </div>
 </div>

@@ -1,4 +1,5 @@
 import os
+from datetime import timedelta, timezone
 from functools import lru_cache
 
 from flask import Flask
@@ -7,6 +8,11 @@ from markupsafe import Markup
 from config import Config
 from extensions import db, migrate, login_manager, csrf
 from models import User
+
+# India doesn't observe daylight saving, so IST is always a fixed UTC+5:30
+# offset — no timezone database (e.g. the `tzdata` package, not present on
+# Windows by default) is needed to convert to it correctly.
+IST = timezone(timedelta(hours=5, minutes=30))
 
 
 def create_app():
@@ -42,6 +48,19 @@ def create_app():
                 svg = svg.replace('class="bi bi-' + name + '"', f'class="bi bi-{name} {css_class}"')
             return Markup(svg)
         return dict(icon=icon)
+
+    @app.context_processor
+    def inject_ist_helper():
+        def ist(dt, fmt="%d-%m-%Y %I:%M %p"):
+            """Formats a naive UTC datetime (every `created_at` column is stored via
+            datetime.utcnow()) as IST in 12-hour clock — the display format used
+            everywhere a record's actual timestamp is shown, as opposed to the
+            separate user-editable business `date` fields (Purchase.date, Sale.date,
+            etc.), which stay date-only and are not touched by this helper."""
+            if dt is None:
+                return ""
+            return dt.replace(tzinfo=timezone.utc).astimezone(IST).strftime(fmt)
+        return dict(ist=ist)
 
     from routes.auth import auth_bp
     from routes.dashboard import dashboard_bp

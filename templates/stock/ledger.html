@@ -34,7 +34,7 @@
   <tbody>
     {% for m in movements %}
     <tr>
-      <td>{{ m.date }}</td>
+      <td>{{ ist(m.created_at) }}</td>
       <td>{{ m.product.part_no }} - {{ m.product.product_name }}</td>
       <td>
         {% if m.type == 'purchase_in' %}<span class="badge bg-success">Purchase In</span>

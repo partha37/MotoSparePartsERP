@@ -26,8 +26,8 @@
   </div>
 
   <h5 class="d-flex align-items-center">{{ icon('box-seam', 'me-1') }}Items</h5>
-  <p class="text-muted small">This purchase's price and MRP become the product's new current cost/MRP. MRP is pre-filled from the product's last known value — update it if the distributor has revised it.</p>
-  <p class="text-muted small">Fill in a line completely and a new blank line appears below it automatically. The first line is required; empty extra lines are ignored.</p>
+  <p class="text-muted small">This purchase's price and MRP become the product's new current cost/MRP — enter both fresh for this batch.</p>
+  <p class="text-muted small">Fill in a line completely and a new blank line appears below it automatically. The first line is required; a line you've started filling in must be completed before saving; empty untouched lines are ignored.</p>
   <table class="table" id="itemsTable">
     <thead><tr><th>Product</th><th style="width:120px">Qty</th><th style="width:160px">Purchase Price (each)</th><th style="width:140px">MRP</th><th></th></tr></thead>
     <tbody>
@@ -36,7 +36,7 @@
           <select name="product_id[]" class="form-select product-select" aria-label="Product">
             <option value="">-- Select Product --</option>
             {% for p in products %}
-            <option value="{{ p.id }}" data-mrp="{{ p.mrp }}">{{ p.part_no }} - {{ p.product_name }}</option>
+            <option value="{{ p.id }}">{{ p.part_no }} - {{ p.product_name }}</option>
             {% endfor %}
           </select>
         </td>
@@ -56,9 +56,12 @@
 </form>
 
 <script>
-// Only the first line is required; a completed last line auto-appends a
-// fresh blank one, and blank trailing lines are never required (they're
-// also filtered out server-side if left untouched).
+// Only the first line is required outright; a completed last line
+// auto-appends a fresh blank one, and untouched trailing lines are never
+// required. But a trailing line the user has *started* filling in (any one
+// field) must be completed before saving — it's no longer safe to silently
+// drop it, since that would save a purchase that looks complete on screen
+// but is missing a line the user clearly meant to add.
 function isRowFilled(row) {
   const select = row.querySelector('.product-select');
   const qty = row.querySelector('.qty-input');
@@ -67,13 +70,21 @@ function isRowFilled(row) {
   return !!(select.value && qty.value && price.value && mrp.value);
 }
 
+function rowHasAnyValue(row) {
+  const select = row.querySelector('.product-select');
+  const qty = row.querySelector('.qty-input');
+  const price = row.querySelector('.price-input');
+  const mrp = row.querySelector('.mrp-input');
+  return !!(select.value || qty.value || price.value || mrp.value);
+}
+
 function updateRequiredFlags() {
   document.querySelectorAll('#itemsTable tbody tr').forEach(function (row, idx) {
-    const isFirst = idx === 0;
-    SearchableSelect.setRequired(row.querySelector('.product-select'), isFirst);
-    row.querySelector('.qty-input').required = isFirst;
-    row.querySelector('.price-input').required = isFirst;
-    row.querySelector('.mrp-input').required = isFirst;
+    const required = idx === 0 || rowHasAnyValue(row);
+    SearchableSelect.setRequired(row.querySelector('.product-select'), required);
+    row.querySelector('.qty-input').required = required;
+    row.querySelector('.price-input').required = required;
+    row.querySelector('.mrp-input').required = required;
   });
 }
 
@@ -90,6 +101,7 @@ function addBlankRow() {
 }
 
 function maybeAutoAddRow(row) {
+  updateRequiredFlags();
   const tbody = document.querySelector('#itemsTable tbody');
   if (row === tbody.lastElementChild && isRowFilled(row)) {
     addBlankRow();
@@ -104,8 +116,6 @@ function wireRow(row) {
   const mrpInput = row.querySelector('.mrp-input');
 
   select.addEventListener('change', function () {
-    const opt = select.options[select.selectedIndex];
-    mrpInput.value = opt && opt.value ? (parseFloat(opt.dataset.mrp) || 0) : '';
     maybeAutoAddRow(row);
   });
   qtyInput.addEventListener('input', function () { maybeAutoAddRow(row); });

@@ -37,14 +37,18 @@ def new_purchase():
         prices = request.form.getlist("purchase_price[]")
         mrps = request.form.getlist("mrp[]")
 
-        rows = [
-            (pid, qty, price, mrp)
-            for pid, qty, price, mrp in zip(product_ids, qtys, prices, mrps)
-            if pid and qty and price
-        ]
+        raw_rows = list(zip(product_ids, qtys, prices, mrps))
+        rows = [(pid, qty, price, mrp) for pid, qty, price, mrp in raw_rows if pid and qty and price]
+        partial_rows = [pid for pid, qty, price, mrp in raw_rows if pid and not (qty and price)]
 
         if not supplier_id or not rows:
             flash("Select a supplier and add at least one product line.", "danger")
+            return render_template(
+                "purchases/form.html", suppliers=suppliers, products=products, today=date.today().isoformat()
+            )
+
+        if partial_rows:
+            flash("Some lines have a product selected but are missing Qty or Purchase Price — fill them in or remove the line.", "danger")
             return render_template(
                 "purchases/form.html", suppliers=suppliers, products=products, today=date.today().isoformat()
             )

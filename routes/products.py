@@ -49,6 +49,10 @@ def new_product():
             flash("A product with this Part No already exists.", "danger")
             return render_template("products/form.html", product=None, form_data=request.form, brands=_all_brands())
 
+        if not request.form.get("brand_id"):
+            flash("Brand is required.", "danger")
+            return render_template("products/form.html", product=None, form_data=request.form, brands=_all_brands())
+
         product = Product(current_stock=0)
         _apply_form_to_product(product, request.form)
         db.session.add(product)
@@ -72,6 +76,13 @@ def edit_product(product_id):
         existing = Product.query.filter_by(part_no=request.form.get("part_no", "").strip()).first()
         if existing and existing.id != product.id:
             flash("Another product already uses this Part No.", "danger")
+            return render_template(
+                "products/form.html", product=product, form_data=request.form,
+                purchase_history=purchase_history, brands=_all_brands()
+            )
+
+        if not request.form.get("brand_id"):
+            flash("Brand is required.", "danger")
             return render_template(
                 "products/form.html", product=product, form_data=request.form,
                 purchase_history=purchase_history, brands=_all_brands()

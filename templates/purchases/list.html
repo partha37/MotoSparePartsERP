@@ -13,7 +13,7 @@
   <tbody>
     {% for p in purchases %}
     <tr data-href="{{ url_for('purchases.view_purchase', purchase_id=p.id) }}">
-      <td>{{ p.date }}</td>
+      <td>{{ ist(p.created_at) }}</td>
       <td>{{ p.supplier.name if p.supplier else '-' }}</td>
       <td>{{ p.invoice_no }}</td>
       <td>{{ p.items|length }}</td>

@@ -7,20 +7,20 @@
 <form method="post" class="card p-4">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <div class="row g-3">
+    <div class="col-md-3">
+      <label class="form-label required" for="f-part-no">Part No</label>
+      <input type="text" id="f-part-no" name="part_no" class="form-control" required
+             value="{{ d.part_no if d else '' }}">
+    </div>
     <div class="col-md-6">
       <label class="form-label required" for="f-product-name">Product Name</label>
       <input type="text" id="f-product-name" name="product_name" class="form-control" required
              value="{{ d.product_name if d else '' }}">
     </div>
     <div class="col-md-3">
-      <label class="form-label required" for="f-part-no">Part No</label>
-      <input type="text" id="f-part-no" name="part_no" class="form-control" required
-             value="{{ d.part_no if d else '' }}">
-    </div>
-    <div class="col-md-3">
-      <label class="form-label" for="f-brand">Brand</label>
-      <select id="f-brand" name="brand_id" class="form-select">
-        <option value="">-- None --</option>
+      <label class="form-label required" for="f-brand">Brand</label>
+      <select id="f-brand" name="brand_id" class="form-select" required>
+        <option value="">-- Select Brand --</option>
         {% for b in brands %}
         <option value="{{ b.id }}" {{ 'selected' if d and (d.brand_id|string) == b.id|string else '' }}>{{ b.name }}</option>
         {% endfor %}
@@ -119,7 +119,7 @@
       {% for item in items %}
       <tr>
         <td>{{ item.stock_number }}</td>
-        <td>{{ item.purchase.date }}</td>
+        <td>{{ ist(item.purchase.created_at) }}</td>
         <td>{{ item.purchase.supplier.name if item.purchase.supplier else '-' }}</td>
         <td>{{ item.qty }}</td>
         <td>{{ item.remaining_qty or 0 }}</td>

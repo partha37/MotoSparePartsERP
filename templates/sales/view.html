@@ -19,7 +19,7 @@
     </div>
     <div class="col-md-6 text-md-end">
       <div><strong>Invoice No:</strong> {{ sale.invoice_no }}</div>
-      <div><strong>Date:</strong> {{ sale.date }}</div>
+      <div><strong>Date:</strong> {{ ist(sale.created_at) }}</div>
       <div><strong>Payment Mode:</strong> {{ sale.payment_mode }}</div>
     </div>
   </div>
@@ -63,7 +63,7 @@
     <tbody>
       {% for p in sale.payments %}
       <tr>
-        <td>{{ p.date }}</td>
+        <td>{{ ist(p.created_at) }}</td>
         <td>₹{{ "%.2f"|format(p.amount) }}</td>
         <td>{{ p.payment_mode|capitalize }}</td>
         <td>{{ p.note or '-' }}</td>

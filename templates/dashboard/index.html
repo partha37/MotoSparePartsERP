@@ -56,7 +56,7 @@
 {% if low_stock_products %}
 <div class="card p-3 mb-4">
   <h5 class="text-danger d-flex align-items-center">{{ icon('exclamation-triangle', 'me-2') }}Low Stock Alert</h5>
-  <table class="table table-sm">
+  <table class="table table-sm data-table">
     <thead><tr><th>Part No</th><th>Product</th><th>Stock</th><th>Reorder Level</th></tr></thead>
     <tbody>
       {% for p in low_stock_products %}

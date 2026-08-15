@@ -17,6 +17,7 @@
   <link href="{{ url_for('static', filename='vendor/bootstrap/css/bootstrap.min.css') }}" rel="stylesheet">
   <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
   <script src="{{ url_for('static', filename='js/searchable-select.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/data-table.js') }}"></script>
 </head>
 <body class="{{ 'has-side-pane' if current_user.is_authenticated else '' }}">
 {% if current_user.is_authenticated %}

@@ -162,6 +162,33 @@ label.required::after {
   margin: 0;
 }
 
+/* ---- Data table (search box + sortable headers + per-column filter row,
+   auto-applied to every <table class="data-table"> by data-table.js) ---- */
+.data-table-toolbar .input-group-text {
+  background-color: transparent;
+}
+table.data-table th.data-table-sortable {
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+table.data-table th.data-table-sortable:hover {
+  background-color: rgba(var(--brand-rgb), 0.08);
+}
+.data-table-sort-indicator {
+  margin-left: 0.35rem;
+  opacity: 0.45;
+  font-size: 0.7em;
+}
+table.data-table tr.data-table-filter-row th {
+  padding-top: 0.35rem;
+  padding-bottom: 0.35rem;
+  font-weight: normal;
+}
+table.data-table tr.data-table-filter-row input {
+  min-width: 0;
+}
+
 /* ---- Searchable select (type-to-filter combobox layered over a real <select>) ---- */
 .searchable-select-menu {
   z-index: 1050;

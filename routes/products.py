@@ -26,15 +26,8 @@ def _apply_form_to_product(product, form):
 @products_bp.route("/")
 @login_required
 def list_products():
-    q = request.args.get("q", "").strip()
-    query = Product.query
-    if q:
-        like = f"%{q}%"
-        query = query.filter(
-            db.or_(Product.product_name.ilike(like), Product.part_no.ilike(like))
-        )
-    products = query.order_by(Product.product_name.asc()).all()
-    return render_template("products/list.html", products=products, q=q)
+    products = Product.query.order_by(Product.product_name.asc()).all()
+    return render_template("products/list.html", products=products)
 
 
 def _all_brands():

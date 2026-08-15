@@ -113,7 +113,7 @@
   {% endif %}
 {% endfor %}
 {% macro batch_table(items, empty_text) %}
-  <table class="table table-sm">
+  <table class="table table-sm data-table">
     <thead><tr><th>Batch #</th><th>Date</th><th>Supplier</th><th>Qty</th><th>Remaining</th><th>Purchase Price</th><th>MRP at Purchase</th></tr></thead>
     <tbody>
       {% for item in items %}

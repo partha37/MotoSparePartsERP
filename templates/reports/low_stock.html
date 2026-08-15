@@ -3,7 +3,7 @@
 {% block content %}
 <h2 class="mb-4 d-flex align-items-center">{{ icon('exclamation-triangle', 'me-2') }}Low Stock Report</h2>
 <div class="card p-3">
-<table class="table">
+<table class="table data-table">
   <thead><tr><th>Part No</th><th>Product</th><th>Current Stock</th><th>Reorder Level</th></tr></thead>
   <tbody>
     {% for p in products %}

@@ -48,8 +48,8 @@
   </div>
 </nav>
 
-<div class="side-pane no-print">
-  <div class="side-pane-top">{{ icon('list-ul') }}</div>
+<div class="side-pane no-print" id="sidePane">
+  <button type="button" class="side-pane-top" id="sidePaneToggle" aria-expanded="false" aria-label="Toggle sidebar">{{ icon('list-ul') }}</button>
   <div class="side-pane-nav">
     <div class="side-pane-heading"><span class="side-pane-label">Catalog</span></div>
     <a class="side-pane-link" href="{{ url_for('products.list_products') }}">
@@ -128,11 +128,15 @@ document.addEventListener('keydown', function (e) {
 
 // Clicking anywhere on a row with data-href navigates to it, except clicks
 // that land on an actual link/button/form control inside the row (those
-// keep their own behavior, e.g. Edit/Delete/View).
+// keep their own behavior, e.g. Edit/Delete/View). Deliberately not
+// excluding <form> itself here — some list pages (Sales, Purchases, Stock
+// Ledger) wrap their whole table in one <form method="get"> for the
+// search/filter toolbar, and that wrapper shouldn't swallow row clicks;
+// only real interactive controls should.
 document.addEventListener('click', function (e) {
   const row = e.target.closest('tr[data-href]');
   if (!row) return;
-  if (e.target.closest('a, button, input, select, textarea, form')) return;
+  if (e.target.closest('a, button, input, select, textarea')) return;
   window.location = row.dataset.href;
 });
 
@@ -155,6 +159,34 @@ if (themeToggleBtn) {
     const next = current === 'dark' ? 'light' : 'dark';
     document.documentElement.setAttribute('data-bs-theme', next);
     localStorage.setItem('theme', next);
+  });
+}
+
+// Side pane expand/collapse — click-to-toggle (not hover, which is too easy
+// to trigger by accident while just moving the mouse across the page).
+// Persists like the theme toggle so it stays open/closed across page loads.
+const sidePane = document.getElementById('sidePane');
+const sidePaneToggle = document.getElementById('sidePaneToggle');
+if (sidePane && sidePaneToggle) {
+  function setSidePaneExpanded(expanded) {
+    sidePane.classList.toggle('expanded', expanded);
+    sidePaneToggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+  }
+  setSidePaneExpanded(localStorage.getItem('sidePaneExpanded') === '1');
+  sidePaneToggle.addEventListener('click', function () {
+    const expanded = !sidePane.classList.contains('expanded');
+    setSidePaneExpanded(expanded);
+    localStorage.setItem('sidePaneExpanded', expanded ? '1' : '0');
+  });
+
+  // Clicking anywhere outside the pane closes it again, same as a typical
+  // off-canvas menu — otherwise it stays open (and covering the page)
+  // until the user finds the toggle icon again.
+  document.addEventListener('click', function (e) {
+    if (sidePane.classList.contains('expanded') && !sidePane.contains(e.target)) {
+      setSidePaneExpanded(false);
+      localStorage.setItem('sidePaneExpanded', '0');
+    }
   });
 }
 </script>

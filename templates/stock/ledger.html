@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_macros/server_table.html" import toolbar, hidden_state, sort_th, filter_th, pagination %}
 {% block title %}Stock Ledger - Lokey Auto Spare Parts{% endblock %}
 {% block content %}
 <div class="page-toolbar">
@@ -29,26 +30,46 @@
 </div>
 
 <div class="card p-3">
-<table class="table table-hover align-middle data-table">
-  <thead><tr><th>Date</th><th>Product</th><th>Type</th><th>Qty Change</th><th>Note</th></tr></thead>
-  <tbody>
-    {% for m in movements %}
-    <tr>
-      <td>{{ ist(m.created_at) }}</td>
-      <td>{{ m.product.part_no }} - {{ m.product.product_name }}</td>
-      <td>
-        {% if m.type == 'purchase_in' %}<span class="badge bg-success">Purchase In</span>
-        {% elif m.type == 'sale_out' %}<span class="badge bg-primary">Sale Out</span>
-        {% else %}<span class="badge bg-secondary">{{ m.type }}</span>{% endif %}
-      </td>
-      <td class="{{ 'text-success' if m.qty > 0 else 'text-danger' }} fw-bold">{{ '+' if m.qty > 0 else '' }}{{ m.qty }}</td>
-      <td>{{ m.note }}</td>
-    </tr>
-    {% else %}
-    <tr><td colspan="5" class="text-center text-muted">No stock movements in this range.</td></tr>
-    {% endfor %}
-  </tbody>
-</table>
+<form method="get">
+  {{ toolbar(table) }}
+  {{ hidden_state(table) }}
+  <table class="table table-hover align-middle">
+    <thead>
+      <tr>
+        {{ sort_th(table, 'date', 'Date') }}
+        {{ sort_th(table, 'product', 'Product') }}
+        {{ sort_th(table, 'type', 'Type') }}
+        {{ sort_th(table, 'qty', 'Qty Change') }}
+        {{ sort_th(table, 'note', 'Note') }}
+      </tr>
+      <tr class="data-table-filter-row">
+        {{ filter_th(table, 'date', 'e.g. 14-08-2026') }}
+        {{ filter_th(table, 'product') }}
+        {{ filter_th(table, 'type') }}
+        {{ filter_th(table, 'qty') }}
+        {{ filter_th(table, 'note') }}
+      </tr>
+    </thead>
+    <tbody>
+      {% for m in table.items %}
+      <tr>
+        <td>{{ ist(m.created_at) }}</td>
+        <td>{{ m.product.part_no }} - {{ m.product.product_name }}</td>
+        <td>
+          {% if m.type == 'purchase_in' %}<span class="badge bg-success">Purchase In</span>
+          {% elif m.type == 'sale_out' %}<span class="badge bg-primary">Sale Out</span>
+          {% else %}<span class="badge bg-secondary">{{ m.type }}</span>{% endif %}
+        </td>
+        <td class="{{ 'text-success' if m.qty > 0 else 'text-danger' }} fw-bold">{{ '+' if m.qty > 0 else '' }}{{ m.qty }}</td>
+        <td>{{ m.note }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5" class="text-center text-muted">No stock movements in this range.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</form>
+{{ pagination(table) }}
 </div>
 
 <script>

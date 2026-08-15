@@ -2,10 +2,12 @@ from datetime import date
 
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import login_required
+from sqlalchemy import func
 
 from extensions import db
 from excel_sync import sync_to_excel
 from models import Sale, SaleItem, Payment, Product, PurchaseItem, Customer, Mechanic, StockMovement, ShopSettings
+from routes.server_table import ServerTable, ist_date_filter_expr
 
 sales_bp = Blueprint("sales", __name__, url_prefix="/sales")
 
@@ -45,8 +47,47 @@ def _attach_brand_discount_maps(owners):
 @sales_bp.route("/")
 @login_required
 def list_sales():
-    sales = Sale.query.order_by(Sale.date.desc(), Sale.id.desc()).all()
-    return render_template("sales/list.html", sales=sales)
+    item_totals = (
+        db.session.query(
+            SaleItem.sale_id.label("sale_id"),
+            func.sum(SaleItem.qty * SaleItem.selling_price).label("total"),
+        )
+        .group_by(SaleItem.sale_id)
+        .subquery()
+    )
+    paid_totals = (
+        db.session.query(
+            Payment.sale_id.label("sale_id"),
+            func.sum(Payment.amount).label("paid"),
+        )
+        .group_by(Payment.sale_id)
+        .subquery()
+    )
+    total_expr = func.coalesce(item_totals.c.total, 0.0)
+    balance_expr = total_expr - func.coalesce(paid_totals.c.paid, 0.0)
+
+    query = (
+        Sale.query
+        .outerjoin(item_totals, Sale.id == item_totals.c.sale_id)
+        .outerjoin(paid_totals, Sale.id == paid_totals.c.sale_id)
+        .outerjoin(Customer, Sale.customer_id == Customer.id)
+        .outerjoin(Mechanic, Sale.mechanic_id == Mechanic.id)
+    )
+
+    columns = {
+        "date": ("Date", Sale.created_at, ist_date_filter_expr(Sale.created_at)),
+        "invoice": ("Invoice", Sale.invoice_no),
+        "customer": ("Customer", Customer.name),
+        "mechanic": ("Mechanic", Mechanic.name),
+        "total": ("Total", total_expr),
+        "balance": ("Balance Due", balance_expr),
+    }
+    table = ServerTable(
+        query, columns,
+        search_keys=["date", "invoice", "customer", "mechanic", "total", "balance"],
+        default_sort="date", default_dir="desc",
+    )
+    return render_template("sales/list.html", table=table)
 
 
 @sales_bp.route("/new", methods=["GET", "POST"])

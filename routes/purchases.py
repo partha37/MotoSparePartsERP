@@ -2,10 +2,12 @@ from datetime import date
 
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import login_required
+from sqlalchemy import func
 
 from extensions import db
 from excel_sync import sync_to_excel
 from models import Purchase, PurchaseItem, Product, Supplier, StockMovement
+from routes.server_table import ServerTable, ist_date_filter_expr
 
 purchases_bp = Blueprint("purchases", __name__, url_prefix="/purchases")
 
@@ -13,8 +15,37 @@ purchases_bp = Blueprint("purchases", __name__, url_prefix="/purchases")
 @purchases_bp.route("/")
 @login_required
 def list_purchases():
-    purchases = Purchase.query.order_by(Purchase.date.desc(), Purchase.id.desc()).all()
-    return render_template("purchases/list.html", purchases=purchases)
+    item_agg = (
+        db.session.query(
+            PurchaseItem.purchase_id.label("purchase_id"),
+            func.sum(PurchaseItem.qty * PurchaseItem.purchase_price).label("total"),
+            func.count(PurchaseItem.id).label("item_count"),
+        )
+        .group_by(PurchaseItem.purchase_id)
+        .subquery()
+    )
+    total_expr = func.coalesce(item_agg.c.total, 0.0)
+    items_expr = func.coalesce(item_agg.c.item_count, 0)
+
+    query = (
+        Purchase.query
+        .outerjoin(item_agg, Purchase.id == item_agg.c.purchase_id)
+        .outerjoin(Supplier, Purchase.supplier_id == Supplier.id)
+    )
+
+    columns = {
+        "date": ("Date", Purchase.created_at, ist_date_filter_expr(Purchase.created_at)),
+        "supplier": ("Supplier", Supplier.name),
+        "invoice": ("Invoice No", Purchase.invoice_no),
+        "items": ("Items", items_expr),
+        "total": ("Total", total_expr),
+    }
+    table = ServerTable(
+        query, columns,
+        search_keys=["date", "supplier", "invoice", "items", "total"],
+        default_sort="date", default_dir="desc",
+    )
+    return render_template("purchases/list.html", table=table)
 
 
 @purchases_bp.route("/new", methods=["GET", "POST"])

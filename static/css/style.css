@@ -162,17 +162,28 @@ label.required::after {
   margin: 0;
 }
 
-/* ---- Data table (search box + sortable headers + per-column filter row,
-   auto-applied to every <table class="data-table"> by data-table.js) ---- */
+/* ---- Data table (search box + sortable headers + per-column filter row).
+   Two producers share this styling: data-table.js auto-applies the whole
+   thing client-side to <table class="data-table"> (the small master-data
+   lists); the server-paginated tables (Sales, Purchases, Stock Ledger —
+   unbounded row counts, see routes/server_table.py) render the same
+   markup themselves since sort/filter/paging happen via real page loads
+   there. Selectors key off the shared class names, not table.data-table,
+   so both producers render identically. ---- */
 .data-table-toolbar .input-group-text {
   background-color: transparent;
 }
-table.data-table th.data-table-sortable {
+th.data-table-sortable {
+  white-space: nowrap;
   cursor: pointer;
   user-select: none;
-  white-space: nowrap;
 }
-table.data-table th.data-table-sortable:hover {
+th.data-table-sortable a {
+  color: inherit;
+  text-decoration: none;
+  display: inline-block;
+}
+th.data-table-sortable:hover {
   background-color: rgba(var(--brand-rgb), 0.08);
 }
 .data-table-sort-indicator {
@@ -180,12 +191,12 @@ table.data-table th.data-table-sortable:hover {
   opacity: 0.45;
   font-size: 0.7em;
 }
-table.data-table tr.data-table-filter-row th {
+tr.data-table-filter-row th {
   padding-top: 0.35rem;
   padding-bottom: 0.35rem;
   font-weight: normal;
 }
-table.data-table tr.data-table-filter-row input {
+tr.data-table-filter-row input {
   min-width: 0;
 }
 
@@ -202,9 +213,12 @@ table.data-table tr.data-table-filter-row input {
 }
 
 /* ---- Left side pane — a slim full-height rail with a toggle icon at its
-   top ("breadcrumb"), collapsed to icon-only by default. Hovering widens it
-   to reveal labels. Catalog/Contacts sub-navigation lives here (grouped
-   under small headings); Settings/Logout stay pinned to the bottom. ---- */
+   top ("breadcrumb"), collapsed to icon-only by default. Click the toggle
+   icon to expand/collapse (state persisted in localStorage, same pattern
+   as the theme toggle) — deliberately not hover-driven, since hover-to-
+   open is easy to trigger by accident while just moving the mouse across
+   the page. Catalog/Contacts sub-navigation lives here (grouped under
+   small headings); Settings/Logout stay pinned to the bottom. ---- */
 body.has-side-pane {
   padding-left: 44px;
 }
@@ -222,20 +236,26 @@ body.has-side-pane {
   overflow: hidden;
   transition: width 0.2s ease;
 }
-.side-pane:hover,
-.side-pane:focus-within {
+.side-pane.expanded {
   width: 190px;
 }
 .side-pane-top {
   display: flex;
   align-items: center;
+  width: 100%;
   padding: 0.9rem 0.8rem;
   color: #fff;
+  background: none;
+  border: none;
+}
+.side-pane-top:hover {
+  background-color: rgba(255, 255, 255, 0.12);
 }
 .side-pane-nav {
   display: flex;
   flex-direction: column;
   overflow-y: auto;
+  overflow-x: hidden;
 }
 .side-pane-heading {
   padding: 0.6rem 0.8rem 0.15rem;
@@ -266,8 +286,7 @@ body.has-side-pane {
   opacity: 0;
   transition: opacity 0.15s ease;
 }
-.side-pane:hover .side-pane-label,
-.side-pane:focus-within .side-pane-label {
+.side-pane.expanded .side-pane-label {
   opacity: 1;
 }
 

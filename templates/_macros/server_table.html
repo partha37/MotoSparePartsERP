@@ -1,0 +1,58 @@
+{# Rendering helpers for a ServerTable (routes/server_table.py) — the
+   search box, sortable header links, per-column filter row, and pagination
+   controls for the server-paginated lists (Sales, Purchases, Stock Ledger).
+   Deliberately self-contained (no icon()/context-processor calls) since
+   macros need `with context` to see those, and plain text/unicode here
+   keeps the import simple. #}
+
+{% macro toolbar(table) %}
+<div class="data-table-toolbar mb-2 d-flex gap-2 flex-wrap align-items-center">
+  <div class="input-group input-group-sm" style="max-width:320px">
+    <span class="input-group-text">&#128269;</span>
+    <input type="search" name="q" value="{{ table.q }}" class="form-control" placeholder="Search this table…" aria-label="Search this table">
+  </div>
+  <button type="submit" class="btn btn-sm btn-primary">Filter</button>
+  {% if table.has_active_filters %}<a href="{{ table.clear_url() }}" class="btn btn-sm btn-outline-secondary">Clear</a>{% endif %}
+</div>
+{% endmacro %}
+
+{% macro hidden_state(table) %}
+{% for name, value in table.filter_form_hidden() %}
+<input type="hidden" name="{{ name }}" value="{{ value }}">
+{% endfor %}
+{% endmacro %}
+
+{% macro sort_th(table, key, label) %}
+{% set col = table.columns.get(key) %}
+{% if col and col[1] is not none %}
+<th class="data-table-sortable"><a href="{{ table.sort_url(key) }}">{{ label }}<span class="data-table-sort-indicator">{{ table.sort_indicator(key) }}</span></a></th>
+{% else %}
+<th>{{ label }}</th>
+{% endif %}
+{% endmacro %}
+
+{% macro filter_th(table, key, placeholder='Filter…') %}
+{% set col = table.columns.get(key) %}
+<th>
+{% if col and col[2] is not none %}
+<input type="text" name="f_{{ key }}" value="{{ table.filters.get(key, '') }}" class="form-control form-control-sm" placeholder="{{ placeholder }}" aria-label="Filter by {{ col[0] }}">
+{% endif %}
+</th>
+{% endmacro %}
+
+{% macro pagination(table) %}
+{% set pg = table.pagination %}
+<div class="d-flex justify-content-between align-items-center mt-3">
+  <div class="small text-muted">
+    {{ pg.total }} total{% if pg.pages > 1 %}, page {{ pg.page }} of {{ pg.pages }}{% endif %}
+  </div>
+  <div class="btn-group btn-group-sm">
+    <a href="{{ table.page_url(pg.prev_num) if pg.has_prev else '#' }}"
+       class="btn btn-outline-secondary {{ 'disabled' if not pg.has_prev }}"
+       {{ 'tabindex="-1" aria-disabled="true"' if not pg.has_prev }}>&laquo; Prev</a>
+    <a href="{{ table.page_url(pg.next_num) if pg.has_next else '#' }}"
+       class="btn btn-outline-secondary {{ 'disabled' if not pg.has_next }}"
+       {{ 'tabindex="-1" aria-disabled="true"' if not pg.has_next }}>Next &raquo;</a>
+  </div>
+</div>
+{% endmacro %}

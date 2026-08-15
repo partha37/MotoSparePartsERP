@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_macros/server_table.html" import toolbar, hidden_state, sort_th, filter_th, pagination %}
 {% block title %}Purchases - Lokey Auto Spare Parts{% endblock %}
 {% block content %}
 <div class="page-toolbar">
@@ -8,22 +9,44 @@
 </div>
 </div>
 <div class="card p-3">
-<table class="table table-hover align-middle data-table">
-  <thead><tr><th>Date</th><th>Supplier</th><th>Invoice No</th><th>Items</th><th>Total</th><th></th></tr></thead>
-  <tbody>
-    {% for p in purchases %}
-    <tr data-href="{{ url_for('purchases.view_purchase', purchase_id=p.id) }}">
-      <td>{{ ist(p.created_at) }}</td>
-      <td>{{ p.supplier.name if p.supplier else '-' }}</td>
-      <td>{{ p.invoice_no }}</td>
-      <td>{{ p.items|length }}</td>
-      <td>₹{{ "%.2f"|format(p.total) }}</td>
-      <td class="text-end"><a href="{{ url_for('purchases.view_purchase', purchase_id=p.id) }}" class="btn btn-sm btn-outline-secondary">{{ icon('eye') }}View</a></td>
-    </tr>
-    {% else %}
-    <tr><td colspan="6" class="text-center text-muted">No purchases recorded yet.</td></tr>
-    {% endfor %}
-  </tbody>
-</table>
+<form method="get">
+  {{ toolbar(table) }}
+  {{ hidden_state(table) }}
+  <table class="table table-hover align-middle">
+    <thead>
+      <tr>
+        {{ sort_th(table, 'date', 'Date') }}
+        {{ sort_th(table, 'supplier', 'Supplier') }}
+        {{ sort_th(table, 'invoice', 'Invoice No') }}
+        {{ sort_th(table, 'items', 'Items') }}
+        {{ sort_th(table, 'total', 'Total') }}
+        <th></th>
+      </tr>
+      <tr class="data-table-filter-row">
+        {{ filter_th(table, 'date', 'e.g. 14-08-2026') }}
+        {{ filter_th(table, 'supplier') }}
+        {{ filter_th(table, 'invoice') }}
+        {{ filter_th(table, 'items') }}
+        {{ filter_th(table, 'total') }}
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in table.items %}
+      <tr data-href="{{ url_for('purchases.view_purchase', purchase_id=p.id) }}">
+        <td>{{ ist(p.created_at) }}</td>
+        <td>{{ p.supplier.name if p.supplier else '-' }}</td>
+        <td>{{ p.invoice_no }}</td>
+        <td>{{ p.items|length }}</td>
+        <td>₹{{ "%.2f"|format(p.total) }}</td>
+        <td class="text-end"><a href="{{ url_for('purchases.view_purchase', purchase_id=p.id) }}" class="btn btn-sm btn-outline-secondary">{{ icon('eye') }}View</a></td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6" class="text-center text-muted">No purchases recorded yet.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</form>
+{{ pagination(table) }}
 </div>
 {% endblock %}

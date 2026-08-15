@@ -3,6 +3,16 @@
 {% block content %}
 <h2 class="mb-4">Dashboard</h2>
 
+<div class="card p-3 mb-4">
+  <label for="stockProductSearch" class="form-label small text-muted mb-1">Find a product in stock</label>
+  <select id="stockProductSearch" aria-label="Find a product in stock">
+    <option value="">-- Search by name or part no --</option>
+    {% for p in in_stock_products %}
+    <option value="{{ url_for('products.edit_product', product_id=p.id) }}">{{ p.part_no }} &mdash; {{ p.product_name }} ({{ p.brand_name }}) &mdash; {{ p.current_stock }} {{ p.unit }} in stock</option>
+    {% endfor %}
+  </select>
+</div>
+
 <div class="row g-3 mb-4">
   <div class="col-md-3">
     <div class="card p-3 stat-card">
@@ -62,9 +72,23 @@
 </div>
 {% endif %}
 
-<div class="d-flex gap-2">
+<div class="d-flex gap-2 flex-wrap">
   <a href="{{ url_for('sales.new_sale') }}" class="btn btn-primary">{{ icon('receipt') }}New Sale</a>
+  <a href="{{ url_for('sales.list_sales') }}" class="btn btn-outline-secondary">{{ icon('list-ul') }}View Sales</a>
   <a href="{{ url_for('purchases.new_purchase') }}" class="btn btn-outline-primary">{{ icon('cart-plus') }}New Purchase</a>
+  <a href="{{ url_for('purchases.list_purchases') }}" class="btn btn-outline-secondary">{{ icon('list-ul') }}View Purchases</a>
   <a href="{{ url_for('products.new_product') }}" class="btn btn-outline-secondary">{{ icon('plus-lg') }}Add Product</a>
+  <a href="{{ url_for('products.list_products') }}" class="btn btn-outline-secondary">{{ icon('list-ul') }}View Products</a>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  var sel = document.getElementById('stockProductSearch');
+  if (!sel) return;
+  SearchableSelect.enhance(sel);
+  sel.addEventListener('change', function () {
+    if (sel.value) window.location = sel.value;
+  });
+});
+</script>
 {% endblock %}

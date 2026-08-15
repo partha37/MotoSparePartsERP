@@ -30,6 +30,12 @@ def index():
         func.sum(Product.current_stock * Product.actual_discounted_price)
     ).scalar() or 0
 
+    in_stock_products = (
+        Product.query.filter(Product.current_stock > 0)
+        .order_by(Product.product_name.asc())
+        .all()
+    )
+
     return render_template(
         "dashboard/index.html",
         todays_total=todays_total,
@@ -37,4 +43,5 @@ def index():
         low_stock_products=low_stock_products,
         total_products=total_products,
         total_stock_value=round(total_stock_value, 2),
+        in_stock_products=in_stock_products,
     )

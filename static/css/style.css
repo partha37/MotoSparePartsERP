@@ -174,11 +174,10 @@ label.required::after {
   padding: 0.4rem 0.75rem;
 }
 
-/* ---- Left side pane (Settings/Logout) — a slim full-height rail with a
-   toggle icon at its top ("breadcrumb"), collapsed to icon-only by default.
-   Hovering widens it to reveal labels; Settings/Logout stay pinned to the
-   bottom of the rail. Kept out of the top navbar since these are
-   account/app-level actions, not day-to-day navigation. ---- */
+/* ---- Left side pane — a slim full-height rail with a toggle icon at its
+   top ("breadcrumb"), collapsed to icon-only by default. Hovering widens it
+   to reveal labels. Catalog/Contacts sub-navigation lives here (grouped
+   under small headings); Settings/Logout stay pinned to the bottom. ---- */
 body.has-side-pane {
   padding-left: 44px;
 }
@@ -205,6 +204,19 @@ body.has-side-pane {
   align-items: center;
   padding: 0.9rem 0.8rem;
   color: #fff;
+}
+.side-pane-nav {
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+.side-pane-heading {
+  padding: 0.6rem 0.8rem 0.15rem;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: rgba(255, 255, 255, 0.5);
+  white-space: nowrap;
 }
 .side-pane-bottom {
   margin-top: auto;

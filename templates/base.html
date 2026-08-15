@@ -32,22 +32,7 @@
       <ul class="navbar-nav me-auto mb-2 mb-lg-0">
         <li class="nav-item"><a class="nav-link" href="{{ url_for('dashboard.index') }}">{{ icon('speedometer2') }}Dashboard</a></li>
         <li class="nav-item"><a class="nav-link" href="{{ url_for('sales.list_sales') }}">{{ icon('receipt') }}Sales</a></li>
-        <li class="nav-item dropdown">
-          <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">{{ icon('box-seam') }}Catalog</a>
-          <ul class="dropdown-menu">
-            <li><a class="dropdown-item" href="{{ url_for('products.list_products') }}">{{ icon('box-seam', 'me-1') }}Products</a></li>
-            <li><a class="dropdown-item" href="{{ url_for('brands.list_brands') }}">{{ icon('tags', 'me-1') }}Brands</a></li>
-          </ul>
-        </li>
         <li class="nav-item"><a class="nav-link" href="{{ url_for('purchases.list_purchases') }}">{{ icon('cart-plus') }}Purchases</a></li>
-        <li class="nav-item dropdown">
-          <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">{{ icon('people') }}Contacts</a>
-          <ul class="dropdown-menu">
-            <li><a class="dropdown-item" href="{{ url_for('suppliers.list_suppliers') }}">{{ icon('truck', 'me-1') }}Suppliers</a></li>
-            <li><a class="dropdown-item" href="{{ url_for('customers.list_customers') }}">{{ icon('people', 'me-1') }}Customers</a></li>
-            <li><a class="dropdown-item" href="{{ url_for('mechanics.list_mechanics') }}">{{ icon('person-gear', 'me-1') }}Mechanics</a></li>
-          </ul>
-        </li>
         <li class="nav-item"><a class="nav-link" href="{{ url_for('stock.ledger') }}">{{ icon('clipboard-data') }}Stock Ledger</a></li>
         <li class="nav-item"><a class="nav-link" href="{{ url_for('reports.index') }}">{{ icon('bar-chart') }}Reports</a></li>
       </ul>
@@ -64,6 +49,25 @@
 
 <div class="side-pane no-print">
   <div class="side-pane-top">{{ icon('list-ul') }}</div>
+  <div class="side-pane-nav">
+    <div class="side-pane-heading"><span class="side-pane-label">Catalog</span></div>
+    <a class="side-pane-link" href="{{ url_for('products.list_products') }}">
+      {{ icon('box-seam', 'me-2') }}<span class="side-pane-label">Products</span>
+    </a>
+    <a class="side-pane-link" href="{{ url_for('brands.list_brands') }}">
+      {{ icon('tags', 'me-2') }}<span class="side-pane-label">Brands</span>
+    </a>
+    <div class="side-pane-heading"><span class="side-pane-label">Contacts</span></div>
+    <a class="side-pane-link" href="{{ url_for('suppliers.list_suppliers') }}">
+      {{ icon('truck', 'me-2') }}<span class="side-pane-label">Suppliers</span>
+    </a>
+    <a class="side-pane-link" href="{{ url_for('customers.list_customers') }}">
+      {{ icon('people', 'me-2') }}<span class="side-pane-label">Customers</span>
+    </a>
+    <a class="side-pane-link" href="{{ url_for('mechanics.list_mechanics') }}">
+      {{ icon('person-gear', 'me-2') }}<span class="side-pane-label">Mechanics</span>
+    </a>
+  </div>
   <div class="side-pane-bottom">
     <a class="side-pane-link" href="{{ url_for('settings.index') }}">
       {{ icon('gear', 'me-2') }}<span class="side-pane-label">Settings</span>

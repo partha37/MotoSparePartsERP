@@ -11,39 +11,45 @@ This app is server-rendered Jinja2 + Bootstrap 5 — **no JS build step, no npm.
 
 Bootstrap CSS/JS lives at `static/vendor/bootstrap/{css,js}/` and [templates/base.html](../../../templates/base.html) loads it via `url_for('static', filename='vendor/bootstrap/...')`. This was a deliberate fix — it used to load from the jsdelivr CDN, which broke all styling and Bootstrap JS (navbar toggle, dropdowns, dismissible alerts) whenever the shop's internet was down, directly contradicting the offline-first requirement in [CLAUDE.md](../../../CLAUDE.md). **Any new frontend dependency (icon font, chart library, additional JS plugin, a barcode-scanning JS lib, etc.) must be vendored into `static/vendor/<name>/` the same way — never add a `<link>`/`<script>` pointing at a CDN**, even "just for now." If you see one, that's a regression back to the pre-fix state, not a shortcut. Chart.js followed this exact pattern when report charts were added: `static/vendor/chartjs/chart.umd.min.js` (MIT-licensed UMD build), loaded per-page (only report templates that actually draw a chart pull it in, not globally in `base.html`, since it's ~200KB and most pages don't need it) — see the report toggle pattern below for how it's used.
 
-## Report chart/table toggle — Chart.js, instant client-side switch
+## Report chart/table toggle — Chart.js, lazy-built, table by default
 
-Report pages that can show the same data as either a chart or a table (`templates/reports/customer_wise.html`, `mechanic_wise.html`, `contact_detail.html`) use one consistent markup + JS pattern rather than a server round-trip per view:
+Report pages that can show the same data as either a chart or a table (customer/mechanic/product/supplier/brand-wise reports and their drill-down detail pages) use one consistent markup + shared JS pattern rather than a server round-trip per view:
 
 ```html
-<div class="card p-3 report-section">
+<div class="card p-3 report-section" id="someSection">
   <div class="d-flex justify-content-between align-items-center mb-2">
     <h5 class="mb-0">Section Title</h5>
     <div class="btn-group btn-group-sm view-toggle" role="group">
-      <button type="button" class="btn btn-outline-primary" data-view="table">{{ icon('list-ul') }}Table</button>
-      <button type="button" class="btn btn-outline-primary active" data-view="chart">{{ icon('bar-chart') }}Chart</button>
+      <button type="button" class="btn btn-outline-primary active" data-view="table">{{ icon('list-ul') }}Table</button>
+      <button type="button" class="btn btn-outline-primary" data-view="chart">{{ icon('bar-chart') }}Chart</button>
     </div>
   </div>
-  <div class="view-chart"><canvas id="someChart" height="90"></canvas></div>
-  <div class="view-table" style="display:none">...</div>
+  <div class="view-chart" style="display:none"><canvas id="someChart" height="90"></canvas></div>
+  <div class="view-table">...</div>
 </div>
 ```
 
-A small inline `<script>` (see `contact_detail.html` for the version handling multiple `.report-section` blocks on one page) toggles `display` on `.view-chart`/`.view-table` and the `active` class on the two buttons — no page reload, since both panes are already server-rendered. **Chart defaults to visible on load, table hidden** (not the other way around): Chart.js sizes its canvas off the container's rendered width at construction time, so initializing it while hidden (`display:none`) gives it a zero-width canvas; toggling the table pane hidden instead keeps the chart's initial render correct, and switching back to it later just re-shows an already-correctly-sized canvas. The table pane still gets `class="data-table"` for search/sort/filter like any other table — the toggle only controls which one is visible, both are fully real markup.
-
-For the data itself: pass the same Python data structures used to render the table straight into the chart via `{{ rows|tojson }}` in the inline script, rather than hand-building a second JS-side data shape — see `customer_wise.html`'s `const rows = {{ rows|tojson }};`. Keep row dicts JSON-safe (no `date`/`datetime` objects) if they're going through `tojson`; format dates in Jinja for the table and only pass the chart the fields it actually needs.
-
-**Every chart page must also load `static/js/chart-theme.js`, right after `chart.umd.min.js` and before the page's own chart-creation `<script>`:**
+`static/js/report-toggle.js`'s `ReportToggle.wire(section, buildChart)` handles the show/hide and `active`-class toggling for one `.report-section` — call it once per section (a page with multiple sections, e.g. `contact_detail.html`, needs a unique `id` per section and one `wire()` call each). **Table is the default view, and the Chart.js instance is built lazily on first click of the "Chart" button, not eagerly on page load** — `buildChart` is only invoked once, the first time the section switches to chart view:
 
 ```html
 <script src="{{ url_for('static', filename='vendor/chartjs/chart.umd.min.js') }}"></script>
 <script src="{{ url_for('static', filename='js/chart-theme.js') }}"></script>
+<script src="{{ url_for('static', filename='js/report-toggle.js') }}"></script>
 <script>
-  /* ... new Chart(...) calls go here ... */
+(function () {
+  const rows = {{ rows|tojson }};
+  ReportToggle.wire(document.getElementById('someSection'), function () {
+    return new Chart(document.getElementById('someChart'), { /* ... */ });
+  });
+})();
 </script>
 ```
 
-Chart.js's own defaults (`#666` text, `rgba(0,0,0,0.1)` gridlines) are tuned for a white background and read poorly on this app's dark theme (~3:1 contrast, same class of problem as the outline-button issue above). `chart-theme.js` reads `data-bs-theme` off `<html>` at load time and sets `Chart.defaults.color`/`Chart.defaults.borderColor` to a theme-appropriate value before any chart is constructed — order matters, since `Chart.defaults` is read once at construction time, not live (a theme change after page load needs a reload to affect an already-drawn chart, consistent with everything else theme-related here). The bar/line colors themselves (brand navy `#1e4b8c`, accent orange `#e8720c`) stay hardcoded per-dataset in each page's inline script — those are fills, not text-on-background, so the "fixed across themes" rule above applies to them normally; only the surrounding axis/legend/gridline chrome needed the theme-aware treatment.
+This lazy-build is load-bearing, not a style preference: Chart.js sizes its canvas off the container's rendered width at construction time, so constructing it while `.view-chart` is still `display:none` gives it a zero-width canvas that never recovers without an explicit `resize()` call. Building on first click means the pane is already visible by the time Chart.js measures it. The table pane still gets `class="data-table"` for search/sort/filter like any other table — the toggle only controls which one is visible, both are fully real server-rendered markup.
+
+For the data itself: pass the same Python data structures used to render the table straight into the chart via `{{ rows|tojson }}`, rather than hand-building a second JS-side data shape — see `customer_wise.html`'s `const rows = {{ rows|tojson }};`. Keep row dicts JSON-safe (no `date`/`datetime` objects) if they're going through `tojson`; format dates in Jinja for the table and only pass the chart the fields it actually needs.
+
+**Every chart page must also load `static/js/chart-theme.js`, right after `chart.umd.min.js` and before `report-toggle.js`/the page's own chart-creation `<script>`** (see the snippet above). Chart.js's own defaults (`#666` text, `rgba(0,0,0,0.1)` gridlines) are tuned for a white background and read poorly on this app's dark theme (~3:1 contrast, same class of problem as the outline-button issue above). `chart-theme.js` reads `data-bs-theme` off `<html>` at load time and sets `Chart.defaults.color`/`Chart.defaults.borderColor` to a theme-appropriate value before any chart is constructed — order matters, since `Chart.defaults` is read once at construction time, not live (a theme change after page load needs a reload to affect an already-drawn chart, consistent with everything else theme-related here). The bar/line colors themselves (brand navy `#1e4b8c`, accent orange `#e8720c`) stay hardcoded per-dataset in each page's inline script — those are fills, not text-on-background, so the "fixed across themes" rule above applies to them normally; only the surrounding axis/legend/gridline chrome needed the theme-aware treatment.
 
 **Template-cache gotcha when testing a chart page locally:** unlike static assets (CSS/JS, served fresh from disk every request), Jinja templates are compiled once and cached in memory when the Flask process starts, and only auto-recompile on change if `debug=True` (`python app.py`, not `serve.py`/production, and not a `debug=False` QA instance). If you edit a template's `<script src>` list (or any template markup) while a non-debug server is already running against it, the change won't appear until that process restarts — a symptom that looks exactly like a 404'd or missing script (check `document.scripts` in the browser to tell the two apart) but isn't one. Restart the server, don't waste time debugging a "missing" asset that's actually just a stale compiled template.
 

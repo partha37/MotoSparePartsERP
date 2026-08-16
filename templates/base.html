@@ -171,6 +171,7 @@ if (sidePane && sidePaneToggle) {
   function setSidePaneExpanded(expanded) {
     sidePane.classList.toggle('expanded', expanded);
     sidePaneToggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+    document.body.classList.toggle('side-pane-expanded', expanded);
   }
   setSidePaneExpanded(localStorage.getItem('sidePaneExpanded') === '1');
   sidePaneToggle.addEventListener('click', function () {

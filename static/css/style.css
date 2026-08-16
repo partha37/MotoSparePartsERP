@@ -221,6 +221,10 @@ tr.data-table-filter-row input {
    small headings); Settings/Logout stay pinned to the bottom. ---- */
 body.has-side-pane {
   padding-left: 44px;
+  transition: padding-left 0.2s ease;
+}
+body.has-side-pane.side-pane-expanded {
+  padding-left: 190px;
 }
 .side-pane {
   position: fixed;

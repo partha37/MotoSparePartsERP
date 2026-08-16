@@ -71,6 +71,11 @@
   </table>
   <button type="button" id="addRow" class="btn btn-sm btn-outline-primary mb-3">{{ icon('plus-lg') }}Add Line</button>
 
+  <div class="d-flex justify-content-end align-items-center gap-3 p-3 mb-3 border-top border-bottom">
+    <div class="text-muted">Grand Total</div>
+    <div class="fs-3 fw-bold" id="grandTotalDisplay">₹0.00</div>
+  </div>
+
   <div class="row g-3 mt-2">
     <div class="col-md-3">
       <label class="form-label" for="f-amount-paid">Amount Paid Now (₹)</label>
@@ -114,6 +119,16 @@ function currentDiscountForBrand(brandId) {
 
 function recalcAllRows() {
   document.querySelectorAll('#itemsTable tbody tr').forEach(row => row._applyDiscount());
+}
+
+function recalcGrandTotal() {
+  let total = 0;
+  document.querySelectorAll('#itemsTable tbody tr').forEach(function (row) {
+    const qty = parseFloat(row.querySelector('.qty-input').value) || 0;
+    const price = parseFloat(row.querySelector('.price-input').value) || 0;
+    total += qty * price;
+  });
+  document.getElementById('grandTotalDisplay').textContent = '₹' + total.toFixed(2);
 }
 
 // Only the first line is required outright; a completed last line
@@ -257,6 +272,7 @@ function wireRow(row) {
     const total = qty * price;
     lineTotal.value = total ? '₹' + total.toFixed(2) : '';
     maybeAutoAddRow(row);
+    recalcGrandTotal();
   }
 
   select.addEventListener('change', populateBatches);
@@ -287,6 +303,7 @@ document.querySelector('#itemsTable').addEventListener('click', function (e) {
     if (tbody.rows.length > 1) {
       e.target.closest('tr').remove();
       updateRequiredFlags();
+      recalcGrandTotal();
     }
   }
 });

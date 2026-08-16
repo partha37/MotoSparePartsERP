@@ -274,6 +274,26 @@ class SaleItem(db.Model):
     def line_total(self):
         return round(self.qty * self.selling_price, 2)
 
+    @property
+    def mrp_at_sale(self):
+        """The batch's MRP at time of sale — falls back to the product's
+        current MRP only for legacy sales made before batch tracking existed
+        (purchase_item_id is None), same fallback rule as the profit-margin
+        report uses for cost."""
+        if self.purchase_item:
+            return self.purchase_item.effective_mrp
+        return self.product.mrp if self.product else 0
+
+    @property
+    def discount_pct(self):
+        """Discount actually given vs that batch's MRP — derived from
+        selling_price rather than stored, since selling_price (entered per
+        line at checkout) is the only number actually recorded at sale time."""
+        mrp = self.mrp_at_sale
+        if not mrp:
+            return 0
+        return round((1 - self.selling_price / mrp) * 100, 2)
+
 
 class Payment(db.Model):
     """A single installment paid against a Sale's balance due."""

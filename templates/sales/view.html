@@ -35,7 +35,7 @@
   </div>
 
   <table class="table">
-    <thead><tr><th>Part No</th><th>Product</th><th>Batch</th><th>Qty</th><th>Price</th><th>Total</th></tr></thead>
+    <thead><tr><th>Part No</th><th>Product</th><th>Batch</th><th>Qty</th><th>MRP</th><th>Discount %</th><th>Price</th><th>Total</th></tr></thead>
     <tbody>
       {% for item in sale.items %}
       <tr>
@@ -43,15 +43,17 @@
         <td>{{ item.product.product_name }}</td>
         <td>{{ item.purchase_item.stock_number if item.purchase_item else '-' }}</td>
         <td>{{ item.qty }}</td>
+        <td>₹{{ "%.2f"|format(item.mrp_at_sale) }}</td>
+        <td>{{ "%.2f"|format(item.discount_pct) if item.discount_pct else '-' }}</td>
         <td>₹{{ "%.2f"|format(item.selling_price) }}</td>
         <td>₹{{ "%.2f"|format(item.line_total) }}</td>
       </tr>
       {% endfor %}
     </tbody>
     <tfoot>
-      <tr><th colspan="5" class="text-end">Grand Total <span class="text-muted small">(GST incl.)</span></th><th>₹{{ "%.2f"|format(sale.total) }}</th></tr>
-      <tr><th colspan="5" class="text-end">Amount Paid</th><th>₹{{ "%.2f"|format(sale.amount_paid) }}</th></tr>
-      <tr><th colspan="5" class="text-end">Balance Due</th><th>₹{{ "%.2f"|format(sale.balance_due) }}</th></tr>
+      <tr><th colspan="7" class="text-end">Grand Total <span class="text-muted small">(GST incl.)</span></th><th>₹{{ "%.2f"|format(sale.total) }}</th></tr>
+      <tr><th colspan="7" class="text-end">Amount Paid</th><th>₹{{ "%.2f"|format(sale.amount_paid) }}</th></tr>
+      <tr><th colspan="7" class="text-end">Balance Due</th><th>₹{{ "%.2f"|format(sale.balance_due) }}</th></tr>
     </tfoot>
   </table>
 </div>

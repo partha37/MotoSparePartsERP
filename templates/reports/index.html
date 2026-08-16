@@ -4,12 +4,13 @@
 <h2 class="mb-4">Reports</h2>
 <div class="row g-3">
   {% set reports = [
-    ('reports.daily_sales', 'calendar3', 'Daily Sales Summary', 'Total sales per day.'),
-    ('reports.mechanic_wise', 'person-gear', 'Mechanic-wise Sales', 'Sales per mechanic.'),
-    ('reports.customer_wise', 'people', 'Customer-wise Purchases', 'Total spend per customer.'),
-    ('reports.best_sellers', 'graph-up-arrow', 'Best-selling Products', 'Top products by quantity sold.'),
+    ('reports.daily_sales', 'calendar3', 'Sales Overview', 'Sales trend, discount and profit, day or week wise.'),
+    ('reports.mechanic_wise', 'person-gear', 'Mechanic-wise Sales', 'Sales per mechanic — click a row for the full report.'),
+    ('reports.customer_wise', 'people', 'Customer-wise Purchases', 'Spend per customer — click a row for the full report.'),
+    ('reports.best_sellers', 'graph-up-arrow', 'Best-selling Products', 'Top products — click a row for the full report.'),
+    ('reports.brand_wise', 'tags', 'Brand-wise Sales', 'Sales per brand — click a row for the full report.'),
+    ('reports.supplier_summary', 'truck', 'Supplier Purchase Summary', 'Spend per supplier — click a row for the full report.'),
     ('reports.profit_margin', 'cash-coin', 'Profit Margin Report', 'Revenue vs cost per product.'),
-    ('reports.supplier_summary', 'truck', 'Supplier Purchase Summary', 'Total purchases per supplier.'),
     ('reports.low_stock', 'exclamation-triangle', 'Low Stock Report', 'Products at or below reorder level.'),
     ('reports.outstanding_dues', 'cash-stack', 'Outstanding Dues', 'Sales with an unpaid balance, oldest first.'),
   ] %}

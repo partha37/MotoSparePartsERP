@@ -1,13 +1,12 @@
 {% extends "base.html" %}
-{% block title %}{{ contact.name }} - {{ 'Customer' if kind == 'customer' else 'Mechanic' }} Report - Lokey Auto Spare Parts{% endblock %}
+{% block title %}{{ product.product_name }} - Product Report - Lokey Auto Spare Parts{% endblock %}
 {% block content %}
 <div class="page-toolbar">
-<h2 class="mb-1 d-flex align-items-center">{{ icon('people' if kind == 'customer' else 'person-gear', 'me-2') }}{{ contact.name }}</h2>
+<h2 class="mb-1 d-flex align-items-center">{{ icon('box-seam', 'me-2') }}{{ product.part_no }} - {{ product.product_name }}</h2>
 <div class="text-muted small mb-3">
-  {{ 'Customer' if kind == 'customer' else 'Mechanic' }}
-  {% if contact.phone %} · {{ contact.phone }}{% endif %}
-  {% if kind == 'mechanic' and contact.garage_name %} · {{ contact.garage_name }}{% endif %}
-  {% if kind == 'customer' and contact.vehicle_model %} · {{ contact.vehicle_model }}{% endif %}
+  {{ product.brand_name or 'No brand' }}
+  {% if product.vehicle_name %} · {{ product.vehicle_name }}{% endif %}
+  · Current stock: {{ product.current_stock }} {{ product.unit }}
 </div>
 <form method="get" class="row g-3 mb-3 align-items-end">
   <div class="col-md-3"><label class="form-label" for="f-date-from">From</label><input type="date" id="f-date-from" name="date_from" class="form-control" value="{{ date_from }}"></div>
@@ -26,10 +25,10 @@
 <div class="row g-3 mb-4">
   <div class="col-md-2 col-6">
     <div class="card p-3 stat-card">
-      <div class="stat-card-icon">{{ icon('receipt') }}</div>
+      <div class="stat-card-icon">{{ icon('box-seam') }}</div>
       <div>
-        <div class="text-muted small">Invoices</div>
-        <div class="fs-4 fw-bold">{{ summary.invoices }}</div>
+        <div class="text-muted small">Qty Sold</div>
+        <div class="fs-4 fw-bold">{{ summary.qty_sold }}</div>
       </div>
     </div>
   </div>
@@ -37,7 +36,7 @@
     <div class="card p-3 stat-card">
       <div class="stat-card-icon">{{ icon('cash-stack') }}</div>
       <div>
-        <div class="text-muted small">Total Sales</div>
+        <div class="text-muted small">Revenue</div>
         <div class="fs-4 fw-bold">₹{{ "%.2f"|format(summary.total_revenue) }}</div>
       </div>
     </div>
@@ -49,15 +48,6 @@
         <div class="text-muted small">Discount Given</div>
         <div class="fs-4 fw-bold">₹{{ "%.2f"|format(summary.total_discount) }}</div>
         <div class="text-muted small">avg {{ "%.2f"|format(summary.avg_discount_pct) }}%</div>
-      </div>
-    </div>
-  </div>
-  <div class="col-md-2 col-6">
-    <div class="card p-3 stat-card">
-      <div class="stat-card-icon">{{ icon('box-seam') }}</div>
-      <div>
-        <div class="text-muted small">Cost of Goods</div>
-        <div class="fs-4 fw-bold">₹{{ "%.2f"|format(summary.total_cost) }}</div>
       </div>
     </div>
   </div>
@@ -79,11 +69,20 @@
       </div>
     </div>
   </div>
+  <div class="col-md-2 col-6">
+    <div class="card p-3 stat-card">
+      <div class="stat-card-icon">{{ icon('archive') }}</div>
+      <div>
+        <div class="text-muted small">Current Stock</div>
+        <div class="fs-4 fw-bold">{{ summary.current_stock }} {{ product.unit }}</div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <div class="card p-3 mb-4 report-section" id="timeSection">
   <div class="d-flex justify-content-between align-items-center mb-2">
-    <h5 class="mb-0 d-flex align-items-center">{{ icon('calendar3', 'me-2') }}Purchases Over Time ({{ 'Daily' if group_by == 'day' else 'Weekly' }})</h5>
+    <h5 class="mb-0 d-flex align-items-center">{{ icon('calendar3', 'me-2') }}Sold Over Time ({{ 'Daily' if group_by == 'day' else 'Weekly' }})</h5>
     <div class="btn-group btn-group-sm view-toggle" role="group">
       <button type="button" class="btn btn-outline-primary active" data-view="table">{{ icon('list-ul') }}Table</button>
       <button type="button" class="btn btn-outline-primary" data-view="chart">{{ icon('bar-chart') }}Chart</button>
@@ -92,43 +91,41 @@
   <div class="view-chart" style="display:none"><canvas id="timeChart" height="80"></canvas></div>
   <div class="view-table">
     <table class="table table-sm data-table">
-      <thead><tr><th>{{ 'Date' if group_by == 'day' else 'Week' }}</th><th>Invoices</th><th>Total</th></tr></thead>
+      <thead><tr><th>{{ 'Date' if group_by == 'day' else 'Week' }}</th><th>Invoices</th><th>Qty Sold</th><th>Revenue</th></tr></thead>
       <tbody>
         {% for label, v in time_series %}
-        <tr><td>{{ label }}</td><td>{{ v.count }}</td><td>₹{{ "%.2f"|format(v.total) }}</td></tr>
+        <tr><td>{{ label }}</td><td>{{ v.count }}</td><td>{{ v.qty }}</td><td>₹{{ "%.2f"|format(v.revenue) }}</td></tr>
         {% else %}
-        <tr><td colspan="3" class="text-center text-muted">No purchases in this range.</td></tr>
+        <tr><td colspan="4" class="text-center text-muted">No sales in this range.</td></tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
 </div>
 
-<div class="card p-3 mb-4 report-section" id="productSection">
+<div class="card p-3 mb-4 report-section" id="contactSection">
   <div class="d-flex justify-content-between align-items-center mb-2">
-    <h5 class="mb-0 d-flex align-items-center">{{ icon('box-seam', 'me-2') }}By Product</h5>
+    <h5 class="mb-0 d-flex align-items-center">{{ icon('people', 'me-2') }}Sold To</h5>
     <div class="btn-group btn-group-sm view-toggle" role="group">
       <button type="button" class="btn btn-outline-primary active" data-view="table">{{ icon('list-ul') }}Table</button>
       <button type="button" class="btn btn-outline-primary" data-view="chart">{{ icon('bar-chart') }}Chart</button>
     </div>
   </div>
-  <div class="view-chart" style="display:none"><canvas id="productChart" height="90"></canvas></div>
+  <div class="view-chart" style="display:none"><canvas id="contactChart" height="90"></canvas></div>
   <div class="view-table">
     <table class="table table-sm data-table">
-      <thead><tr><th>Product</th><th>Qty</th><th>Revenue</th><th>Discount Given</th><th>Avg Discount %</th><th>Profit</th><th>Profit %</th></tr></thead>
+      <thead><tr><th>Customer / Mechanic</th><th>Qty</th><th>Revenue</th><th>Discount Given</th><th>Avg Discount %</th></tr></thead>
       <tbody>
-        {% for p in product_rows %}
+        {% for c in contact_rows %}
         <tr>
-          <td>{{ p.name }}</td>
-          <td>{{ p.qty }}</td>
-          <td>₹{{ "%.2f"|format(p.revenue) }}</td>
-          <td>₹{{ "%.2f"|format(p.discount_amount) }}</td>
-          <td>{{ "%.2f"|format(p.avg_discount_pct) }}</td>
-          <td class="{{ 'text-danger' if p.profit < 0 else '' }}">₹{{ "%.2f"|format(p.profit) }}</td>
-          <td class="{{ 'text-danger' if p.profit_pct < 0 else '' }}">{{ "%.2f"|format(p.profit_pct) }}</td>
+          <td>{{ c.name }}</td>
+          <td>{{ c.qty }}</td>
+          <td>₹{{ "%.2f"|format(c.revenue) }}</td>
+          <td>₹{{ "%.2f"|format(c.discount_amount) }}</td>
+          <td>{{ "%.2f"|format(c.avg_discount_pct) }}</td>
         </tr>
         {% else %}
-        <tr><td colspan="7" class="text-center text-muted">No purchases in this range.</td></tr>
+        <tr><td colspan="5" class="text-center text-muted">No sales in this range.</td></tr>
         {% endfor %}
       </tbody>
     </table>
@@ -138,13 +135,13 @@
 <div class="card p-3 mb-4">
   <h5 class="mb-3 d-flex align-items-center">{{ icon('clock-history', 'me-2') }}All Line Items</h5>
   <table class="table table-sm data-table">
-    <thead><tr><th>Date</th><th>Invoice</th><th>Product</th><th>Qty</th><th>MRP</th><th>Discount %</th><th>Price</th><th>Total</th><th></th></tr></thead>
+    <thead><tr><th>Date</th><th>Invoice</th><th>Sold To</th><th>Qty</th><th>MRP</th><th>Discount %</th><th>Price</th><th>Total</th><th></th></tr></thead>
     <tbody>
       {% for r in item_rows %}
       <tr>
         <td>{{ r.date.strftime('%d-%m-%Y') }}</td>
         <td>{{ r.invoice_no or '-' }}</td>
-        <td>{{ r.product_name }}</td>
+        <td>{{ r.contact_name }}</td>
         <td>{{ r.qty }}</td>
         <td>₹{{ "%.2f"|format(r.mrp) }}</td>
         <td>{{ "%.2f"|format(r.discount_pct) if r.discount_pct else '-' }}</td>
@@ -153,13 +150,16 @@
         <td><a href="{{ url_for('sales.view_sale', sale_id=r.sale_id) }}" class="btn btn-sm btn-outline-secondary" title="View" aria-label="View">{{ icon('eye') }}</a></td>
       </tr>
       {% else %}
-      <tr><td colspan="9" class="text-center text-muted">No purchases in this range.</td></tr>
+      <tr><td colspan="9" class="text-center text-muted">No sales in this range.</td></tr>
       {% endfor %}
     </tbody>
   </table>
 </div>
 
-<a href="{{ url_for('reports.customer_wise' if kind == 'customer' else 'reports.mechanic_wise') }}" class="btn btn-outline-secondary mt-1">{{ icon('arrow-left') }}Back to {{ 'Customer-wise Purchases' if kind == 'customer' else 'Mechanic-wise Sales' }}</a>
+<div class="d-flex gap-2">
+  <a href="{{ url_for('products.edit_product', product_id=product.id) }}" class="btn btn-outline-secondary">{{ icon('pencil') }}Edit Product</a>
+  <a href="{{ url_for('reports.best_sellers') }}" class="btn btn-outline-secondary">{{ icon('arrow-left') }}Back to Best Sellers</a>
+</div>
 
 <script src="{{ url_for('static', filename='vendor/chartjs/chart.umd.min.js') }}"></script>
 <script src="{{ url_for('static', filename='js/chart-theme.js') }}"></script>
@@ -172,24 +172,21 @@
       type: 'bar',
       data: {
         labels: timeSeries.map(r => r[0]),
-        datasets: [{ label: 'Total (₹)', data: timeSeries.map(r => r[1].total), backgroundColor: '#1e4b8c' }]
+        datasets: [{ label: 'Revenue (₹)', data: timeSeries.map(r => r[1].revenue), backgroundColor: '#1e4b8c' }]
       },
       options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
     });
   });
 
-  const productRows = {{ product_rows|tojson }};
-  ReportToggle.wire(document.getElementById('productSection'), function () {
-    return new Chart(document.getElementById('productChart'), {
+  const contactRows = {{ contact_rows|tojson }};
+  ReportToggle.wire(document.getElementById('contactSection'), function () {
+    return new Chart(document.getElementById('contactChart'), {
       type: 'bar',
       data: {
-        labels: productRows.map(r => r.name),
-        datasets: [
-          { label: 'Revenue (₹)', data: productRows.map(r => r.revenue), backgroundColor: '#1e4b8c' },
-          { label: 'Discount Given (₹)', data: productRows.map(r => r.discount_amount), backgroundColor: '#e8720c' }
-        ]
+        labels: contactRows.map(r => r.name),
+        datasets: [{ label: 'Revenue (₹)', data: contactRows.map(r => r.revenue), backgroundColor: '#1e4b8c' }]
       },
-      options: { responsive: true, scales: { y: { beginAtZero: true } } }
+      options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
     });
   });
 })();

@@ -1,31 +1,31 @@
 {% extends "base.html" %}
-{% block title %}Mechanic-wise Sales - Lokey Auto Spare Parts{% endblock %}
+{% block title %}Brand-wise Sales - Lokey Auto Spare Parts{% endblock %}
 {% block content %}
 <div class="page-toolbar">
-<h2 class="mb-4 d-flex align-items-center">{{ icon('person-gear', 'me-2') }}Mechanic-wise Sales</h2>
+<h2 class="mb-4 d-flex align-items-center">{{ icon('tags', 'me-2') }}Brand-wise Sales</h2>
 <form method="get" class="row g-3 mb-3">
   <div class="col-md-3"><label class="form-label" for="f-date-from">From</label><input type="date" id="f-date-from" name="date_from" class="form-control" value="{{ date_from }}"></div>
   <div class="col-md-3"><label class="form-label" for="f-date-to">To</label><input type="date" id="f-date-to" name="date_to" class="form-control" value="{{ date_to }}"></div>
   <div class="col-md-2 d-flex align-items-end"><button type="submit" class="btn btn-primary w-100">{{ icon('funnel') }}Filter</button></div>
 </form>
 </div>
-<div class="card p-3 report-section" id="mechanicSection">
+<div class="card p-3 report-section" id="brandSection">
   <div class="d-flex justify-content-end mb-2">
     <div class="btn-group btn-group-sm view-toggle" role="group">
       <button type="button" class="btn btn-outline-primary active" data-view="table">{{ icon('list-ul') }}Table</button>
       <button type="button" class="btn btn-outline-primary" data-view="chart">{{ icon('bar-chart') }}Chart</button>
     </div>
   </div>
-  <div class="view-chart" style="display:none"><canvas id="mechanicChart" height="90"></canvas></div>
+  <div class="view-chart" style="display:none"><canvas id="brandChart" height="90"></canvas></div>
   <div class="view-table">
     <table class="table data-table">
-      <thead><tr><th>Mechanic</th><th>Invoices</th><th>Total Sales</th></tr></thead>
+      <thead><tr><th>Brand</th><th>Qty Sold</th><th>Revenue</th></tr></thead>
       <tbody>
         {% for v in rows %}
-        <tr {% if v.id %}data-href="{{ url_for('reports.mechanic_detail', contact_id=v.id) }}"{% endif %}>
+        <tr {% if v.id %}data-href="{{ url_for('reports.brand_detail', brand_id=v.id) }}"{% endif %}>
           <td>{{ v.name }}{% if v.id %} {{ icon('chevron-right', 'text-muted small') }}{% endif %}</td>
-          <td>{{ v.count }}</td>
-          <td>₹{{ "%.2f"|format(v.total) }}</td>
+          <td>{{ v.qty }}</td>
+          <td>₹{{ "%.2f"|format(v.revenue) }}</td>
         </tr>
         {% else %}
         <tr><td colspan="3" class="text-center text-muted">No sales in this range.</td></tr>
@@ -42,12 +42,12 @@
 <script>
 (function () {
   const rows = {{ rows|tojson }};
-  ReportToggle.wire(document.getElementById('mechanicSection'), function () {
-    return new Chart(document.getElementById('mechanicChart'), {
+  ReportToggle.wire(document.getElementById('brandSection'), function () {
+    return new Chart(document.getElementById('brandChart'), {
       type: 'bar',
       data: {
         labels: rows.map(r => r.name),
-        datasets: [{ label: 'Total Sales (₹)', data: rows.map(r => r.total), backgroundColor: '#1e4b8c' }]
+        datasets: [{ label: 'Revenue (₹)', data: rows.map(r => r.revenue), backgroundColor: '#1e4b8c' }]
       },
       options: {
         responsive: true,

@@ -1,14 +1,9 @@
 {% extends "base.html" %}
-{% block title %}{{ contact.name }} - {{ 'Customer' if kind == 'customer' else 'Mechanic' }} Report - Lokey Auto Spare Parts{% endblock %}
+{% block title %}{{ brand.name }} - Brand Report - Lokey Auto Spare Parts{% endblock %}
 {% block content %}
 <div class="page-toolbar">
-<h2 class="mb-1 d-flex align-items-center">{{ icon('people' if kind == 'customer' else 'person-gear', 'me-2') }}{{ contact.name }}</h2>
-<div class="text-muted small mb-3">
-  {{ 'Customer' if kind == 'customer' else 'Mechanic' }}
-  {% if contact.phone %} · {{ contact.phone }}{% endif %}
-  {% if kind == 'mechanic' and contact.garage_name %} · {{ contact.garage_name }}{% endif %}
-  {% if kind == 'customer' and contact.vehicle_model %} · {{ contact.vehicle_model }}{% endif %}
-</div>
+<h2 class="mb-1 d-flex align-items-center">{{ icon('tags', 'me-2') }}{{ brand.name }}</h2>
+<div class="text-muted small mb-3">Brand · {{ summary.product_count }} product(s)</div>
 <form method="get" class="row g-3 mb-3 align-items-end">
   <div class="col-md-3"><label class="form-label" for="f-date-from">From</label><input type="date" id="f-date-from" name="date_from" class="form-control" value="{{ date_from }}"></div>
   <div class="col-md-3"><label class="form-label" for="f-date-to">To</label><input type="date" id="f-date-to" name="date_to" class="form-control" value="{{ date_to }}"></div>
@@ -26,10 +21,10 @@
 <div class="row g-3 mb-4">
   <div class="col-md-2 col-6">
     <div class="card p-3 stat-card">
-      <div class="stat-card-icon">{{ icon('receipt') }}</div>
+      <div class="stat-card-icon">{{ icon('box-seam') }}</div>
       <div>
-        <div class="text-muted small">Invoices</div>
-        <div class="fs-4 fw-bold">{{ summary.invoices }}</div>
+        <div class="text-muted small">Qty Sold</div>
+        <div class="fs-4 fw-bold">{{ summary.qty_sold }}</div>
       </div>
     </div>
   </div>
@@ -37,7 +32,7 @@
     <div class="card p-3 stat-card">
       <div class="stat-card-icon">{{ icon('cash-stack') }}</div>
       <div>
-        <div class="text-muted small">Total Sales</div>
+        <div class="text-muted small">Revenue</div>
         <div class="fs-4 fw-bold">₹{{ "%.2f"|format(summary.total_revenue) }}</div>
       </div>
     </div>
@@ -49,15 +44,6 @@
         <div class="text-muted small">Discount Given</div>
         <div class="fs-4 fw-bold">₹{{ "%.2f"|format(summary.total_discount) }}</div>
         <div class="text-muted small">avg {{ "%.2f"|format(summary.avg_discount_pct) }}%</div>
-      </div>
-    </div>
-  </div>
-  <div class="col-md-2 col-6">
-    <div class="card p-3 stat-card">
-      <div class="stat-card-icon">{{ icon('box-seam') }}</div>
-      <div>
-        <div class="text-muted small">Cost of Goods</div>
-        <div class="fs-4 fw-bold">₹{{ "%.2f"|format(summary.total_cost) }}</div>
       </div>
     </div>
   </div>
@@ -79,11 +65,20 @@
       </div>
     </div>
   </div>
+  <div class="col-md-2 col-6">
+    <div class="card p-3 stat-card">
+      <div class="stat-card-icon">{{ icon('currency-rupee') }}</div>
+      <div>
+        <div class="text-muted small">Stock Value (cost)</div>
+        <div class="fs-4 fw-bold">₹{{ "%.2f"|format(summary.stock_value) }}</div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <div class="card p-3 mb-4 report-section" id="timeSection">
   <div class="d-flex justify-content-between align-items-center mb-2">
-    <h5 class="mb-0 d-flex align-items-center">{{ icon('calendar3', 'me-2') }}Purchases Over Time ({{ 'Daily' if group_by == 'day' else 'Weekly' }})</h5>
+    <h5 class="mb-0 d-flex align-items-center">{{ icon('calendar3', 'me-2') }}Sales Over Time ({{ 'Daily' if group_by == 'day' else 'Weekly' }})</h5>
     <div class="btn-group btn-group-sm view-toggle" role="group">
       <button type="button" class="btn btn-outline-primary active" data-view="table">{{ icon('list-ul') }}Table</button>
       <button type="button" class="btn btn-outline-primary" data-view="chart">{{ icon('bar-chart') }}Chart</button>
@@ -92,12 +87,12 @@
   <div class="view-chart" style="display:none"><canvas id="timeChart" height="80"></canvas></div>
   <div class="view-table">
     <table class="table table-sm data-table">
-      <thead><tr><th>{{ 'Date' if group_by == 'day' else 'Week' }}</th><th>Invoices</th><th>Total</th></tr></thead>
+      <thead><tr><th>{{ 'Date' if group_by == 'day' else 'Week' }}</th><th>Line Items</th><th>Revenue</th></tr></thead>
       <tbody>
         {% for label, v in time_series %}
-        <tr><td>{{ label }}</td><td>{{ v.count }}</td><td>₹{{ "%.2f"|format(v.total) }}</td></tr>
+        <tr><td>{{ label }}</td><td>{{ v.count }}</td><td>₹{{ "%.2f"|format(v.revenue) }}</td></tr>
         {% else %}
-        <tr><td colspan="3" class="text-center text-muted">No purchases in this range.</td></tr>
+        <tr><td colspan="3" class="text-center text-muted">No sales in this range.</td></tr>
         {% endfor %}
       </tbody>
     </table>
@@ -128,11 +123,32 @@
           <td class="{{ 'text-danger' if p.profit_pct < 0 else '' }}">{{ "%.2f"|format(p.profit_pct) }}</td>
         </tr>
         {% else %}
-        <tr><td colspan="7" class="text-center text-muted">No purchases in this range.</td></tr>
+        <tr><td colspan="7" class="text-center text-muted">No sales in this range.</td></tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
+</div>
+
+<div class="card p-3 mb-4">
+  <h5 class="mb-3 d-flex align-items-center">{{ icon('archive', 'me-2') }}All Products in This Brand</h5>
+  <table class="table table-sm data-table">
+    <thead><tr><th>Part No</th><th>Product</th><th>MRP</th><th>Cost Price</th><th>Stock</th><th></th></tr></thead>
+    <tbody>
+      {% for p in products %}
+      <tr data-href="{{ url_for('reports.product_detail', product_id=p.id) }}">
+        <td>{{ p.part_no }}</td>
+        <td>{{ p.product_name }}</td>
+        <td>₹{{ "%.2f"|format(p.mrp) }}</td>
+        <td>₹{{ "%.2f"|format(p.actual_discounted_price) }}</td>
+        <td>{{ p.current_stock }} {{ p.unit }}</td>
+        <td><a href="{{ url_for('reports.product_detail', product_id=p.id) }}" class="btn btn-sm btn-outline-secondary" title="View Report" aria-label="View Report">{{ icon('eye') }}</a></td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6" class="text-center text-muted">No products under this brand.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
 </div>
 
 <div class="card p-3 mb-4">
@@ -153,13 +169,13 @@
         <td><a href="{{ url_for('sales.view_sale', sale_id=r.sale_id) }}" class="btn btn-sm btn-outline-secondary" title="View" aria-label="View">{{ icon('eye') }}</a></td>
       </tr>
       {% else %}
-      <tr><td colspan="9" class="text-center text-muted">No purchases in this range.</td></tr>
+      <tr><td colspan="9" class="text-center text-muted">No sales in this range.</td></tr>
       {% endfor %}
     </tbody>
   </table>
 </div>
 
-<a href="{{ url_for('reports.customer_wise' if kind == 'customer' else 'reports.mechanic_wise') }}" class="btn btn-outline-secondary mt-1">{{ icon('arrow-left') }}Back to {{ 'Customer-wise Purchases' if kind == 'customer' else 'Mechanic-wise Sales' }}</a>
+<a href="{{ url_for('reports.brand_wise') }}" class="btn btn-outline-secondary mt-1">{{ icon('arrow-left') }}Back to Brand-wise Sales</a>
 
 <script src="{{ url_for('static', filename='vendor/chartjs/chart.umd.min.js') }}"></script>
 <script src="{{ url_for('static', filename='js/chart-theme.js') }}"></script>
@@ -172,7 +188,7 @@
       type: 'bar',
       data: {
         labels: timeSeries.map(r => r[0]),
-        datasets: [{ label: 'Total (₹)', data: timeSeries.map(r => r[1].total), backgroundColor: '#1e4b8c' }]
+        datasets: [{ label: 'Revenue (₹)', data: timeSeries.map(r => r[1].revenue), backgroundColor: '#1e4b8c' }]
       },
       options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
     });

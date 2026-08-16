@@ -9,17 +9,53 @@
   <div class="col-md-2 d-flex align-items-end"><button type="submit" class="btn btn-primary w-100">{{ icon('funnel') }}Filter</button></div>
 </form>
 </div>
-<div class="card p-3">
-<table class="table data-table">
-  <thead><tr><th>Supplier</th><th>Purchases</th><th>Total Spend</th></tr></thead>
-  <tbody>
-    {% for name, v in rows %}
-    <tr><td>{{ name }}</td><td>{{ v.count }}</td><td>₹{{ "%.2f"|format(v.total) }}</td></tr>
-    {% else %}
-    <tr><td colspan="3" class="text-center text-muted">No purchases in this range.</td></tr>
-    {% endfor %}
-  </tbody>
-</table>
+<div class="card p-3 report-section" id="supplierSection">
+  <div class="d-flex justify-content-end mb-2">
+    <div class="btn-group btn-group-sm view-toggle" role="group">
+      <button type="button" class="btn btn-outline-primary active" data-view="table">{{ icon('list-ul') }}Table</button>
+      <button type="button" class="btn btn-outline-primary" data-view="chart">{{ icon('bar-chart') }}Chart</button>
+    </div>
+  </div>
+  <div class="view-chart" style="display:none"><canvas id="supplierChart" height="90"></canvas></div>
+  <div class="view-table">
+    <table class="table data-table">
+      <thead><tr><th>Supplier</th><th>Purchases</th><th>Total Spend</th></tr></thead>
+      <tbody>
+        {% for v in rows %}
+        <tr {% if v.id %}data-href="{{ url_for('reports.supplier_detail', supplier_id=v.id) }}"{% endif %}>
+          <td>{{ v.name }}{% if v.id %} {{ icon('chevron-right', 'text-muted small') }}{% endif %}</td>
+          <td>{{ v.count }}</td>
+          <td>₹{{ "%.2f"|format(v.total) }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="3" class="text-center text-muted">No purchases in this range.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
 </div>
 <a href="{{ url_for('reports.index') }}" class="btn btn-outline-secondary mt-3">{{ icon('arrow-left') }}Back to Reports</a>
+
+<script src="{{ url_for('static', filename='vendor/chartjs/chart.umd.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/chart-theme.js') }}"></script>
+<script src="{{ url_for('static', filename='js/report-toggle.js') }}"></script>
+<script>
+(function () {
+  const rows = {{ rows|tojson }};
+  ReportToggle.wire(document.getElementById('supplierSection'), function () {
+    return new Chart(document.getElementById('supplierChart'), {
+      type: 'bar',
+      data: {
+        labels: rows.map(r => r.name),
+        datasets: [{ label: 'Total Spend (₹)', data: rows.map(r => r.total), backgroundColor: '#1e4b8c' }]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: { y: { beginAtZero: true } }
+      }
+    });
+  });
+})();
+</script>
 {% endblock %}

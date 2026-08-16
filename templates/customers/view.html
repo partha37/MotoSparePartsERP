@@ -27,7 +27,7 @@
       <td>₹{{ "%.2f"|format(s.total) }}</td>
       <td>₹{{ "%.2f"|format(s.amount_paid) }}</td>
       <td>₹{{ "%.2f"|format(s.balance_due) }}</td>
-      <td><a href="{{ url_for('sales.view_sale', sale_id=s.id) }}" class="btn btn-sm btn-outline-secondary">{{ icon('eye') }}View</a></td>
+      <td><a href="{{ url_for('sales.view_sale', sale_id=s.id) }}" class="btn btn-sm btn-outline-secondary" title="View" aria-label="View">{{ icon('eye') }}</a></td>
     </tr>
     {% else %}
     <tr><td colspan="6" class="text-center text-muted">No purchases yet.</td></tr>

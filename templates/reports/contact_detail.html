@@ -150,7 +150,7 @@
         <td>{{ "%.2f"|format(r.discount_pct) if r.discount_pct else '-' }}</td>
         <td>₹{{ "%.2f"|format(r.price) }}</td>
         <td>₹{{ "%.2f"|format(r.line_total) }}</td>
-        <td><a href="{{ url_for('sales.view_sale', sale_id=r.sale_id) }}" class="btn btn-sm btn-outline-secondary">{{ icon('eye') }}</a></td>
+        <td><a href="{{ url_for('sales.view_sale', sale_id=r.sale_id) }}" class="btn btn-sm btn-outline-secondary" title="View" aria-label="View">{{ icon('eye') }}</a></td>
       </tr>
       {% else %}
       <tr><td colspan="9" class="text-center text-muted">No purchases in this range.</td></tr>

@@ -72,7 +72,7 @@
         <td class="no-print text-end">
           <form method="post" action="{{ url_for('sales.delete_payment', payment_id=p.id) }}" class="d-inline" onsubmit="return confirm('Remove this payment?');">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button type="submit" class="btn btn-sm btn-outline-danger">{{ icon('trash') }}</button>
+            <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete" aria-label="Delete">{{ icon('trash') }}</button>
           </form>
         </td>
       </tr>

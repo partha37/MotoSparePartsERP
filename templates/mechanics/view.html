@@ -25,7 +25,7 @@
       <td>{{ s.invoice_no }}</td>
       <td>{{ s.customer.name if s.customer else 'Walk-in' }}</td>
       <td>₹{{ "%.2f"|format(s.total) }}</td>
-      <td><a href="{{ url_for('sales.view_sale', sale_id=s.id) }}" class="btn btn-sm btn-outline-secondary">{{ icon('eye') }}View</a></td>
+      <td><a href="{{ url_for('sales.view_sale', sale_id=s.id) }}" class="btn btn-sm btn-outline-secondary" title="View" aria-label="View">{{ icon('eye') }}</a></td>
     </tr>
     {% else %}
     <tr><td colspan="5" class="text-center text-muted">No sales yet.</td></tr>

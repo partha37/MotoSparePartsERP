@@ -33,10 +33,10 @@
       <td>₹{{ "%.2f"|format(p.margin_per_unit) }}</td>
       <td>{{ p.current_stock }} {{ p.unit }}</td>
       <td class="text-end">
-        <a href="{{ url_for('products.edit_product', product_id=p.id) }}" class="btn btn-sm btn-outline-secondary">{{ icon('pencil') }}Edit</a>
+        <a href="{{ url_for('products.edit_product', product_id=p.id) }}" class="btn btn-sm btn-outline-secondary" title="Edit" aria-label="Edit">{{ icon('pencil') }}</a>
         <form method="post" action="{{ url_for('products.delete_product', product_id=p.id) }}" class="d-inline" onsubmit="return confirm('Delete this product?');">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <button type="submit" class="btn btn-sm btn-outline-danger">{{ icon('trash') }}Delete</button>
+          <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete" aria-label="Delete">{{ icon('trash') }}</button>
         </form>
       </td>
     </tr>

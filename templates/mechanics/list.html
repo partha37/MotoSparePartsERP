@@ -22,10 +22,10 @@
         {% else %}-{% endif %}
       </td>
       <td class="text-end">
-        <a href="{{ url_for('mechanics.edit_mechanic', mechanic_id=m.id) }}" class="btn btn-sm btn-outline-secondary">{{ icon('pencil') }}Edit</a>
+        <a href="{{ url_for('mechanics.edit_mechanic', mechanic_id=m.id) }}" class="btn btn-sm btn-outline-secondary" title="Edit" aria-label="Edit">{{ icon('pencil') }}</a>
         <form method="post" action="{{ url_for('mechanics.delete_mechanic', mechanic_id=m.id) }}" class="d-inline" onsubmit="return confirm('Delete this mechanic?');">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <button type="submit" class="btn btn-sm btn-outline-danger">{{ icon('trash') }}Delete</button>
+          <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete" aria-label="Delete">{{ icon('trash') }}</button>
         </form>
       </td>
     </tr>

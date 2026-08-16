@@ -39,7 +39,7 @@
         <td>{{ p.invoice_no }}</td>
         <td>{{ p.items|length }}</td>
         <td>₹{{ "%.2f"|format(p.total) }}</td>
-        <td class="text-end"><a href="{{ url_for('purchases.view_purchase', purchase_id=p.id) }}" class="btn btn-sm btn-outline-secondary">{{ icon('eye') }}View</a></td>
+        <td class="text-end"><a href="{{ url_for('purchases.view_purchase', purchase_id=p.id) }}" class="btn btn-sm btn-outline-secondary" title="View" aria-label="View">{{ icon('eye') }}</a></td>
       </tr>
       {% else %}
       <tr><td colspan="6" class="text-center text-muted">No purchases recorded yet.</td></tr>

@@ -126,6 +126,12 @@ a:hover {
 .btn.btn-sm .bi {
   margin-right: 0.25rem;
 }
+/* Icon-only action buttons (row-level Edit/Delete/View) carry no visible text
+   next to the icon, so the text-spacing margin above would just push the
+   icon off-center — cancel it whenever the icon is the button's only child. */
+.btn .bi:only-child {
+  margin-right: 0;
+}
 
 /* ---- Required field marker ---- */
 label.required::after {
@@ -219,12 +225,21 @@ tr.data-table-filter-row input {
    open is easy to trigger by accident while just moving the mouse across
    the page. Catalog/Contacts sub-navigation lives here (grouped under
    small headings); Settings/Logout stay pinned to the bottom. ---- */
-body.has-side-pane {
-  padding-left: 44px;
+/* Scoped to the content wrapper, not `body` itself — the navbar is also a
+   direct child of body and must stay full-width/flush-left regardless of
+   sidebar state, only the page content below it should shift. !important
+   because this same element already carries Bootstrap's px-4 utility class,
+   which sets padding-left with !important — plain padding-left here would
+   silently lose to it. calc(...+ 1.5rem) adds back px-4's own left gutter
+   (which the !important override above replaces outright, not additively)
+   so content doesn't sit flush against the sidebar rail with zero breathing
+   room — the 1.5rem matches the gutter px-4 already gives every other side. */
+body.has-side-pane > .container-fluid {
+  padding-left: calc(44px + 1.5rem) !important;
   transition: padding-left 0.2s ease;
 }
-body.has-side-pane.side-pane-expanded {
-  padding-left: 190px;
+body.has-side-pane.side-pane-expanded > .container-fluid {
+  padding-left: calc(190px + 1.5rem) !important;
 }
 .side-pane {
   position: fixed;

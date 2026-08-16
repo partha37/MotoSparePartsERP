@@ -42,7 +42,7 @@
         <td>{{ s.mechanic.name if s.mechanic else '-' }}</td>
         <td>₹{{ "%.2f"|format(s.total) }}</td>
         <td class="{{ 'text-danger fw-bold' if s.balance_due > 0 else '' }}">₹{{ "%.2f"|format(s.balance_due) }}</td>
-        <td class="text-end"><a href="{{ url_for('sales.view_sale', sale_id=s.id) }}" class="btn btn-sm btn-outline-secondary">{{ icon('eye') }}View</a></td>
+        <td class="text-end"><a href="{{ url_for('sales.view_sale', sale_id=s.id) }}" class="btn btn-sm btn-outline-secondary" title="View" aria-label="View">{{ icon('eye') }}</a></td>
       </tr>
       {% else %}
       <tr><td colspan="7" class="text-center text-muted">No sales recorded yet.</td></tr>

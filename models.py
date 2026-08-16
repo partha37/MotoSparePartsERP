@@ -230,6 +230,16 @@ class PurchaseItem(db.Model):
         batches recorded before mrp_at_purchase existed."""
         return self.mrp_at_purchase if self.mrp_at_purchase is not None else self.product.mrp
 
+    @property
+    def discount_pct(self):
+        """Discount off MRP this batch was bought at — same formula as
+        Product.update_cost_from_purchase uses for the product's headline
+        discount, just scoped to this specific batch's own numbers."""
+        mrp = self.effective_mrp
+        if not mrp:
+            return 0
+        return round((1 - self.purchase_price / mrp) * 100, 2)
+
 
 class Sale(db.Model):
     id = db.Column(db.Integer, primary_key=True)

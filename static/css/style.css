@@ -18,6 +18,12 @@
   --stat-icon-color: var(--brand);
   --stat-icon-bg-accent: var(--accent-light);
   --stat-icon-color-accent: var(--accent-dark);
+  /* Neutral gray for "secondary" actions (row Edit, form Cancel, etc.) —
+     needs its own dark-mode variant same as --link-color, since Bootstrap's
+     stock $secondary (#6c757d) reads fine on white but is low-contrast
+     (~3.4:1, under the 4.5:1 text minimum) on this app's near-black dark
+     page background. */
+  --outline-secondary-color: #495057;
 }
 
 /* Dark mode is the default look (see base.html, <html data-bs-theme="dark">).
@@ -32,6 +38,7 @@
   --stat-icon-color: #9dc4ff;
   --stat-icon-bg-accent: rgba(255, 176, 102, 0.18);
   --stat-icon-color-accent: #ffc98c;
+  --outline-secondary-color: #adb5bd;
 }
 
 body {
@@ -92,13 +99,31 @@ a:hover {
 }
 
 .btn-outline-primary {
-  --bs-btn-color: var(--brand);
-  --bs-btn-border-color: var(--brand);
+  /* Resting text/border use --link-color (not raw --brand) for the same
+     reason links do — plain navy is too dark to read on this app's
+     near-black dark background. The filled hover/active state still uses
+     solid --brand, since white-on-navy reads fine on either theme. */
+  --bs-btn-color: var(--link-color);
+  --bs-btn-border-color: var(--link-color);
   --bs-btn-hover-bg: var(--brand);
   --bs-btn-hover-border-color: var(--brand);
   --bs-btn-active-bg: var(--brand);
   --bs-btn-active-border-color: var(--brand);
   --bs-btn-focus-shadow-rgb: var(--brand-rgb);
+}
+
+.btn-outline-secondary {
+  /* Same dark-mode-legibility fix as .btn-outline-primary above, via the
+     theme-aware --outline-secondary-color token instead of Bootstrap's
+     stock $secondary gray. Covers per-row Edit/View actions and form
+     Cancel buttons app-wide. */
+  --bs-btn-color: var(--outline-secondary-color);
+  --bs-btn-border-color: var(--outline-secondary-color);
+  --bs-btn-hover-color: #fff;
+  --bs-btn-hover-bg: var(--outline-secondary-color);
+  --bs-btn-hover-border-color: var(--outline-secondary-color);
+  --bs-btn-active-bg: var(--outline-secondary-color);
+  --bs-btn-active-border-color: var(--outline-secondary-color);
 }
 
 .text-primary {

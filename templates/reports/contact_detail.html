@@ -162,6 +162,7 @@
 <a href="{{ url_for('reports.customer_wise' if kind == 'customer' else 'reports.mechanic_wise') }}" class="btn btn-outline-secondary mt-1">{{ icon('arrow-left') }}Back to {{ 'Customer-wise Purchases' if kind == 'customer' else 'Mechanic-wise Sales' }}</a>
 
 <script src="{{ url_for('static', filename='vendor/chartjs/chart.umd.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/chart-theme.js') }}"></script>
 <script>
 (function () {
   document.querySelectorAll('.report-section').forEach(function (section) {

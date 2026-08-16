@@ -9,17 +9,63 @@
   <div class="col-md-2 d-flex align-items-end"><button type="submit" class="btn btn-primary w-100">{{ icon('funnel') }}Filter</button></div>
 </form>
 </div>
-<div class="card p-3">
-<table class="table data-table">
-  <thead><tr><th>Mechanic</th><th>Invoices</th><th>Total Sales</th></tr></thead>
-  <tbody>
-    {% for name, v in rows %}
-    <tr><td>{{ name }}</td><td>{{ v.count }}</td><td>₹{{ "%.2f"|format(v.total) }}</td></tr>
-    {% else %}
-    <tr><td colspan="3" class="text-center text-muted">No sales in this range.</td></tr>
-    {% endfor %}
-  </tbody>
-</table>
+<div class="card p-3 report-section">
+  <div class="d-flex justify-content-end mb-2">
+    <div class="btn-group btn-group-sm view-toggle" role="group">
+      <button type="button" class="btn btn-outline-primary" data-view="table">{{ icon('list-ul') }}Table</button>
+      <button type="button" class="btn btn-outline-primary active" data-view="chart">{{ icon('bar-chart') }}Chart</button>
+    </div>
+  </div>
+  <div class="view-chart"><canvas id="mechanicChart" height="90"></canvas></div>
+  <div class="view-table" style="display:none">
+    <table class="table data-table">
+      <thead><tr><th>Mechanic</th><th>Invoices</th><th>Total Sales</th></tr></thead>
+      <tbody>
+        {% for v in rows %}
+        <tr {% if v.id %}data-href="{{ url_for('reports.mechanic_detail', contact_id=v.id) }}"{% endif %}>
+          <td>{{ v.name }}{% if v.id %} {{ icon('chevron-right', 'text-muted small') }}{% endif %}</td>
+          <td>{{ v.count }}</td>
+          <td>₹{{ "%.2f"|format(v.total) }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="3" class="text-center text-muted">No sales in this range.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
 </div>
 <a href="{{ url_for('reports.index') }}" class="btn btn-outline-secondary mt-3">{{ icon('arrow-left') }}Back to Reports</a>
+
+<script src="{{ url_for('static', filename='vendor/chartjs/chart.umd.min.js') }}"></script>
+<script>
+(function () {
+  const section = document.querySelector('.report-section');
+  const chartPane = section.querySelector('.view-chart');
+  const tablePane = section.querySelector('.view-table');
+  section.querySelectorAll('.view-toggle [data-view]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      const view = btn.dataset.view;
+      chartPane.style.display = view === 'chart' ? '' : 'none';
+      tablePane.style.display = view === 'table' ? '' : 'none';
+      section.querySelectorAll('.view-toggle [data-view]').forEach(function (b) {
+        b.classList.toggle('active', b === btn);
+      });
+    });
+  });
+
+  const rows = {{ rows|tojson }};
+  new Chart(document.getElementById('mechanicChart'), {
+    type: 'bar',
+    data: {
+      labels: rows.map(r => r.name),
+      datasets: [{ label: 'Total Sales (₹)', data: rows.map(r => r.total), backgroundColor: '#1e4b8c' }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: false } },
+      scales: { y: { beginAtZero: true } }
+    }
+  });
+})();
+</script>
 {% endblock %}

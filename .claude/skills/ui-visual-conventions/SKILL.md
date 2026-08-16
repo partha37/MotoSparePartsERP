@@ -9,7 +9,29 @@ This app is server-rendered Jinja2 + Bootstrap 5 — **no JS build step, no npm.
 
 ## Assets are vendored locally — never reintroduce a CDN
 
-Bootstrap CSS/JS lives at `static/vendor/bootstrap/{css,js}/` and [templates/base.html](../../../templates/base.html) loads it via `url_for('static', filename='vendor/bootstrap/...')`. This was a deliberate fix — it used to load from the jsdelivr CDN, which broke all styling and Bootstrap JS (navbar toggle, dropdowns, dismissible alerts) whenever the shop's internet was down, directly contradicting the offline-first requirement in [CLAUDE.md](../../../CLAUDE.md). **Any new frontend dependency (icon font, chart library, additional JS plugin, a barcode-scanning JS lib, etc.) must be vendored into `static/vendor/<name>/` the same way — never add a `<link>`/`<script>` pointing at a CDN**, even "just for now." If you see one, that's a regression back to the pre-fix state, not a shortcut.
+Bootstrap CSS/JS lives at `static/vendor/bootstrap/{css,js}/` and [templates/base.html](../../../templates/base.html) loads it via `url_for('static', filename='vendor/bootstrap/...')`. This was a deliberate fix — it used to load from the jsdelivr CDN, which broke all styling and Bootstrap JS (navbar toggle, dropdowns, dismissible alerts) whenever the shop's internet was down, directly contradicting the offline-first requirement in [CLAUDE.md](../../../CLAUDE.md). **Any new frontend dependency (icon font, chart library, additional JS plugin, a barcode-scanning JS lib, etc.) must be vendored into `static/vendor/<name>/` the same way — never add a `<link>`/`<script>` pointing at a CDN**, even "just for now." If you see one, that's a regression back to the pre-fix state, not a shortcut. Chart.js followed this exact pattern when report charts were added: `static/vendor/chartjs/chart.umd.min.js` (MIT-licensed UMD build), loaded per-page (only report templates that actually draw a chart pull it in, not globally in `base.html`, since it's ~200KB and most pages don't need it) — see the report toggle pattern below for how it's used.
+
+## Report chart/table toggle — Chart.js, instant client-side switch
+
+Report pages that can show the same data as either a chart or a table (`templates/reports/customer_wise.html`, `mechanic_wise.html`, `contact_detail.html`) use one consistent markup + JS pattern rather than a server round-trip per view:
+
+```html
+<div class="card p-3 report-section">
+  <div class="d-flex justify-content-between align-items-center mb-2">
+    <h5 class="mb-0">Section Title</h5>
+    <div class="btn-group btn-group-sm view-toggle" role="group">
+      <button type="button" class="btn btn-outline-primary" data-view="table">{{ icon('list-ul') }}Table</button>
+      <button type="button" class="btn btn-outline-primary active" data-view="chart">{{ icon('bar-chart') }}Chart</button>
+    </div>
+  </div>
+  <div class="view-chart"><canvas id="someChart" height="90"></canvas></div>
+  <div class="view-table" style="display:none">...</div>
+</div>
+```
+
+A small inline `<script>` (see `contact_detail.html` for the version handling multiple `.report-section` blocks on one page) toggles `display` on `.view-chart`/`.view-table` and the `active` class on the two buttons — no page reload, since both panes are already server-rendered. **Chart defaults to visible on load, table hidden** (not the other way around): Chart.js sizes its canvas off the container's rendered width at construction time, so initializing it while hidden (`display:none`) gives it a zero-width canvas; toggling the table pane hidden instead keeps the chart's initial render correct, and switching back to it later just re-shows an already-correctly-sized canvas. The table pane still gets `class="data-table"` for search/sort/filter like any other table — the toggle only controls which one is visible, both are fully real markup.
+
+For the data itself: pass the same Python data structures used to render the table straight into the chart via `{{ rows|tojson }}` in the inline script, rather than hand-building a second JS-side data shape — see `customer_wise.html`'s `const rows = {{ rows|tojson }};`. Keep row dicts JSON-safe (no `date`/`datetime` objects) if they're going through `tojson`; format dates in Jinja for the table and only pass the chart the fields it actually needs.
 
 ## Timestamp display — the `ist()` helper, not the raw `date`/`created_at` column
 

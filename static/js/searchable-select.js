@@ -77,6 +77,16 @@
       menu.classList.add("d-none");
       menu.innerHTML = "";
       activeIdx = -1;
+      setNoMatch(false);
+    }
+
+    // Fires a bubbling custom event only on actual state change, so a sibling
+    // control (e.g. a "not in the list? add it" button next to this select)
+    // can show/hide itself in response instead of always being visible.
+    function setNoMatch(noMatch) {
+      if (select.dataset.noMatch === String(noMatch)) return;
+      select.dataset.noMatch = String(noMatch);
+      select.dispatchEvent(new CustomEvent("searchable:nomatch", { bubbles: true, detail: { noMatch: noMatch } }));
     }
 
     function highlight() {
@@ -115,10 +125,12 @@
         highlight();
       }
       menu.classList.remove("d-none");
+      setNoMatch(!filtered.length && q !== "");
     }
 
     function commit(opt) {
       select.value = opt.value;
+      delete select.dataset.searchQuery;
       sync();
       closeMenu();
       select.dispatchEvent(new Event("change", { bubbles: true }));
@@ -135,6 +147,11 @@
     });
 
     input.addEventListener("input", function () {
+      // Stashed on the real <select> (not just kept in the input) so other
+      // code — e.g. a "not in the list? add it" trigger sitting next to this
+      // select — can read what the user actually typed after the proxy
+      // input's own value gets reset back to blank/placeholder on blur.
+      select.dataset.searchQuery = input.value;
       render(input.value);
     });
 

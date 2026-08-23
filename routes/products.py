@@ -62,6 +62,48 @@ def check_part_no():
     )
 
 
+@products_bp.route("/quick-add", methods=["POST"])
+@login_required
+def quick_add():
+    """Minimal add-product flow for pickers elsewhere (currently the New
+    Purchase line-item row) so a product missing from the catalog can be
+    created without leaving the page. Same duplicate/brand checks as the
+    full New Product form; GST/Reorder Level are sent as the same defaults
+    that form starts a new product with (18%, 5) since the quick-add modal
+    doesn't ask for them. Returns JSON instead of a redirect."""
+    part_no = request.form.get("part_no", "").strip()
+    product_name = request.form.get("product_name", "").strip()
+    brand_id = request.form.get("brand_id")
+
+    errors = {}
+    if not part_no:
+        errors["part_no"] = "Part No is required."
+    elif Product.query.filter_by(part_no=part_no).first():
+        errors["part_no"] = "A product with this Part No already exists."
+    if not product_name:
+        errors["product_name"] = "Product Name is required."
+    if not brand_id:
+        errors["brand_id"] = "Brand is required."
+
+    if errors:
+        return jsonify(ok=False, errors=errors), 400
+
+    product = Product(current_stock=0)
+    _apply_form_to_product(product, request.form)
+    db.session.add(product)
+    db.session.commit()
+    sync_to_excel()
+    return jsonify(
+        ok=True,
+        product={
+            "id": product.id,
+            "part_no": product.part_no,
+            "product_name": product.product_name,
+            "label": f"{product.part_no} - {product.product_name}",
+        },
+    )
+
+
 @products_bp.route("/new", methods=["GET", "POST"])
 @login_required
 def new_product():

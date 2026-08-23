@@ -242,6 +242,14 @@ tr.data-table-filter-row input {
   cursor: pointer;
   padding: 0.4rem 0.75rem;
 }
+/* A searchable-select sharing a flex row with a sibling button (e.g. the
+   quick-add-product trigger next to a line-item product picker) needs to
+   grow to fill the row itself — SearchableSelect.enhance() wraps the real
+   <select> in this div, which by default only sizes to its content. */
+.d-flex > .searchable-select {
+  flex: 1 1 auto;
+  min-width: 0;
+}
 
 /* ---- Left side pane — a slim full-height rail with a toggle icon at its
    top ("breadcrumb"), collapsed to icon-only by default. Click the toggle

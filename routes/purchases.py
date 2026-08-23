@@ -6,7 +6,7 @@ from sqlalchemy import func
 
 from extensions import db
 from excel_sync import sync_to_excel
-from models import Purchase, PurchaseItem, Product, Supplier, StockMovement
+from models import Purchase, PurchaseItem, Product, Supplier, StockMovement, Brand
 from routes.server_table import ServerTable, ist_date_filter_expr
 
 purchases_bp = Blueprint("purchases", __name__, url_prefix="/purchases")
@@ -72,6 +72,7 @@ def _prefill_products_from_request():
 def new_purchase():
     suppliers = Supplier.query.order_by(Supplier.name.asc()).all()
     products = Product.query.order_by(Product.product_name.asc()).all()
+    brands = Brand.query.order_by(Brand.name.asc()).all()
 
     if not suppliers:
         flash("Add a supplier first before recording a purchase.", "warning")
@@ -94,13 +95,13 @@ def new_purchase():
         if not supplier_id or not rows:
             flash("Select a supplier and add at least one product line.", "danger")
             return render_template(
-                "purchases/form.html", suppliers=suppliers, products=products, today=date.today().isoformat()
+                "purchases/form.html", suppliers=suppliers, products=products, brands=brands, today=date.today().isoformat()
             )
 
         if partial_rows:
             flash("Some lines have a product selected but are missing Qty or Purchase Price — fill them in or remove the line.", "danger")
             return render_template(
-                "purchases/form.html", suppliers=suppliers, products=products, today=date.today().isoformat()
+                "purchases/form.html", suppliers=suppliers, products=products, brands=brands, today=date.today().isoformat()
             )
 
         missing_mrp = []
@@ -111,7 +112,7 @@ def new_purchase():
         if missing_mrp:
             flash("Enter a valid MRP for: " + ", ".join(missing_mrp), "danger")
             return render_template(
-                "purchases/form.html", suppliers=suppliers, products=products, today=date.today().isoformat()
+                "purchases/form.html", suppliers=suppliers, products=products, brands=brands, today=date.today().isoformat()
             )
 
         purchase = Purchase(
@@ -171,7 +172,7 @@ def new_purchase():
         return redirect(url_for("purchases.list_purchases"))
 
     return render_template(
-        "purchases/form.html", suppliers=suppliers, products=products,
+        "purchases/form.html", suppliers=suppliers, products=products, brands=brands,
         prefill_products=_prefill_products_from_request(), today=date.today().isoformat()
     )
 

@@ -34,12 +34,15 @@
   {% macro item_row(product=none, qty=none) %}
   <tr>
     <td>
-      <select name="product_id[]" class="form-select product-select" aria-label="Product">
-        <option value="">-- Select Product --</option>
-        {% for p in products %}
-        <option value="{{ p.id }}" {{ 'selected' if product and product.id == p.id else '' }}>{{ p.part_no }} - {{ p.product_name }}</option>
-        {% endfor %}
-      </select>
+      <div class="d-flex gap-1">
+        <select name="product_id[]" class="form-select product-select" aria-label="Product">
+          <option value="">-- Select Product --</option>
+          {% for p in products %}
+          <option value="{{ p.id }}" {{ 'selected' if product and product.id == p.id else '' }}>{{ p.part_no }} - {{ p.product_name }}</option>
+          {% endfor %}
+        </select>
+        <button type="button" class="btn btn-outline-secondary quick-add-trigger flex-shrink-0 d-none" title="Add new product" aria-label="Add new product">{{ icon('plus-lg') }}</button>
+      </div>
     </td>
     <td><input type="number" name="qty[]" class="form-control qty-input" min="1" aria-label="Quantity" value="{{ qty if qty else '' }}"></td>
     <td><input type="number" step="0.01" name="mrp[]" class="form-control mrp-input" aria-label="MRP" min="0.01"></td>
@@ -74,6 +77,62 @@
     <a href="{{ url_for('purchases.list_purchases') }}" class="btn btn-outline-secondary">{{ icon('x-lg') }}Cancel</a>
   </div>
 </form>
+
+<div class="modal fade" id="quickAddProductModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title d-flex align-items-center mb-0">{{ icon('plus-lg', 'me-1') }}Add New Product</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div id="quick-add-error" class="alert alert-danger d-none"></div>
+        <div class="row g-3">
+          <div class="col-md-5">
+            <label class="form-label required" for="qa-part-no">Part No</label>
+            <input type="text" id="qa-part-no" class="form-control" autocomplete="off">
+            <div id="qa-part-no-feedback" class="form-text"></div>
+          </div>
+          <div class="col-md-7">
+            <label class="form-label required" for="qa-product-name">Product Name</label>
+            <input type="text" id="qa-product-name" class="form-control">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label required" for="qa-brand">Brand</label>
+            <select id="qa-brand" class="form-select">
+              <option value="">-- Select Brand --</option>
+              {% for b in brands %}
+              <option value="{{ b.id }}">{{ b.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="qa-vehicle">Vehicle Name <span class="text-muted small">(optional)</span></label>
+            <input type="text" id="qa-vehicle" class="form-control" placeholder="e.g. Honda Activa">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="qa-category">Category <span class="text-muted small">(optional)</span></label>
+            <input type="text" id="qa-category" class="form-control">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="qa-unit">Unit <span class="text-muted small">(optional)</span></label>
+            {% set known_units = ['pc', 'set', 'pair', 'litre', 'kg', 'box', 'roll', 'meter'] %}
+            <select id="qa-unit" class="form-select">
+              {% for u in known_units %}
+              <option value="{{ u }}" {{ 'selected' if u == 'pc' else '' }}>{{ u }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+        <div class="form-text mt-2">MRP and cost aren't set here — this purchase's price/MRP (below) become the product's cost/MRP once saved, same as recording it from the product page.</div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" id="quick-add-save">{{ icon('save') }}Add Product</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <script>
 // Only the first line is required outright; a completed last line
@@ -113,7 +172,15 @@ function addBlankRow() {
   const newRow = tbody.rows[0].cloneNode(true);
   SearchableSelect.reset(newRow);
   newRow.querySelectorAll('input').forEach(el => el.value = '');
-  newRow.querySelector('select').selectedIndex = 0;
+  const newSelect = newRow.querySelector('select');
+  newSelect.selectedIndex = 0;
+  // cloneNode copies data-* attributes too — a stale search/no-match state
+  // from row 0 shouldn't carry into a fresh blank row, and its quick-add
+  // button (see the item_row macro) starts hidden until a real search misses.
+  delete newSelect.dataset.searchQuery;
+  delete newSelect.dataset.noMatch;
+  const newTrigger = newRow.querySelector('.quick-add-trigger');
+  if (newTrigger) newTrigger.classList.add('d-none');
   tbody.appendChild(newRow);
   wireRow(newRow);
   updateRequiredFlags();
@@ -184,6 +251,178 @@ document.querySelector('#itemsTable').addEventListener('click', function (e) {
       updateRequiredFlags();
     }
   }
+});
+
+// Quick-add-product modal — lets a distributor-invoice part that isn't in
+// the catalog yet get added without leaving this purchase. Delegated on
+// #itemsTable (not per-button listeners) so it keeps working on rows added
+// later via addBlankRow's cloneNode, same reasoning as the remove-row handler.
+// Deferred to DOMContentLoaded because bootstrap.bundle.min.js loads at the
+// very end of base.html's <body>, after this content block's own scripts —
+// referencing `bootstrap.Modal` at top level here would run before that
+// script has executed and throw a ReferenceError.
+document.addEventListener('DOMContentLoaded', function () {
+  const modalEl = document.getElementById('quickAddProductModal');
+  if (!modalEl) return;
+  const modal = new bootstrap.Modal(modalEl);
+  const brandSelect = document.getElementById('qa-brand');
+  const unitSelect = document.getElementById('qa-unit');
+  SearchableSelect.enhance(brandSelect);
+  SearchableSelect.enhance(unitSelect);
+
+  const partNoInput = document.getElementById('qa-part-no');
+  const nameInput = document.getElementById('qa-product-name');
+  const vehicleInput = document.getElementById('qa-vehicle');
+  const categoryInput = document.getElementById('qa-category');
+  const errorBox = document.getElementById('quick-add-error');
+  const saveBtn = document.getElementById('quick-add-save');
+  const partNoFeedback = document.getElementById('qa-part-no-feedback');
+
+  let activeSelect = null;
+  let activeTrigger = null;
+  let partNoCheckTimer = null;
+  let lastChecked = '';
+
+  // The quick-add-trigger button next to each row's product select starts
+  // hidden (see the d-none class in the item_row macro) and only appears
+  // while that row's search has no match — SearchableSelect dispatches this
+  // event (bubbling) whenever that state changes, on every select it enhances.
+  document.querySelector('#itemsTable').addEventListener('searchable:nomatch', function (e) {
+    if (!e.target.classList || !e.target.classList.contains('product-select')) return;
+    const btn = e.target.closest('td').querySelector('.quick-add-trigger');
+    if (btn) btn.classList.toggle('d-none', !e.detail.noMatch);
+  });
+
+  function checkPartNo() {
+    const value = partNoInput.value.trim();
+    if (!value || value === lastChecked) return;
+    lastChecked = value;
+    const url = new URL('{{ url_for("products.check_part_no") }}', window.location.origin);
+    url.searchParams.set('part_no', value);
+    fetch(url)
+      .then(r => r.ok ? r.json() : null)
+      .then(function (data) {
+        if (!data || partNoInput.value.trim() !== value) return;
+        if (data.exists) {
+          partNoFeedback.innerHTML = 'Already used by <a href="' + data.product.url + '" target="_blank">' + data.product.name + '</a>.';
+          partNoFeedback.className = 'form-text text-danger';
+        } else {
+          partNoFeedback.textContent = '';
+          partNoFeedback.className = 'form-text';
+        }
+      })
+      .catch(function () {});
+  }
+  partNoInput.addEventListener('input', function () {
+    partNoFeedback.textContent = '';
+    partNoFeedback.className = 'form-text';
+    if (partNoCheckTimer) clearTimeout(partNoCheckTimer);
+    partNoCheckTimer = setTimeout(checkPartNo, 400);
+  });
+  partNoInput.addEventListener('blur', checkPartNo);
+
+  // Same reasoning as the dropdown-item mousedown handler in
+  // searchable-select.js: clicking this button would otherwise first blur
+  // the still-focused product search input, which closes its dropdown and
+  // (now that the trigger is only shown during a no-match search) hides
+  // this very button before the click itself finishes — so the click never
+  // lands. preventDefault keeps focus put; stopPropagation additionally
+  // stops searchable-select.js's own document-level "click outside closes
+  // the menu" mousedown listener from seeing this event at all — the
+  // trigger button sits next to, not inside, the select's enhanced
+  // wrapper, so from that listener's point of view a click on it looks
+  // exactly like a click anywhere else outside the combobox.
+  document.querySelector('#itemsTable').addEventListener('mousedown', function (e) {
+    if (!e.target.closest('.quick-add-trigger')) return;
+    e.preventDefault();
+    e.stopPropagation();
+  });
+
+  document.querySelector('#itemsTable').addEventListener('click', function (e) {
+    const trigger = e.target.closest('.quick-add-trigger');
+    if (!trigger) return;
+    activeTrigger = trigger;
+    activeSelect = trigger.closest('td').querySelector('.product-select');
+
+    errorBox.classList.add('d-none');
+    errorBox.textContent = '';
+    partNoFeedback.textContent = '';
+    partNoFeedback.className = 'form-text';
+    lastChecked = '';
+    // Whatever the shop owner typed into this row's product search box
+    // before giving up and clicking "+" — usually the part number they
+    // couldn't find — carries over instead of leaving the field blank.
+    partNoInput.value = (activeSelect.dataset.searchQuery || '').trim();
+    nameInput.value = '';
+    vehicleInput.value = '';
+    categoryInput.value = '';
+    brandSelect.value = '';
+    if (brandSelect.refreshSearchable) brandSelect.refreshSearchable();
+    unitSelect.value = 'pc';
+    if (unitSelect.refreshSearchable) unitSelect.refreshSearchable();
+
+    modal.show();
+    if (partNoInput.value) checkPartNo();
+    setTimeout(function () { partNoInput.focus(); partNoInput.select(); }, 200);
+  });
+
+  saveBtn.addEventListener('click', function () {
+    if (!activeSelect) return;
+    errorBox.classList.add('d-none');
+    errorBox.textContent = '';
+
+    const body = new URLSearchParams();
+    body.set('csrf_token', '{{ csrf_token() }}');
+    body.set('part_no', partNoInput.value.trim());
+    body.set('product_name', nameInput.value.trim());
+    body.set('brand_id', brandSelect.value);
+    body.set('vehicle_name', vehicleInput.value.trim());
+    body.set('category', categoryInput.value.trim());
+    body.set('unit', unitSelect.value);
+    body.set('gst_rate', '18');
+    body.set('reorder_level', '5');
+    body.set('actual_discount_pct', '0');
+    body.set('mrp', '0');
+
+    saveBtn.disabled = true;
+    fetch('{{ url_for("products.quick_add") }}', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: body.toString(),
+    })
+      .then(function (r) { return r.json().then(function (data) { return { ok: r.ok, data: data }; }); })
+      .then(function (result) {
+        saveBtn.disabled = false;
+        if (!result.ok || !result.data.ok) {
+          const errors = (result.data && result.data.errors) || {};
+          const msg = Object.values(errors).join(' ') || 'Could not add product. Check your connection and try again.';
+          errorBox.textContent = msg;
+          errorBox.classList.remove('d-none');
+          return;
+        }
+        const p = result.data.product;
+        document.querySelectorAll('.product-select').forEach(function (sel) {
+          if (!sel.querySelector('option[value="' + p.id + '"]')) {
+            const opt = document.createElement('option');
+            opt.value = p.id;
+            opt.textContent = p.label;
+            sel.appendChild(opt);
+          }
+        });
+        activeSelect.value = p.id;
+        delete activeSelect.dataset.searchQuery;
+        activeSelect.dataset.noMatch = 'false';
+        if (activeSelect.refreshSearchable) activeSelect.refreshSearchable();
+        activeSelect.dispatchEvent(new Event('change', { bubbles: true }));
+        if (activeTrigger) activeTrigger.classList.add('d-none');
+        modal.hide();
+      })
+      .catch(function () {
+        saveBtn.disabled = false;
+        errorBox.textContent = 'Network error — check your connection and try again.';
+        errorBox.classList.remove('d-none');
+      });
+  });
 });
 </script>
 {% endblock %}

@@ -68,7 +68,7 @@ class Product(db.Model):
         if new_mrp is not None and new_mrp > 0:
             self.mrp = new_mrp
         self.actual_discount_pct = (
-            round((self.mrp - purchase_price) / self.mrp * 100, 2) if self.mrp else 0
+            (self.mrp - purchase_price) / self.mrp * 100 if self.mrp else 0
         )
         self.recalc_prices()
 

@@ -359,3 +359,118 @@ html[data-bs-theme="light"] #themeToggleBtn .theme-icon-sun {
     display: none !important;
   }
 }
+
+/* ---- Table Tools: per-table column resize + hide/show (table-tools.js) ---- */
+.tt-wrap {
+  overflow-x: auto;
+}
+.tt-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 0.25rem;
+}
+.tt-toggle-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--bs-border-color);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--bs-secondary-color, #6c757d);
+}
+.tt-toggle-btn:hover {
+  background: var(--bs-tertiary-bg, rgba(127, 127, 127, 0.12));
+}
+.tt-toggle-btn.has-hidden {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.tt-toggle-btn svg {
+  width: 14px;
+  height: 14px;
+}
+.tt-hidden-badge {
+  display: none;
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 3px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.65rem;
+  line-height: 15px;
+  text-align: center;
+}
+.tt-hidden-badge.show {
+  display: block;
+}
+.tt-menu {
+  display: none;
+  position: fixed;
+  z-index: 1080;
+  min-width: 180px;
+  max-height: 60vh;
+  overflow-y: auto;
+  padding: 0.4rem;
+  border: 1px solid var(--bs-border-color);
+  border-radius: 6px;
+  background: var(--bs-body-bg);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+}
+.tt-menu.open {
+  display: block;
+}
+.tt-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.4rem;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.tt-menu-item:hover {
+  background: var(--bs-tertiary-bg, rgba(127, 127, 127, 0.12));
+}
+.tt-menu-reset {
+  width: 100%;
+  margin-top: 0.3rem;
+  padding: 0.3rem 0.4rem;
+  border: none;
+  border-top: 1px solid var(--bs-border-color);
+  border-radius: 0;
+  background: none;
+  color: var(--link-color);
+  font-size: 0.8rem;
+  text-align: left;
+}
+.tt-menu-reset:hover {
+  text-decoration: underline;
+}
+.tt-resize-handle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 6px;
+  height: 100%;
+  cursor: col-resize;
+  user-select: none;
+}
+.tt-resize-handle:hover,
+.tt-resize-handle:active {
+  background: var(--accent);
+  opacity: 0.5;
+}
+@media print {
+  .tt-toolbar {
+    display: none !important;
+  }
+}

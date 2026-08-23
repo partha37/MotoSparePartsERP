@@ -18,6 +18,7 @@
   <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
   <script src="{{ url_for('static', filename='js/searchable-select.js') }}"></script>
   <script src="{{ url_for('static', filename='js/data-table.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/table-tools.js') }}"></script>
 </head>
 <body class="{{ 'has-side-pane' if current_user.is_authenticated else '' }}">
 {% if current_user.is_authenticated %}
@@ -79,6 +80,8 @@
   </div>
 </div>
 {% endif %}
+
+<template id="tt-columns-icon">{{ icon('layout-three-columns') }}</template>
 
 <div class="container-fluid px-4">
   {% with messages = get_flashed_messages(with_categories=true) %}

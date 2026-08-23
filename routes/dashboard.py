@@ -6,7 +6,7 @@ from sqlalchemy import func
 
 from extensions import db
 from excel_sync import cloud_backup_status
-from models import Product, Sale, SaleItem
+from models import Product, Sale, SaleItem, PurchaseItem
 
 dashboard_bp = Blueprint("dashboard", __name__, url_prefix="/")
 
@@ -28,7 +28,7 @@ def index():
 
     total_products = Product.query.count()
     total_stock_value = db.session.query(
-        func.sum(Product.current_stock * Product.actual_discounted_price)
+        func.sum(func.coalesce(PurchaseItem.remaining_qty, 0) * PurchaseItem.purchase_price)
     ).scalar() or 0
 
     in_stock_products = (

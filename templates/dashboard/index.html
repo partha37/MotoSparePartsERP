@@ -19,6 +19,15 @@
   {% endif %}
 {% endif %}
 
+<div class="d-flex gap-2 flex-wrap mb-4">
+  <a href="{{ url_for('sales.new_sale') }}" class="btn btn-primary">{{ icon('receipt') }}New Sale</a>
+  <a href="{{ url_for('sales.list_sales') }}" class="btn btn-outline-secondary">{{ icon('list-ul') }}View Sales</a>
+  <a href="{{ url_for('purchases.new_purchase') }}" class="btn btn-outline-primary">{{ icon('cart-plus') }}New Purchase</a>
+  <a href="{{ url_for('purchases.list_purchases') }}" class="btn btn-outline-secondary">{{ icon('list-ul') }}View Purchases</a>
+  <a href="{{ url_for('products.new_product') }}" class="btn btn-outline-secondary">{{ icon('plus-lg') }}Add Product</a>
+  <a href="{{ url_for('products.list_products') }}" class="btn btn-outline-secondary">{{ icon('list-ul') }}View Products</a>
+</div>
+
 <div class="card p-3 mb-4">
   <label for="stockProductSearch" class="form-label small text-muted mb-1">Find a product in stock</label>
   <select id="stockProductSearch" aria-label="Find a product in stock">
@@ -87,15 +96,6 @@
   </table>
 </div>
 {% endif %}
-
-<div class="d-flex gap-2 flex-wrap">
-  <a href="{{ url_for('sales.new_sale') }}" class="btn btn-primary">{{ icon('receipt') }}New Sale</a>
-  <a href="{{ url_for('sales.list_sales') }}" class="btn btn-outline-secondary">{{ icon('list-ul') }}View Sales</a>
-  <a href="{{ url_for('purchases.new_purchase') }}" class="btn btn-outline-primary">{{ icon('cart-plus') }}New Purchase</a>
-  <a href="{{ url_for('purchases.list_purchases') }}" class="btn btn-outline-secondary">{{ icon('list-ul') }}View Purchases</a>
-  <a href="{{ url_for('products.new_product') }}" class="btn btn-outline-secondary">{{ icon('plus-lg') }}Add Product</a>
-  <a href="{{ url_for('products.list_products') }}" class="btn btn-outline-secondary">{{ icon('list-ul') }}View Products</a>
-</div>
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {

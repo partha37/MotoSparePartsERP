@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Return {{ sale_return.return_no }} - Lokey Auto Spare Parts{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3 no-print">
+  <h2>Return {{ sale_return.return_no }}</h2>
+  <div>
+    <button onclick="window.print()" class="btn btn-primary">{{ icon('printer') }}Print / Save PDF</button>
+    <a href="{{ url_for('sales.view_sale', sale_id=sale.id) }}" class="btn btn-outline-secondary">{{ icon('arrow-left') }}Back</a>
+  </div>
+</div>
+
+<div class="card p-4">
+  <div class="row mb-4">
+    <div class="col-md-6">
+      <h4>{{ icon('arrow-return-left', 'me-2') }}Return Note</h4>
+      <div>Against Invoice {{ sale.invoice_no }}</div>
+      {% if sale_return.applied_to_sale %}<div class="text-muted small">Credit applied to Invoice {{ sale_return.applied_to_sale.invoice_no }}</div>{% endif %}
+    </div>
+    <div class="col-md-6 text-md-end">
+      <div><strong>Return No:</strong> {{ sale_return.return_no }}</div>
+      <div><strong>Date:</strong> {{ ist(sale_return.created_at) }}</div>
+    </div>
+  </div>
+
+  <div class="row mb-4">
+    <div class="col-md-6">
+      <strong>Customer:</strong> {{ sale.customer.name if sale.customer else 'Walk-in' }}<br>
+      {% if sale.customer %}{{ sale.customer.phone or '' }}{% endif %}
+    </div>
+    <div class="col-md-6">
+      {% if sale_return.note %}<strong>Note:</strong> {{ sale_return.note }}{% endif %}
+    </div>
+  </div>
+
+  <table class="table">
+    <thead><tr><th>Part No</th><th>Product</th><th>Batch</th><th>Qty</th><th>Condition</th><th>Unit Price</th><th>Refund Amount</th></tr></thead>
+    <tbody>
+      {% for ri in sale_return.items %}
+      <tr>
+        <td>{{ ri.sale_item.product.part_no }}</td>
+        <td>{{ ri.sale_item.product.product_name }}</td>
+        <td>{{ ri.sale_item.purchase_item.stock_number if ri.sale_item.purchase_item else '-' }}</td>
+        <td>{{ ri.qty }}</td>
+        <td>
+          {% if ri.condition == 'resellable' %}<span class="badge bg-success">Resellable</span>
+          {% else %}<span class="badge bg-danger">Defective</span>{% endif %}
+        </td>
+        <td>₹{{ "%.2f"|format(ri.sale_item.selling_price) }}</td>
+        <td>₹{{ "%.2f"|format(ri.refund_amount) }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+    <tfoot>
+      <tr><th colspan="6" class="text-end">Total Refund</th><th>₹{{ "%.2f"|format(sale_return.refund_amount) }}</th></tr>
+    </tfoot>
+  </table>
+</div>
+{% endblock %}

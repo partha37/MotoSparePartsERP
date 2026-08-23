@@ -5,6 +5,8 @@
   <h2>Invoice {{ sale.invoice_no }}</h2>
   <div>
     <button onclick="window.print()" class="btn btn-primary">{{ icon('printer') }}Print / Save PDF</button>
+    <a href="{{ url_for('sale_returns.new_return', sale_id=sale.id) }}" class="btn btn-outline-secondary">{{ icon('arrow-return-left') }}Process Return</a>
+    <a href="{{ url_for('sale_returns.new_exchange', sale_id=sale.id) }}" class="btn btn-outline-secondary">{{ icon('arrow-return-left') }}Process Exchange</a>
     <a href="{{ url_for('sales.list_sales') }}" class="btn btn-outline-secondary">{{ icon('arrow-left') }}Back</a>
   </div>
 </div>
@@ -52,8 +54,15 @@
     </tbody>
     <tfoot>
       <tr><th colspan="7" class="text-end">Grand Total <span class="text-muted small">(GST incl.)</span></th><th>₹{{ "%.2f"|format(sale.total) }}</th></tr>
+      {% if sale.return_credit > 0 %}
+      <tr><th colspan="7" class="text-end">Less: Returns</th><th>₹{{ "%.2f"|format(sale.return_credit) }}</th></tr>
+      {% endif %}
       <tr><th colspan="7" class="text-end">Amount Paid</th><th>₹{{ "%.2f"|format(sale.amount_paid) }}</th></tr>
+      {% if sale.balance_due < 0 %}
+      <tr><th colspan="7" class="text-end">Refund Due</th><th><span class="badge bg-warning text-dark fs-6">₹{{ "%.2f"|format(-sale.balance_due) }}</span></th></tr>
+      {% else %}
       <tr><th colspan="7" class="text-end">Balance Due</th><th>₹{{ "%.2f"|format(sale.balance_due) }}</th></tr>
+      {% endif %}
     </tfoot>
   </table>
 </div>
@@ -111,9 +120,68 @@
     </div>
   </form>
   {% endif %}
+
+  {% if sale.balance_due < 0 %}
+  <form method="post" action="{{ url_for('sales.record_refund', sale_id=sale.id) }}" class="row g-3 align-items-end mt-2 no-print">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="col-md-3">
+      <label class="form-label required" for="f-refund-date">Date</label>
+      <input type="date" id="f-refund-date" name="date" class="form-control" required value="{{ today }}">
+    </div>
+    <div class="col-md-3">
+      <label class="form-label required" for="f-refund-amount">Refund Amount (₹)</label>
+      <input type="number" step="0.01" id="f-refund-amount" name="amount" class="form-control" required
+             min="0.01" max="{{ -sale.balance_due }}" value="{{ -sale.balance_due }}">
+    </div>
+    <div class="col-md-2">
+      <label class="form-label" for="f-refund-mode">Mode</label>
+      <select id="f-refund-mode" name="payment_mode" class="form-select">
+        <option value="cash">Cash</option>
+        <option value="upi">UPI</option>
+        <option value="card">Card</option>
+      </select>
+    </div>
+    <div class="col-md-4">
+      <label class="form-label" for="f-refund-note">Note <span class="text-muted small">(optional)</span></label>
+      <input type="text" id="f-refund-note" name="note" class="form-control" placeholder="e.g. Handed back in cash">
+    </div>
+    <div class="col-12">
+      <button type="submit" class="btn btn-warning">{{ icon('cash-coin') }}Record Refund Paid</button>
+    </div>
+  </form>
+  {% endif %}
+</div>
+
+<div class="card p-4 mt-4">
+  <h5 class="mb-3 d-flex align-items-center">{{ icon('arrow-return-left', 'me-2') }}Returns</h5>
+  <table class="table table-sm">
+    <thead><tr><th>Date</th><th>Return No</th><th>Refund Amount</th><th></th></tr></thead>
+    <tbody>
+      {% for r in sale.returns %}
+      <tr>
+        <td>{{ ist(r.created_at) }}</td>
+        <td>{{ r.return_no }}</td>
+        <td>₹{{ "%.2f"|format(r.refund_amount) }}{% if r.applied_to_sale_id %} <span class="text-muted small">(applied to {{ r.applied_to_sale.invoice_no }})</span>{% endif %}</td>
+        <td class="text-end"><a href="{{ url_for('sale_returns.view_return', sale_id=sale.id, return_id=r.id) }}" class="btn btn-sm btn-outline-secondary" title="View" aria-label="View">{{ icon('eye') }}</a></td>
+      </tr>
+      {% endfor %}
+      {% for r in sale.applied_returns %}
+      <tr>
+        <td>{{ ist(r.created_at) }}</td>
+        <td>{{ r.return_no }}</td>
+        <td>₹{{ "%.2f"|format(r.refund_amount) }} <span class="text-muted small">(from {{ r.sale.invoice_no }})</span></td>
+        <td class="text-end"><a href="{{ url_for('sale_returns.view_return', sale_id=r.sale_id, return_id=r.id) }}" class="btn btn-sm btn-outline-secondary" title="View" aria-label="View">{{ icon('eye') }}</a></td>
+      </tr>
+      {% endfor %}
+      {% if not sale.returns and not sale.applied_returns %}
+      <tr><td colspan="4" class="text-center text-muted">No returns recorded.</td></tr>
+      {% endif %}
+    </tbody>
+  </table>
 </div>
 
 <script>
 SearchableSelect.enhance(document.getElementById('f-pay-mode'));
+{% if sale.balance_due < 0 %}SearchableSelect.enhance(document.getElementById('f-refund-mode'));{% endif %}
 </script>
 {% endblock %}

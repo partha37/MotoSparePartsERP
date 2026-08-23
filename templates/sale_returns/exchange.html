@@ -1,0 +1,357 @@
+{% extends "base.html" %}
+{% block title %}Exchange - Invoice {{ sale.invoice_no }} - Lokey Auto Spare Parts{% endblock %}
+{% block content %}
+<h2 class="mb-4 d-flex align-items-center">{{ icon('arrow-return-left', 'me-2') }}Process Exchange — Invoice {{ sale.invoice_no }}</h2>
+<p class="text-muted">Return items from this invoice and sell new items in the same visit — the return credit is applied automatically, so only the net amount needs to be collected (or refunded).</p>
+
+<form method="post" class="card p-4">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+  <div class="row g-3 mb-3">
+    <div class="col-md-3">
+      <label class="form-label" for="f-date">Date</label>
+      <input type="date" id="f-date" name="date" class="form-control" value="{{ today }}">
+    </div>
+    <div class="col-md-3">
+      <label class="form-label" for="customerSelect">Customer <span class="text-muted small">(optional)</span></label>
+      <select name="customer_id" id="customerSelect" class="form-select">
+        <option value="" data-brand-discounts="{}">Walk-in</option>
+        {% for c in customers %}
+        <option value="{{ c.id }}" data-brand-discounts='{{ c.brand_discount_map|tojson }}' {{ 'selected' if sale.customer_id == c.id else '' }}>{{ c.name }}{% if c.brand_discount_map %} (brand rates set){% endif %}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-3">
+      <label class="form-label" for="f-mechanic">Mechanic <span class="text-muted small">(optional)</span></label>
+      <select id="f-mechanic" name="mechanic_id" class="form-select">
+        <option value="" data-brand-discounts="{}">-- None --</option>
+        {% for m in mechanics %}
+        <option value="{{ m.id }}" data-brand-discounts='{{ m.brand_discount_map|tojson }}' {{ 'selected' if sale.mechanic_id == m.id else '' }}>{{ m.name }}{% if m.brand_discount_map %} (brand rates set){% endif %}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-3">
+      <label class="form-label" for="f-payment">Payment Mode</label>
+      <select id="f-payment" name="payment_mode" class="form-select">
+        <option value="cash">Cash</option>
+        <option value="upi">UPI</option>
+        <option value="card">Card</option>
+        <option value="credit">Credit / Due</option>
+      </select>
+    </div>
+  </div>
+
+  <h5 class="d-flex align-items-center">{{ icon('arrow-return-left', 'me-1') }}Returning</h5>
+  <table class="table" id="returnTable">
+    <thead><tr><th>Product</th><th>Batch</th><th>Sold Qty</th><th>Already Returned</th><th style="width:120px">Return Qty</th><th style="width:180px">Condition</th><th>Refund Amount</th></tr></thead>
+    <tbody>
+      {% for item in sale.items %}
+      <tr>
+        <td>{{ item.product.part_no }} - {{ item.product.product_name }}</td>
+        <td>{{ item.purchase_item.stock_number if item.purchase_item else '-' }}</td>
+        <td>{{ item.qty }}</td>
+        <td>{{ item.returned_qty }}</td>
+        <td>
+          <input type="hidden" name="sale_item_id[]" value="{{ item.id }}">
+          <input type="number" name="qty[]" class="form-control return-qty-input" min="0" max="{{ item.returnable_qty }}"
+                 value="0" aria-label="Return quantity" {{ 'disabled' if item.returnable_qty == 0 else '' }}
+                 data-price="{{ item.selling_price }}">
+        </td>
+        <td>
+          <select name="condition[]" class="form-select condition-select" aria-label="Condition" {{ 'disabled' if item.returnable_qty == 0 else '' }}>
+            <option value="resellable">Resellable</option>
+            <option value="defective">Defective</option>
+          </select>
+        </td>
+        <td class="line-refund">₹0.00</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <div class="row g-3 mb-4">
+    <div class="col-md-9">
+      <label class="form-label" for="f-note">Return Note <span class="text-muted small">(optional)</span></label>
+      <input type="text" id="f-note" name="note" class="form-control" placeholder="e.g. Reason for return">
+    </div>
+  </div>
+
+  <h5 class="d-flex align-items-center">{{ icon('box-seam', 'me-1') }}Selling</h5>
+  <table class="table" id="itemsTable">
+    <thead><tr><th>Product</th><th style="width:260px">Batch (stock)</th><th style="width:90px">Qty</th><th style="width:110px">Discount %</th><th style="width:130px">Price (each)</th><th style="width:110px">Line Total</th><th></th></tr></thead>
+    <tbody>
+      <tr>
+        <td>
+          <select name="product_filter[]" class="form-select product-select" aria-label="Product">
+            <option value="">-- Select Product --</option>
+            {% for p in products %}
+            <option value="{{ p.id }}" data-batches='{{ p.available_batches|tojson }}' data-brand-id="{{ p.brand_id or '' }}">
+              {{ p.part_no }} - {{ p.product_name }}
+            </option>
+            {% endfor %}
+          </select>
+        </td>
+        <td>
+          <select name="purchase_item_id[]" class="form-select batch-select" aria-label="Stock batch">
+            <option value="">-- Select Batch --</option>
+          </select>
+        </td>
+        <td><input type="number" name="qty_sell[]" class="form-control qty-input" min="1" value="1" aria-label="Quantity"></td>
+        <td><input type="number" step="0.01" class="form-control discount-input" aria-label="Discount %" value="0"></td>
+        <td><input type="number" step="0.01" name="selling_price[]" class="form-control price-input" aria-label="Price each"></td>
+        <td><input type="text" name="line_total_display[]" class="form-control line-total" disabled aria-label="Line total"></td>
+        <td><button type="button" class="btn btn-outline-danger btn-sm remove-row" aria-label="Remove this line">{{ icon('trash') }}</button></td>
+      </tr>
+    </tbody>
+  </table>
+  <button type="button" id="addRow" class="btn btn-sm btn-outline-primary mb-3">{{ icon('plus-lg') }}Add Line</button>
+
+  <div class="p-3 mb-3 border-top border-bottom">
+    <div class="d-flex justify-content-end gap-3">
+      <div class="text-muted">Return Credit</div>
+      <div class="fs-5" id="returnTotalDisplay">₹0.00</div>
+    </div>
+    <div class="d-flex justify-content-end gap-3">
+      <div class="text-muted">New Sale Total</div>
+      <div class="fs-5" id="saleTotalDisplay">₹0.00</div>
+    </div>
+    <div class="d-flex justify-content-end align-items-center gap-3 mt-2">
+      <div class="text-muted">Net</div>
+      <div class="fs-3 fw-bold" id="netDisplay">₹0.00</div>
+    </div>
+  </div>
+
+  <div class="mt-3 d-flex gap-2">
+    <button type="submit" class="btn btn-primary">{{ icon('save') }}Save Exchange</button>
+    <a href="{{ url_for('sales.view_sale', sale_id=sale.id) }}" class="btn btn-outline-secondary">{{ icon('x-lg') }}Cancel</a>
+  </div>
+</form>
+
+<script>
+document.querySelectorAll('.condition-select').forEach(function (sel) { SearchableSelect.enhance(sel); });
+
+const customerSelect = document.getElementById('customerSelect');
+const mechanicSelect = document.getElementById('f-mechanic');
+SearchableSelect.enhance(customerSelect);
+SearchableSelect.enhance(mechanicSelect);
+SearchableSelect.enhance(document.getElementById('f-payment'));
+
+let activeDiscountSelect = null;
+
+function brandDiscountsFromSelect(select) {
+  const opt = select.options[select.selectedIndex];
+  if (!opt) return {};
+  try {
+    return JSON.parse(opt.dataset.brandDiscounts || '{}');
+  } catch (e) {
+    return {};
+  }
+}
+
+function currentDiscountForBrand(brandId) {
+  if (!activeDiscountSelect || !brandId) return 0;
+  const map = brandDiscountsFromSelect(activeDiscountSelect);
+  return map[brandId] !== undefined ? (parseFloat(map[brandId]) || 0) : 0;
+}
+
+function recalcAllRows() {
+  document.querySelectorAll('#itemsTable tbody tr').forEach(row => row._applyDiscount());
+}
+
+function recalcNet() {
+  let returnTotal = 0;
+  document.querySelectorAll('#returnTable tbody tr').forEach(function (row) {
+    const qtyInput = row.querySelector('.return-qty-input');
+    if (!qtyInput) return;
+    const price = parseFloat(qtyInput.dataset.price) || 0;
+    const qty = parseFloat(qtyInput.value) || 0;
+    row.querySelector('.line-refund').textContent = '₹' + (qty * price).toFixed(2);
+    returnTotal += qty * price;
+  });
+
+  let saleTotal = 0;
+  document.querySelectorAll('#itemsTable tbody tr').forEach(function (row) {
+    const qty = parseFloat(row.querySelector('.qty-input').value) || 0;
+    const price = parseFloat(row.querySelector('.price-input').value) || 0;
+    saleTotal += qty * price;
+  });
+
+  document.getElementById('returnTotalDisplay').textContent = '₹' + returnTotal.toFixed(2);
+  document.getElementById('saleTotalDisplay').textContent = '₹' + saleTotal.toFixed(2);
+  const net = saleTotal - returnTotal;
+  const netEl = document.getElementById('netDisplay');
+  netEl.textContent = (net >= 0 ? 'Customer pays ₹' + net.toFixed(2) : 'Refund to customer ₹' + (-net).toFixed(2));
+}
+
+document.querySelectorAll('.return-qty-input').forEach(function (input) {
+  input.addEventListener('input', recalcNet);
+});
+
+function isRowFilled(row) {
+  const select = row.querySelector('.product-select');
+  const batchSelect = row.querySelector('.batch-select');
+  const qtyInput = row.querySelector('.qty-input');
+  const priceInput = row.querySelector('.price-input');
+  return !!(select.value && batchSelect.value && qtyInput.value && priceInput.value);
+}
+
+function rowHasAnyValue(row) {
+  const select = row.querySelector('.product-select');
+  const batchSelect = row.querySelector('.batch-select');
+  const priceInput = row.querySelector('.price-input');
+  return !!(select.value || batchSelect.value || priceInput.value);
+}
+
+function updateRequiredFlags() {
+  document.querySelectorAll('#itemsTable tbody tr').forEach(function (row) {
+    const required = rowHasAnyValue(row);
+    SearchableSelect.setRequired(row.querySelector('.product-select'), required);
+    SearchableSelect.setRequired(row.querySelector('.batch-select'), required);
+    row.querySelector('.qty-input').required = required;
+    row.querySelector('.price-input').required = required;
+  });
+}
+
+function addBlankRow() {
+  const tbody = document.querySelector('#itemsTable tbody');
+  const newRow = tbody.rows[0].cloneNode(true);
+  SearchableSelect.reset(newRow);
+  newRow.querySelectorAll('input').forEach(el => el.value = el.classList.contains('qty-input') ? 1 : (el.classList.contains('discount-input') ? 0 : ''));
+  newRow.querySelector('.product-select').selectedIndex = 0;
+  newRow.querySelector('.batch-select').innerHTML = '<option value="">-- Select Batch --</option>';
+  tbody.appendChild(newRow);
+  wireRow(newRow);
+  updateRequiredFlags();
+  return newRow;
+}
+
+function maybeAutoAddRow(row) {
+  updateRequiredFlags();
+  const tbody = document.querySelector('#itemsTable tbody');
+  if (row === tbody.lastElementChild && isRowFilled(row)) {
+    addBlankRow();
+  }
+}
+
+function wireRow(row) {
+  const select = row.querySelector('.product-select');
+  const batchSelect = row.querySelector('.batch-select');
+  SearchableSelect.enhance(select);
+  SearchableSelect.enhance(batchSelect);
+  const priceInput = row.querySelector('.price-input');
+  const qtyInput = row.querySelector('.qty-input');
+  const discountInput = row.querySelector('.discount-input');
+  const lineTotal = row.querySelector('.line-total');
+
+  function resetBatchSelect() {
+    batchSelect.innerHTML = '<option value="">-- Select Batch --</option>';
+    if (batchSelect.refreshSearchable) batchSelect.refreshSearchable();
+  }
+
+  function populateBatches() {
+    resetBatchSelect();
+    const opt = select.options[select.selectedIndex];
+    if (!opt || !opt.value) {
+      priceInput.value = '';
+      discountInput.value = 0;
+      qtyInput.removeAttribute('max');
+      recalcLine();
+      return;
+    }
+    const batches = JSON.parse(opt.dataset.batches || '[]');
+    batches.forEach(function (b) {
+      const o = document.createElement('option');
+      o.value = b.id;
+      o.textContent = b.label;
+      o.dataset.price = b.price;
+      o.dataset.stock = b.stock;
+      batchSelect.appendChild(o);
+    });
+    if (batches.length) {
+      batchSelect.selectedIndex = 1;
+      if (batchSelect.refreshSearchable) batchSelect.refreshSearchable();
+      updatePriceFromBatch();
+    } else {
+      priceInput.value = '';
+      discountInput.value = 0;
+      qtyInput.removeAttribute('max');
+      recalcLine();
+    }
+  }
+
+  function updatePriceFromBatch() {
+    const bOpt = batchSelect.options[batchSelect.selectedIndex];
+    if (!bOpt || !bOpt.value) {
+      priceInput.value = '';
+      discountInput.value = 0;
+      qtyInput.removeAttribute('max');
+      recalcLine();
+      return;
+    }
+    const basePrice = parseFloat(bOpt.dataset.price) || 0;
+    const productOpt = select.options[select.selectedIndex];
+    const brandId = productOpt ? (productOpt.dataset.brandId || '') : '';
+    const discount = currentDiscountForBrand(brandId);
+    discountInput.value = discount;
+    priceInput.value = (basePrice * (1 - discount / 100)).toFixed(2);
+    qtyInput.max = bOpt.dataset.stock;
+    recalcLine();
+  }
+
+  function updatePriceFromDiscountInput() {
+    const bOpt = batchSelect.options[batchSelect.selectedIndex];
+    if (!bOpt || !bOpt.value) return;
+    const basePrice = parseFloat(bOpt.dataset.price) || 0;
+    const discount = parseFloat(discountInput.value) || 0;
+    priceInput.value = (basePrice * (1 - discount / 100)).toFixed(2);
+    recalcLine();
+  }
+
+  row._applyDiscount = function () {
+    if (batchSelect.value) {
+      updatePriceFromBatch();
+    }
+  };
+
+  function recalcLine() {
+    const qty = parseFloat(qtyInput.value) || 0;
+    const price = parseFloat(priceInput.value) || 0;
+    const total = qty * price;
+    lineTotal.value = total ? '₹' + total.toFixed(2) : '';
+    maybeAutoAddRow(row);
+    recalcNet();
+  }
+
+  select.addEventListener('change', populateBatches);
+  batchSelect.addEventListener('change', updatePriceFromBatch);
+  qtyInput.addEventListener('input', recalcLine);
+  priceInput.addEventListener('input', recalcLine);
+  discountInput.addEventListener('input', updatePriceFromDiscountInput);
+}
+
+document.querySelectorAll('#itemsTable tbody tr').forEach(wireRow);
+updateRequiredFlags();
+
+customerSelect.addEventListener('change', function () {
+  activeDiscountSelect = customerSelect;
+  recalcAllRows();
+});
+
+mechanicSelect.addEventListener('change', function () {
+  activeDiscountSelect = mechanicSelect;
+  recalcAllRows();
+});
+
+document.getElementById('addRow').addEventListener('click', addBlankRow);
+
+document.querySelector('#itemsTable').addEventListener('click', function (e) {
+  if (e.target.closest('.remove-row')) {
+    const tbody = document.querySelector('#itemsTable tbody');
+    if (tbody.rows.length > 1) {
+      e.target.closest('tr').remove();
+      updateRequiredFlags();
+      recalcNet();
+    }
+  }
+});
+</script>
+{% endblock %}

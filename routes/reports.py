@@ -56,7 +56,7 @@ def daily_sales():
     for s in sales:
         period = _period_label(s.date, group_by)
         by_period[period]["count"] += 1
-        by_period[period]["total"] += s.total
+        by_period[period]["total"] += s.net_total
 
         for item in s.items:
             mrp = item.mrp_at_sale or 0
@@ -64,21 +64,22 @@ def daily_sales():
                 item.purchase_item.purchase_price if item.purchase_item
                 else (item.product.actual_discounted_price or 0)
             )
-            line_revenue = item.line_total
-            line_cost = round(item.qty * unit_cost, 2)
-            line_discount = round((mrp - item.selling_price) * item.qty, 2) if mrp else 0
+            qty = item.net_qty
+            line_revenue = item.net_line_total
+            line_cost = round(qty * unit_cost, 2)
+            line_discount = round((mrp - item.selling_price) * qty, 2) if mrp else 0
             product_key = f"{item.product.part_no} - {item.product.product_name}"
 
-            by_product[product_key]["qty"] += item.qty
+            by_product[product_key]["qty"] += qty
             by_product[product_key]["revenue"] += line_revenue
             by_product[product_key]["cost"] += line_cost
             by_product[product_key]["discount_amount"] += line_discount
-            by_product[product_key]["mrp_total"] += mrp * item.qty
+            by_product[product_key]["mrp_total"] += mrp * qty
 
             total_revenue += line_revenue
             total_cost += line_cost
             total_discount += line_discount
-            total_mrp += mrp * item.qty
+            total_mrp += mrp * qty
 
     time_series = sorted(by_period.items(), key=lambda kv: kv[0])
 
@@ -124,7 +125,7 @@ def mechanic_wise():
         by_mechanic[key]["id"] = s.mechanic_id
         by_mechanic[key]["name"] = s.mechanic.name if s.mechanic else "No mechanic"
         by_mechanic[key]["count"] += 1
-        by_mechanic[key]["total"] += s.total
+        by_mechanic[key]["total"] += s.net_total
 
     rows = sorted(by_mechanic.values(), key=lambda v: v["total"], reverse=True)
 
@@ -145,7 +146,7 @@ def customer_wise():
         by_customer[key]["id"] = s.customer_id
         by_customer[key]["name"] = s.customer.name if s.customer else "Walk-in"
         by_customer[key]["count"] += 1
-        by_customer[key]["total"] += s.total
+        by_customer[key]["total"] += s.net_total
 
     rows = sorted(by_customer.values(), key=lambda v: v["total"], reverse=True)
 
@@ -194,7 +195,7 @@ def _contact_detail(kind, contact_id):
     for s in sales:
         period = _period_label(s.date, group_by)
         by_period[period]["count"] += 1
-        by_period[period]["total"] += s.total
+        by_period[period]["total"] += s.net_total
 
         for item in s.items:
             mrp = item.mrp_at_sale or 0
@@ -202,28 +203,29 @@ def _contact_detail(kind, contact_id):
                 item.purchase_item.purchase_price if item.purchase_item
                 else (item.product.actual_discounted_price or 0)
             )
-            line_revenue = item.line_total
-            line_cost = round(item.qty * unit_cost, 2)
-            line_discount = round((mrp - item.selling_price) * item.qty, 2) if mrp else 0
+            qty = item.net_qty
+            line_revenue = item.net_line_total
+            line_cost = round(qty * unit_cost, 2)
+            line_discount = round((mrp - item.selling_price) * qty, 2) if mrp else 0
             product_key = f"{item.product.part_no} - {item.product.product_name}"
 
             item_rows.append({
                 "date": s.date, "sale_id": s.id, "invoice_no": s.invoice_no,
-                "product_name": product_key, "qty": item.qty, "mrp": mrp,
+                "product_name": product_key, "qty": item.qty, "returned_qty": item.returned_qty, "mrp": mrp,
                 "discount_pct": item.discount_pct, "price": item.selling_price,
-                "line_total": line_revenue,
+                "line_total": item.line_total,
             })
 
-            by_product[product_key]["qty"] += item.qty
+            by_product[product_key]["qty"] += qty
             by_product[product_key]["revenue"] += line_revenue
             by_product[product_key]["cost"] += line_cost
             by_product[product_key]["discount_amount"] += line_discount
-            by_product[product_key]["mrp_total"] += mrp * item.qty
+            by_product[product_key]["mrp_total"] += mrp * qty
 
             total_revenue += line_revenue
             total_cost += line_cost
             total_discount += line_discount
-            total_mrp += mrp * item.qty
+            total_mrp += mrp * qty
 
     time_series = sorted(by_period.items(), key=lambda kv: kv[0])
     item_rows.sort(key=lambda r: (r["date"], r["sale_id"]), reverse=True)
@@ -286,8 +288,8 @@ def best_sellers():
         key = item.product_id
         by_product[key]["id"] = item.product_id
         by_product[key]["name"] = f"{item.product.part_no} - {item.product.product_name}"
-        by_product[key]["qty"] += item.qty
-        by_product[key]["revenue"] += item.line_total
+        by_product[key]["qty"] += item.net_qty
+        by_product[key]["revenue"] += item.net_line_total
 
     rows = sorted(by_product.values(), key=lambda v: v["qty"], reverse=True)
 
@@ -322,18 +324,19 @@ def _product_detail(product_id):
     for item in items:
         s = item.sale
         period = _period_label(s.date, group_by)
+        qty = item.net_qty
+        line_revenue = item.net_line_total
         by_period[period]["count"] += 1
-        by_period[period]["qty"] += item.qty
-        by_period[period]["revenue"] += item.line_total
+        by_period[period]["qty"] += qty
+        by_period[period]["revenue"] += line_revenue
 
         mrp = item.mrp_at_sale or 0
         unit_cost = (
             item.purchase_item.purchase_price if item.purchase_item
             else (item.product.actual_discounted_price or 0)
         )
-        line_revenue = item.line_total
-        line_cost = round(item.qty * unit_cost, 2)
-        line_discount = round((mrp - item.selling_price) * item.qty, 2) if mrp else 0
+        line_cost = round(qty * unit_cost, 2)
+        line_discount = round((mrp - item.selling_price) * qty, 2) if mrp else 0
 
         if s.mechanic_id:
             contact_key = ("mechanic", s.mechanic_id)
@@ -347,22 +350,22 @@ def _product_detail(product_id):
 
         item_rows.append({
             "date": s.date, "sale_id": s.id, "invoice_no": s.invoice_no,
-            "contact_name": contact_name, "qty": item.qty, "mrp": mrp,
+            "contact_name": contact_name, "qty": item.qty, "returned_qty": item.returned_qty, "mrp": mrp,
             "discount_pct": item.discount_pct, "price": item.selling_price,
-            "line_total": line_revenue,
+            "line_total": item.line_total,
         })
 
         by_contact[contact_key]["name"] = contact_name
-        by_contact[contact_key]["qty"] += item.qty
+        by_contact[contact_key]["qty"] += qty
         by_contact[contact_key]["revenue"] += line_revenue
         by_contact[contact_key]["discount_amount"] += line_discount
-        by_contact[contact_key]["mrp_total"] += mrp * item.qty
+        by_contact[contact_key]["mrp_total"] += mrp * qty
 
         total_revenue += line_revenue
         total_cost += line_cost
         total_discount += line_discount
-        total_mrp += mrp * item.qty
-        total_qty += item.qty
+        total_mrp += mrp * qty
+        total_qty += qty
 
     time_series = sorted(by_period.items(), key=lambda kv: kv[0])
     item_rows.sort(key=lambda r: (r["date"], r["sale_id"]), reverse=True)
@@ -421,9 +424,9 @@ def profit_margin():
             item.purchase_item.purchase_price if item.purchase_item
             else (item.product.actual_discounted_price or 0)
         )
-        by_product[key]["qty"] += item.qty
-        by_product[key]["revenue"] += item.line_total
-        by_product[key]["cost"] += item.qty * unit_cost
+        by_product[key]["qty"] += item.net_qty
+        by_product[key]["revenue"] += item.net_line_total
+        by_product[key]["cost"] += item.net_qty * unit_cost
 
     rows = []
     total_profit = 0.0
@@ -554,8 +557,8 @@ def brand_wise():
         key = brand.id if brand else 0
         by_brand[key]["id"] = brand.id if brand else None
         by_brand[key]["name"] = brand.name if brand else "No brand"
-        by_brand[key]["qty"] += item.qty
-        by_brand[key]["revenue"] += item.line_total
+        by_brand[key]["qty"] += item.net_qty
+        by_brand[key]["revenue"] += item.net_line_total
 
     rows = sorted(by_brand.values(), key=lambda v: v["revenue"], reverse=True)
 
@@ -592,37 +595,38 @@ def brand_detail(brand_id):
     for item in items:
         s = item.sale
         period = _period_label(s.date, group_by)
+        qty = item.net_qty
+        line_revenue = item.net_line_total
         by_period[period]["count"] += 1
-        by_period[period]["revenue"] += item.line_total
+        by_period[period]["revenue"] += line_revenue
 
         mrp = item.mrp_at_sale or 0
         unit_cost = (
             item.purchase_item.purchase_price if item.purchase_item
             else (item.product.actual_discounted_price or 0)
         )
-        line_revenue = item.line_total
-        line_cost = round(item.qty * unit_cost, 2)
-        line_discount = round((mrp - item.selling_price) * item.qty, 2) if mrp else 0
+        line_cost = round(qty * unit_cost, 2)
+        line_discount = round((mrp - item.selling_price) * qty, 2) if mrp else 0
         product_key = f"{item.product.part_no} - {item.product.product_name}"
 
         item_rows.append({
             "date": s.date, "sale_id": s.id, "invoice_no": s.invoice_no,
-            "product_name": product_key, "qty": item.qty, "mrp": mrp,
+            "product_name": product_key, "qty": item.qty, "returned_qty": item.returned_qty, "mrp": mrp,
             "discount_pct": item.discount_pct, "price": item.selling_price,
-            "line_total": line_revenue,
+            "line_total": item.line_total,
         })
 
-        by_product[product_key]["qty"] += item.qty
+        by_product[product_key]["qty"] += qty
         by_product[product_key]["revenue"] += line_revenue
         by_product[product_key]["cost"] += line_cost
         by_product[product_key]["discount_amount"] += line_discount
-        by_product[product_key]["mrp_total"] += mrp * item.qty
+        by_product[product_key]["mrp_total"] += mrp * qty
 
         total_revenue += line_revenue
         total_cost += line_cost
         total_discount += line_discount
-        total_mrp += mrp * item.qty
-        total_qty += item.qty
+        total_mrp += mrp * qty
+        total_qty += qty
 
     time_series = sorted(by_period.items(), key=lambda kv: kv[0])
     item_rows.sort(key=lambda r: (r["date"], r["sale_id"]), reverse=True)

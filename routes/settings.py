@@ -12,7 +12,7 @@ from extensions import db
 from excel_sync import sync_to_excel, excel_path
 from models import (
     ShopSettings, Product, Customer, CustomerBrandDiscount, Mechanic, MechanicBrandDiscount,
-    Supplier, Sale, Purchase, Payment, Brand,
+    Supplier, Sale, Purchase, Payment, Brand, SaleReturn,
 )
 
 settings_bp = Blueprint("settings", __name__, url_prefix="/settings")
@@ -28,6 +28,7 @@ EXPORTABLE = {
                       "payment_mode", "amount_paid"]),
     "purchases": (Purchase, ["id", "supplier_id", "date", "invoice_no"]),
     "payments": (Payment, ["id", "sale_id", "invoice_no", "date", "amount", "payment_mode", "note"]),
+    "sale_returns": (SaleReturn, ["id", "sale_id", "invoice_no", "applied_to_sale_id", "return_no", "date", "note", "refund_amount"]),
     "brands": (Brand, ["id", "name"]),
     "customer_brand_discounts": (CustomerBrandDiscount, ["id", "customer_id", "customer_name", "brand_name", "discount_pct"]),
     "mechanic_brand_discounts": (MechanicBrandDiscount, ["id", "mechanic_id", "mechanic_name", "brand_name", "discount_pct"]),

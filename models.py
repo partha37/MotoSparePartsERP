@@ -265,8 +265,28 @@ class Sale(db.Model):
         return round(sum(p.amount for p in self.payments), 2)
 
     @property
+    def return_credit(self):
+        """Total refund value counting toward this sale's balance: its own
+        standalone returns, plus any returns from a *different* sale that were
+        applied here via the exchange flow (SaleReturn.applied_to_sale_id) —
+        see SaleReturn for why a return can credit a sale other than the one
+        the returned items were originally bought on."""
+        own = sum(r.refund_amount for r in self.returns if r.applied_to_sale_id is None)
+        applied = sum(r.refund_amount for r in self.applied_returns)
+        return round(own + applied, 2)
+
+    @property
+    def net_total(self):
+        """Total after netting out returned quantities — what reports use so
+        revenue/profit aren't overstated after a return. Sale.total itself stays
+        the original, historical invoice amount and is never rewritten."""
+        return round(sum(item.net_line_total for item in self.items), 2)
+
+    @property
     def balance_due(self):
-        return round(self.total - self.amount_paid, 2)
+        """Can go negative — that means a refund is owed back to the customer
+        (e.g. they'd already paid in full before returning something)."""
+        return round(self.total - self.amount_paid - self.return_credit, 2)
 
 
 class SaleItem(db.Model):
@@ -304,6 +324,26 @@ class SaleItem(db.Model):
             return 0
         return round((1 - self.selling_price / mrp) * 100, 2)
 
+    @property
+    def returned_qty(self):
+        """Total qty returned against this line so far, across all SaleReturns
+        (both resellable and defective — either way the customer no longer has it)."""
+        return sum(ri.qty for ri in self.return_items)
+
+    @property
+    def returnable_qty(self):
+        return max(0, self.qty - self.returned_qty)
+
+    @property
+    def net_qty(self):
+        """Qty actually kept by the customer after returns — what reports should
+        count as "sold", so revenue/profit don't stay overstated after a return."""
+        return self.qty - self.returned_qty
+
+    @property
+    def net_line_total(self):
+        return round(self.net_qty * self.selling_price, 2)
+
 
 class Payment(db.Model):
     """A single installment paid against a Sale's balance due."""
@@ -325,6 +365,61 @@ class Payment(db.Model):
         return self.sale.invoice_no if self.sale else ""
 
 
+class SaleReturn(db.Model):
+    """A customer/mechanic return against a sale — either handed back because
+    they didn't want it (resellable, restocked) or because it was defective
+    (removed from the customer but not restocked). See SaleReturnItem for the
+    per-line condition and stock handling.
+
+    `sale_id` is always the *original* sale the returned items were bought on
+    (needed to validate which SaleItems can be returned). `applied_to_sale_id`
+    is set only by the combined return+new-sale "exchange" flow, when the
+    refund is used toward a *different*, newly-created sale in the same visit
+    instead of being left as a standalone credit/refund against the original
+    sale — see Sale.return_credit for how the two cases are told apart."""
+
+    id = db.Column(db.Integer, primary_key=True)
+    sale_id = db.Column(db.Integer, db.ForeignKey("sale.id"), nullable=False)
+    applied_to_sale_id = db.Column(db.Integer, db.ForeignKey("sale.id"), nullable=True)
+    return_no = db.Column(db.String(50), unique=True)
+    date = db.Column(db.Date, default=date.today, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    note = db.Column(db.String(255))
+
+    sale = db.relationship(
+        "Sale", foreign_keys=[sale_id],
+        backref=db.backref("returns", order_by="SaleReturn.date, SaleReturn.id"),
+    )
+    applied_to_sale = db.relationship("Sale", foreign_keys=[applied_to_sale_id], backref="applied_returns")
+    items = db.relationship("SaleReturnItem", backref="sale_return", lazy=True, cascade="all, delete-orphan")
+
+    @property
+    def refund_amount(self):
+        return round(sum(i.refund_amount for i in self.items), 2)
+
+    @property
+    def invoice_no(self):
+        return self.sale.invoice_no if self.sale else ""
+
+
+class SaleReturnItem(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    sale_return_id = db.Column(db.Integer, db.ForeignKey("sale_return.id"), nullable=False)
+    sale_item_id = db.Column(db.Integer, db.ForeignKey("sale_item.id"), nullable=False)
+    qty = db.Column(db.Integer, nullable=False)
+    condition = db.Column(db.String(20), nullable=False)  # 'resellable' or 'defective'
+
+    sale_item = db.relationship("SaleItem", backref=db.backref("return_items", lazy=True))
+
+    @property
+    def refund_amount(self):
+        return round(self.qty * self.sale_item.selling_price, 2)
+
+    @property
+    def product(self):
+        return self.sale_item.product if self.sale_item else None
+
+
 class StockMovement(db.Model):
     """Every purchase and sale writes a row here — powers day-wise tracking."""
 
@@ -333,7 +428,7 @@ class StockMovement(db.Model):
     date = db.Column(db.Date, default=date.today, nullable=False)
     type = db.Column(db.String(20), nullable=False)  # purchase_in, sale_out, adjustment, return
     qty = db.Column(db.Integer, nullable=False)  # positive for in, negative for out
-    reference_type = db.Column(db.String(20))  # "purchase" / "sale" / "adjustment"
+    reference_type = db.Column(db.String(20))  # "purchase" / "sale" / "adjustment" / "sale_return"
     reference_id = db.Column(db.Integer)
     note = db.Column(db.String(255))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)

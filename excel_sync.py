@@ -20,6 +20,7 @@ from openpyxl.utils import get_column_letter
 from models import (
     Product, Supplier, Customer, CustomerBrandDiscount, Mechanic, MechanicBrandDiscount,
     Purchase, PurchaseItem, Sale, SaleItem, StockMovement, ShopSettings, Payment, Brand,
+    SaleReturn, SaleReturnItem,
 )
 
 EXCEL_FILENAME = "erp_data.xlsx"
@@ -58,6 +59,12 @@ SHEETS = {
     ]),
     "Payments": (Payment, [
         "id", "sale_id", "invoice_no", "date", "amount", "payment_mode", "note",
+    ]),
+    "SaleReturns": (SaleReturn, [
+        "id", "sale_id", "invoice_no", "applied_to_sale_id", "return_no", "date", "note", "refund_amount",
+    ]),
+    "SaleReturnItems": (SaleReturnItem, [
+        "id", "sale_return_id", "sale_item_id", "product_name", "qty", "condition", "refund_amount",
     ]),
     "CustomerBrandDiscounts": (CustomerBrandDiscount, [
         "id", "customer_id", "customer_name", "brand_name", "discount_pct",

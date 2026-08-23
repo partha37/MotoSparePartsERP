@@ -6,7 +6,10 @@ from sqlalchemy import func
 
 from extensions import db
 from excel_sync import sync_to_excel
-from models import Sale, SaleItem, Payment, Product, PurchaseItem, Customer, Mechanic, StockMovement, ShopSettings
+from models import (
+    Sale, SaleItem, Payment, Product, PurchaseItem, Customer, Mechanic, StockMovement,
+    ShopSettings, SaleReturn, SaleReturnItem,
+)
 from routes.server_table import ServerTable, ist_date_filter_expr
 
 sales_bp = Blueprint("sales", __name__, url_prefix="/sales")
@@ -63,13 +66,39 @@ def list_sales():
         .group_by(Payment.sale_id)
         .subquery()
     )
+    # A return's credit counts toward whichever sale it was applied to — the
+    # original sale it was returned against, unless the exchange flow applied
+    # it to a different, newly-created sale instead (SaleReturn.applied_to_sale_id).
+    return_item_totals = (
+        db.session.query(
+            SaleReturnItem.sale_return_id.label("sale_return_id"),
+            func.sum(SaleReturnItem.qty * SaleItem.selling_price).label("amount"),
+        )
+        .join(SaleItem, SaleReturnItem.sale_item_id == SaleItem.id)
+        .group_by(SaleReturnItem.sale_return_id)
+        .subquery()
+    )
+    return_totals = (
+        db.session.query(
+            func.coalesce(SaleReturn.applied_to_sale_id, SaleReturn.sale_id).label("sale_id"),
+            func.sum(return_item_totals.c.amount).label("return_credit"),
+        )
+        .join(return_item_totals, SaleReturn.id == return_item_totals.c.sale_return_id)
+        .group_by(func.coalesce(SaleReturn.applied_to_sale_id, SaleReturn.sale_id))
+        .subquery()
+    )
     total_expr = func.coalesce(item_totals.c.total, 0.0)
-    balance_expr = total_expr - func.coalesce(paid_totals.c.paid, 0.0)
+    balance_expr = (
+        total_expr
+        - func.coalesce(paid_totals.c.paid, 0.0)
+        - func.coalesce(return_totals.c.return_credit, 0.0)
+    )
 
     query = (
         Sale.query
         .outerjoin(item_totals, Sale.id == item_totals.c.sale_id)
         .outerjoin(paid_totals, Sale.id == paid_totals.c.sale_id)
+        .outerjoin(return_totals, Sale.id == return_totals.c.sale_id)
         .outerjoin(Customer, Sale.customer_id == Customer.id)
         .outerjoin(Mechanic, Sale.mechanic_id == Mechanic.id)
     )
@@ -272,3 +301,42 @@ def delete_payment(payment_id):
     sync_to_excel()
     flash("Payment removed.", "success")
     return redirect(url_for("sales.view_sale", sale_id=sale_id))
+
+
+@sales_bp.route("/<int:sale_id>/record-refund", methods=["POST"])
+@login_required
+def record_refund(sale_id):
+    """Logs actual cash handed back to the customer against a return credit —
+    stored as a negative-amount Payment (Sale.amount_paid is already a
+    sign-agnostic sum, so this needs no other code changes to settle back to
+    balance_due == 0). Purely a money record — the stock side of a return is
+    already handled when the SaleReturn itself was created."""
+    sale = Sale.query.get_or_404(sale_id)
+    refund_date = date.fromisoformat(request.form.get("date") or date.today().isoformat())
+    amount = float(request.form.get("amount") or 0)
+    payment_mode = request.form.get("payment_mode", "cash")
+    note = request.form.get("note", "").strip()
+
+    refund_owed = max(0, -sale.balance_due)
+    if amount <= 0:
+        flash("Enter a refund amount greater than zero.", "danger")
+    elif amount > refund_owed + 0.01:
+        flash(
+            f"Refund of ₹{amount:.2f} exceeds the ₹{refund_owed:.2f} owed back to the customer.",
+            "danger",
+        )
+    else:
+        db.session.add(
+            Payment(
+                sale_id=sale.id,
+                date=refund_date,
+                amount=-amount,
+                payment_mode=payment_mode,
+                note=note or "Refund paid to customer",
+            )
+        )
+        db.session.commit()
+        sync_to_excel()
+        flash("Refund recorded.", "success")
+
+    return redirect(url_for("sales.view_sale", sale_id=sale.id))

@@ -58,6 +58,7 @@
         <td>
           {% if m.type == 'purchase_in' %}<span class="badge bg-success">Purchase In</span>
           {% elif m.type == 'sale_out' %}<span class="badge bg-primary">Sale Out</span>
+          {% elif m.type == 'return' %}<span class="badge bg-info text-dark">Return</span>
           {% else %}<span class="badge bg-secondary">{{ m.type }}</span>{% endif %}
         </td>
         <td class="{{ 'text-success' if m.qty > 0 else 'text-danger' }} fw-bold">{{ '+' if m.qty > 0 else '' }}{{ m.qty }}</td>

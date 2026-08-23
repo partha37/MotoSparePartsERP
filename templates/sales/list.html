@@ -37,7 +37,7 @@
       {% for s in table.items %}
       <tr data-href="{{ url_for('sales.view_sale', sale_id=s.id) }}">
         <td>{{ ist(s.created_at) }}</td>
-        <td>{{ s.invoice_no }}</td>
+        <td>{{ s.invoice_no }}{% if s.returns or s.applied_returns %} <span class="badge bg-info text-dark" title="Has returns">{{ icon('arrow-return-left') }}</span>{% endif %}</td>
         <td>{{ s.customer.name if s.customer else 'Walk-in' }}</td>
         <td>{{ s.mechanic.name if s.mechanic else '-' }}</td>
         <td>₹{{ "%.2f"|format(s.total) }}</td>

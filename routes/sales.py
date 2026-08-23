@@ -10,7 +10,7 @@ from models import (
     Sale, SaleItem, Payment, Product, PurchaseItem, Customer, Mechanic, StockMovement,
     ShopSettings, SaleReturn, SaleReturnItem,
 )
-from routes.server_table import ServerTable, ist_date_filter_expr
+from routes.server_table import ServerTable, date_filter_expr
 
 sales_bp = Blueprint("sales", __name__, url_prefix="/sales")
 
@@ -104,7 +104,7 @@ def list_sales():
     )
 
     columns = {
-        "date": ("Date", Sale.created_at, ist_date_filter_expr(Sale.created_at)),
+        "date": ("Date", Sale.date, date_filter_expr(Sale.date)),
         "invoice": ("Invoice", Sale.invoice_no),
         "customer": ("Customer", Customer.name),
         "mechanic": ("Mechanic", Mechanic.name),

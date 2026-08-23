@@ -21,6 +21,7 @@
         {{ sort_th(table, 'mechanic', 'Mechanic') }}
         {{ sort_th(table, 'total', 'Total') }}
         {{ sort_th(table, 'balance', 'Balance Due') }}
+        <th class="text-muted">Created</th>
         <th></th>
       </tr>
       <tr class="data-table-filter-row">
@@ -31,21 +32,23 @@
         {{ filter_th(table, 'total') }}
         {{ filter_th(table, 'balance') }}
         <th></th>
+        <th></th>
       </tr>
     </thead>
     <tbody>
       {% for s in table.items %}
       <tr data-href="{{ url_for('sales.view_sale', sale_id=s.id) }}">
-        <td>{{ ist(s.created_at) }}</td>
+        <td>{{ s.date.strftime('%d-%m-%Y') }}</td>
         <td>{{ s.invoice_no }}{% if s.returns or s.applied_returns %} <span class="badge bg-info text-dark" title="Has returns">{{ icon('arrow-return-left') }}</span>{% endif %}</td>
         <td>{{ s.customer.name if s.customer else 'Walk-in' }}</td>
         <td>{{ s.mechanic.name if s.mechanic else '-' }}</td>
         <td>₹{{ "%.2f"|format(s.total) }}</td>
         <td class="{{ 'text-danger fw-bold' if s.balance_due > 0 else '' }}">₹{{ "%.2f"|format(s.balance_due) }}</td>
+        <td class="text-muted small">{{ ist(s.created_at) }}</td>
         <td class="text-end"><a href="{{ url_for('sales.view_sale', sale_id=s.id) }}" class="btn btn-sm btn-outline-secondary" title="View" aria-label="View">{{ icon('eye') }}</a></td>
       </tr>
       {% else %}
-      <tr><td colspan="7" class="text-center text-muted">No sales recorded yet.</td></tr>
+      <tr><td colspan="8" class="text-center text-muted">No sales recorded yet.</td></tr>
       {% endfor %}
     </tbody>
   </table>

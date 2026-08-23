@@ -20,6 +20,7 @@
         {{ sort_th(table, 'invoice', 'Invoice No') }}
         {{ sort_th(table, 'items', 'Items') }}
         {{ sort_th(table, 'total', 'Total') }}
+        <th class="text-muted">Created</th>
         <th></th>
       </tr>
       <tr class="data-table-filter-row">
@@ -29,20 +30,22 @@
         {{ filter_th(table, 'items') }}
         {{ filter_th(table, 'total') }}
         <th></th>
+        <th></th>
       </tr>
     </thead>
     <tbody>
       {% for p in table.items %}
       <tr data-href="{{ url_for('purchases.view_purchase', purchase_id=p.id) }}">
-        <td>{{ ist(p.created_at) }}</td>
+        <td>{{ p.date.strftime('%d-%m-%Y') }}</td>
         <td>{{ p.supplier.name if p.supplier else '-' }}</td>
         <td>{{ p.invoice_no }}</td>
         <td>{{ p.items|length }}</td>
         <td>₹{{ "%.2f"|format(p.total) }}</td>
+        <td class="text-muted small">{{ ist(p.created_at) }}</td>
         <td class="text-end"><a href="{{ url_for('purchases.view_purchase', purchase_id=p.id) }}" class="btn btn-sm btn-outline-secondary" title="View" aria-label="View">{{ icon('eye') }}</a></td>
       </tr>
       {% else %}
-      <tr><td colspan="6" class="text-center text-muted">No purchases recorded yet.</td></tr>
+      <tr><td colspan="7" class="text-center text-muted">No purchases recorded yet.</td></tr>
       {% endfor %}
     </tbody>
   </table>

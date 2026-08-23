@@ -11,6 +11,14 @@ def ist_date_filter_expr(created_at_col):
     return func.strftime("%d-%m-%Y", func.datetime(created_at_col, "+5 hours", "+30 minutes"))
 
 
+def date_filter_expr(date_col):
+    """SQL expression matching how a plain business `date` column (already
+    date-only, no timezone) is displayed (dd-mm-yyyy) — for filtering/
+    searching a Purchase.date/Sale.date column, no IST offset needed since
+    it isn't a UTC timestamp."""
+    return func.strftime("%d-%m-%Y", date_col)
+
+
 class ServerTable:
     """Search + per-column filter + sort + pagination pushed into the SQL
     query, for the tables whose row counts grow without bound (Sales,

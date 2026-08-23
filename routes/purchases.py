@@ -7,7 +7,7 @@ from sqlalchemy import func
 from extensions import db
 from excel_sync import sync_to_excel
 from models import Purchase, PurchaseItem, Product, Supplier, StockMovement, Brand
-from routes.server_table import ServerTable, ist_date_filter_expr
+from routes.server_table import ServerTable, date_filter_expr
 
 purchases_bp = Blueprint("purchases", __name__, url_prefix="/purchases")
 
@@ -34,7 +34,7 @@ def list_purchases():
     )
 
     columns = {
-        "date": ("Date", Purchase.created_at, ist_date_filter_expr(Purchase.created_at)),
+        "date": ("Date", Purchase.date, date_filter_expr(Purchase.date)),
         "supplier": ("Supplier", Supplier.name),
         "invoice": ("Invoice No", Purchase.invoice_no),
         "items": ("Items", items_expr),

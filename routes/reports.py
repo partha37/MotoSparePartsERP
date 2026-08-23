@@ -7,7 +7,7 @@ from flask_login import login_required
 from openpyxl import Workbook
 
 from excel_sync import _autofit
-from models import Sale, SaleItem, Purchase, Product, Customer, Mechanic, Supplier, Brand
+from models import Sale, SaleItem, SaleReturn, Purchase, Product, Customer, Mechanic, Supplier, Brand
 
 reports_bp = Blueprint("reports", __name__, url_prefix="/reports")
 
@@ -667,6 +667,105 @@ def brand_detail(brand_id):
         brand=brand, summary=summary, products=products,
         time_series=time_series, product_rows=product_rows, item_rows=item_rows,
         date_from=date_from, date_to=date_to, group_by=group_by,
+    )
+
+
+@reports_bp.route("/returns")
+@login_required
+def returns_report():
+    """Returns & Defectives report — aggregates every SaleReturn/SaleReturnItem
+    in range (by SaleReturn.date, the business return date) into a day-wise
+    trend, a per-product resellable-vs-defective breakdown, and the raw list
+    of return transactions. This is a different question from what the
+    revenue/profit reports already answer by netting SaleItem.net_qty/
+    net_line_total (they never show returned qty as its own number) — this
+    report is where "what's coming back, and how much of it is defective"
+    actually surfaces."""
+    date_from, date_to = _date_range_args()
+    returns = (
+        SaleReturn.query
+        .filter(SaleReturn.date >= date_from, SaleReturn.date <= date_to)
+        .order_by(SaleReturn.date.asc(), SaleReturn.id.asc())
+        .all()
+    )
+
+    by_period = defaultdict(lambda: {"count": 0, "refund": 0.0})
+    by_product = defaultdict(lambda: {"name": "", "resellable_qty": 0, "defective_qty": 0, "refund": 0.0})
+    return_rows = []
+    resellable_qty = 0
+    resellable_value = 0.0
+    defective_qty = 0
+    defective_value = 0.0
+
+    for r in returns:
+        sale = r.sale
+        if sale.mechanic_id:
+            contact_name = sale.mechanic.name
+        elif sale.customer_id:
+            contact_name = sale.customer.name
+        else:
+            contact_name = "Walk-in"
+
+        period = r.date.isoformat()
+        by_period[period]["count"] += 1
+        by_period[period]["refund"] += r.refund_amount
+
+        row_resellable_qty = 0
+        row_defective_qty = 0
+        for item in r.items:
+            key = item.product.id if item.product else 0
+            by_product[key]["name"] = (
+                f"{item.product.part_no} - {item.product.product_name}" if item.product else "Unknown product"
+            )
+            by_product[key]["refund"] += item.refund_amount
+            if item.condition == "resellable":
+                by_product[key]["resellable_qty"] += item.qty
+                row_resellable_qty += item.qty
+                resellable_qty += item.qty
+                resellable_value += item.refund_amount
+            else:
+                by_product[key]["defective_qty"] += item.qty
+                row_defective_qty += item.qty
+                defective_qty += item.qty
+                defective_value += item.refund_amount
+
+        return_rows.append({
+            "id": r.id, "sale_id": r.sale_id, "return_no": r.return_no,
+            "date": r.date.isoformat(), "invoice_no": r.invoice_no, "contact_name": contact_name,
+            "resellable_qty": row_resellable_qty, "defective_qty": row_defective_qty,
+            "refund_amount": round(r.refund_amount, 2), "is_exchange": r.applied_to_sale_id is not None,
+        })
+
+    time_series = sorted(by_period.items(), key=lambda kv: kv[0])
+    return_rows.sort(key=lambda r: (r["date"], r["id"]), reverse=True)
+
+    product_rows = sorted(
+        (
+            {
+                "name": v["name"],
+                "resellable_qty": v["resellable_qty"],
+                "defective_qty": v["defective_qty"],
+                "qty": v["resellable_qty"] + v["defective_qty"],
+                "refund": round(v["refund"], 2),
+            }
+            for v in by_product.values()
+        ),
+        key=lambda r: r["qty"], reverse=True,
+    )
+
+    summary = {
+        "return_count": len(returns),
+        "total_refund": round(resellable_value + defective_value, 2),
+        "resellable_qty": resellable_qty,
+        "resellable_value": round(resellable_value, 2),
+        "defective_qty": defective_qty,
+        "defective_value": round(defective_value, 2),
+    }
+
+    return render_template(
+        "reports/returns.html",
+        summary=summary, time_series=time_series, product_rows=product_rows, return_rows=return_rows,
+        date_from=date_from, date_to=date_to,
     )
 
 

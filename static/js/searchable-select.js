@@ -221,5 +221,19 @@
     if (proxy) proxy.required = val;
   }
 
-  window.SearchableSelect = { enhance: enhance, reset: reset, setRequired: setRequired };
+  // Same reasoning as setRequired: `select.disabled` alone doesn't affect the
+  // visible proxy input (its `disabled` was only copied once, at enhance
+  // time, from the pre-enhance state) — anything that disables a select
+  // *after* enhancement (e.g. two mutually-exclusive selects where picking
+  // one locks the other) must go through this instead of setting
+  // `select.disabled` directly, or the proxy stays clickable/typeable while
+  // the real select silently ignores it.
+  function setDisabled(select, val) {
+    select.disabled = val;
+    const wrapper = select.closest(".searchable-select");
+    const proxy = wrapper ? wrapper.querySelector(".searchable-select-input") : null;
+    if (proxy) proxy.disabled = val;
+  }
+
+  window.SearchableSelect = { enhance: enhance, reset: reset, setRequired: setRequired, setDisabled: setDisabled };
 })();

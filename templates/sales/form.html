@@ -260,6 +260,22 @@ function wireRow(row) {
     recalcLine();
   }
 
+  // The inverse of the above — editing Price directly (e.g. haggling to a
+  // round number at the counter) recomputes Discount % against the batch's
+  // base price, same formula solved the other way, rather than leaving the
+  // discount shown stale/wrong once the price no longer matches it.
+  function updateDiscountFromPriceInput() {
+    const bOpt = batchSelect.options[batchSelect.selectedIndex];
+    if (!bOpt || !bOpt.value) {
+      recalcLine();
+      return;
+    }
+    const basePrice = parseFloat(bOpt.dataset.price) || 0;
+    const price = parseFloat(priceInput.value) || 0;
+    discountInput.value = basePrice > 0 ? (100 * (1 - price / basePrice)).toFixed(2) : 0;
+    recalcLine();
+  }
+
   row._applyDiscount = function () {
     if (batchSelect.value) {
       updatePriceFromBatch();
@@ -278,21 +294,43 @@ function wireRow(row) {
   select.addEventListener('change', populateBatches);
   batchSelect.addEventListener('change', updatePriceFromBatch);
   qtyInput.addEventListener('input', recalcLine);
-  priceInput.addEventListener('input', recalcLine);
+  priceInput.addEventListener('input', updateDiscountFromPriceInput);
   discountInput.addEventListener('input', updatePriceFromDiscountInput);
 }
 
 document.querySelectorAll('#itemsTable tbody tr').forEach(wireRow);
 updateRequiredFlags();
 
+// Customer and Mechanic are mutually exclusive — a sale is billed to one or
+// the other, not both. Picking one locks (and clears) the other; clearing
+// back to the placeholder unlocks it again. Both start editable since
+// neither is picked yet on a fresh form.
 customerSelect.addEventListener('change', function () {
   activeDiscountSelect = customerSelect;
   recalcAllRows();
+  if (customerSelect.value) {
+    if (mechanicSelect.value) {
+      mechanicSelect.value = '';
+      if (mechanicSelect.refreshSearchable) mechanicSelect.refreshSearchable();
+    }
+    SearchableSelect.setDisabled(mechanicSelect, true);
+  } else {
+    SearchableSelect.setDisabled(mechanicSelect, false);
+  }
 });
 
 mechanicSelect.addEventListener('change', function () {
   activeDiscountSelect = mechanicSelect;
   recalcAllRows();
+  if (mechanicSelect.value) {
+    if (customerSelect.value) {
+      customerSelect.value = '';
+      if (customerSelect.refreshSearchable) customerSelect.refreshSearchable();
+    }
+    SearchableSelect.setDisabled(customerSelect, true);
+  } else {
+    SearchableSelect.setDisabled(customerSelect, false);
+  }
 });
 
 document.getElementById('addRow').addEventListener('click', addBlankRow);

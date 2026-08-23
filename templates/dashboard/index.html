@@ -3,6 +3,22 @@
 {% block content %}
 <h2 class="mb-4">Dashboard</h2>
 
+{% if cloud_status.configured %}
+  {% if cloud_status.connected %}
+  <div class="alert alert-success d-flex align-items-center no-print">
+    {{ icon('cloud', 'me-2 text-success') }}
+    <div>Cloud backup connected{% if cloud_status.last_synced %} — last synced {{ ist(cloud_status.last_synced) }}{% endif %}.</div>
+    <a href="{{ url_for('settings.cloud_backup') }}" class="ms-auto">Details</a>
+  </div>
+  {% else %}
+  <div class="alert alert-warning d-flex align-items-center no-print">
+    {{ icon('cloud', 'me-2 text-danger') }}
+    <div>Cloud backup isn't connected right now — your data is only saved locally. Check that Google Drive (or your cloud client) is running and signed in.</div>
+    <a href="{{ url_for('settings.cloud_backup') }}" class="ms-auto">Details</a>
+  </div>
+  {% endif %}
+{% endif %}
+
 <div class="card p-3 mb-4">
   <label for="stockProductSearch" class="form-label small text-muted mb-1">Find a product in stock</label>
   <select id="stockProductSearch" aria-label="Find a product in stock">

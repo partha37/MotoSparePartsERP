@@ -118,5 +118,27 @@ flask db upgrade
 ## Backing up your data
 
 Settings > Backup in the app downloads a copy of `instance/erp.db`. Do this
-regularly and keep the copy somewhere safe (a USB drive, cloud storage, etc.)
-— nothing else backs it up automatically.
+regularly and keep the copy somewhere safe (a USB drive, cloud storage, etc.).
+
+### Automatic cloud backup (optional)
+
+Set `CLOUD_BACKUP_DIR` in `.env` to a folder that a cloud-sync client (Google
+Drive Desktop, OneDrive, etc.) already watches, and the app will copy
+`erp.db`/`erp_data.xlsx` into it after every change — no manual backup step
+needed day to day:
+
+```
+CLOUD_BACKUP_DIR=G:\My Drive\MotoSparePartsERP-Backup
+```
+
+Requirements:
+- The cloud client must already be installed, signed in, and running — the
+  app doesn't install or sign into anything itself. If the folder doesn't
+  currently exist (client not running, signed out, no internet), the backup
+  step is silently skipped and the sale/purchase you were saving still
+  completes normally — this is a safety net, not something that can block
+  billing.
+- Leave `CLOUD_BACKUP_DIR` unset (the default) to turn this off entirely.
+- The app never writes directly into the synced folder while a file is
+  mid-write — it copies to a temporary name and renames it into place, so
+  the sync client only ever uploads a complete file.

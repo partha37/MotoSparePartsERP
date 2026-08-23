@@ -9,7 +9,7 @@ from flask import (
 from flask_login import login_required
 
 from extensions import db
-from excel_sync import sync_to_excel, excel_path
+from excel_sync import sync_to_excel, excel_path, cloud_backup_status
 from models import (
     ShopSettings, Product, Customer, CustomerBrandDiscount, Mechanic, MechanicBrandDiscount,
     Supplier, Sale, Purchase, Payment, Brand, SaleReturn,
@@ -97,3 +97,27 @@ def backup():
     db_path = os.path.join(current_app.root_path, "instance", "erp.db")
     filename = f"erp-backup-{date.today().isoformat()}.db"
     return send_file(db_path, as_attachment=True, download_name=filename)
+
+
+@settings_bp.route("/cloud-backup")
+@login_required
+def cloud_backup():
+    return render_template("settings/cloud_backup.html", status=cloud_backup_status())
+
+
+@settings_bp.route("/cloud-backup/sync-now", methods=["POST"])
+@login_required
+def cloud_backup_sync_now():
+    """Manual "sync now" button — just re-runs the same sync_to_excel() every
+    mutating route already calls, so it isn't a separate code path from the
+    automatic sync. Flashes based on the status *after* syncing, since
+    sync_to_excel() itself never raises (best-effort by design)."""
+    sync_to_excel()
+    status = cloud_backup_status()
+    if status["connected"]:
+        flash("Synced to the cloud backup folder.", "success")
+    elif status["configured"]:
+        flash("Cloud backup folder isn't reachable right now — check Google Drive is running and signed in.", "warning")
+    else:
+        flash("Cloud backup isn't configured (CLOUD_BACKUP_DIR isn't set).", "warning")
+    return redirect(url_for("settings.cloud_backup"))

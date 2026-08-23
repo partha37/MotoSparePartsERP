@@ -46,9 +46,15 @@
   <a href="{{ url_for('settings.export_excel') }}" class="btn btn-outline-secondary btn-sm">{{ icon('download') }}Download erp_data.xlsx</a>
 </div>
 
-<div class="card p-4">
+<div class="card p-4 mb-4">
   <h5 class="mb-3 d-flex align-items-center">{{ icon('shield-check', 'me-2') }}Backup</h5>
   <p class="text-muted small">Downloads a copy of your entire database file. Keep this somewhere safe (USB drive, cloud folder, email to yourself).</p>
   <a href="{{ url_for('settings.backup') }}" class="btn btn-primary">{{ icon('download') }}Download Backup</a>
+</div>
+
+<div class="card p-4">
+  <h5 class="mb-3 d-flex align-items-center">{{ icon('cloud', 'me-2') }}Cloud Backup</h5>
+  <p class="text-muted small">Automatically mirrors your data to a cloud-synced folder (Google Drive, OneDrive, etc.) after every save. Check connection status or sync on demand.</p>
+  <a href="{{ url_for('settings.cloud_backup') }}" class="btn btn-outline-secondary">{{ icon('cloud') }}View Status</a>
 </div>
 {% endblock %}

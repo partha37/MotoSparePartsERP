@@ -12,6 +12,8 @@ we just flash a warning instead of failing the request.
 """
 
 import os
+import shutil
+from datetime import datetime
 
 from flask import current_app, flash
 from openpyxl import Workbook
@@ -128,9 +130,74 @@ def _write_workbook(path):
     os.replace(tmp_path, path)
 
 
+def _db_path(app):
+    uri = app.config["SQLALCHEMY_DATABASE_URI"]
+    prefix = "sqlite:///"
+    return uri[len(prefix):] if uri.startswith(prefix) else None
+
+
+def _backup_to_cloud(app):
+    """Best-effort copy of erp.db + erp_data.xlsx into CLOUD_BACKUP_DIR (see
+    config.py) — typically a folder a cloud-sync client like Google Drive
+    Desktop or OneDrive already watches, so the shop's data isn't only ever
+    on one machine. Deliberately does NOT write directly into a live-synced
+    folder from the app itself — a sync client can corrupt a SQLite file if
+    it uploads mid-write. Instead this copies each file to a ".tmp" name in
+    the backup folder first, then atomically renames it into place (same
+    tmp-then-replace pattern _write_workbook uses), so the sync client only
+    ever sees a complete file appear.
+
+    Never raises and never flashes — this is a nice-to-have safety net, not
+    something that should interrupt billing with a warning every time the
+    shop is offline or the cloud folder isn't mounted, which is the normal
+    case for an offline-first app."""
+    backup_dir = app.config.get("CLOUD_BACKUP_DIR")
+    if not backup_dir or not os.path.isdir(backup_dir):
+        return
+    try:
+        sources = [p for p in (_db_path(app), excel_path(app)) if p and os.path.exists(p)]
+        for src in sources:
+            dst = os.path.join(backup_dir, os.path.basename(src))
+            tmp_dst = dst + ".tmp"
+            shutil.copy2(src, tmp_dst)
+            os.replace(tmp_dst, dst)
+    except Exception:
+        current_app.logger.exception("Cloud backup failed")
+
+
+def cloud_backup_status(app=None):
+    """Snapshot for the dashboard banner and Settings > Cloud Backup page —
+    {configured, connected, dir, last_synced}. 'connected' is the same check
+    _backup_to_cloud() makes before copying (CLOUD_BACKUP_DIR set AND that
+    folder currently exists) — it confirms the local sync folder is
+    reachable, not that the cloud client has actually finished uploading.
+    'last_synced' is read from the backed-up erp.db's own mtime rather than
+    tracked separately, since that file is only ever written by a successful
+    _backup_to_cloud() copy."""
+    app = app or current_app._get_current_object()
+    backup_dir = app.config.get("CLOUD_BACKUP_DIR")
+    configured = bool(backup_dir)
+    connected = configured and os.path.isdir(backup_dir)
+    last_synced = None
+    if connected:
+        db_path = _db_path(app)
+        if db_path:
+            backed_up_db = os.path.join(backup_dir, os.path.basename(db_path))
+            if os.path.exists(backed_up_db):
+                last_synced = datetime.utcfromtimestamp(os.path.getmtime(backed_up_db))
+    return {
+        "configured": configured,
+        "connected": connected,
+        "dir": backup_dir,
+        "last_synced": last_synced,
+    }
+
+
 def sync_to_excel():
-    """Rewrite instance/erp_data.xlsx from the current DB state. Never raises."""
-    path = excel_path()
+    """Rewrite instance/erp_data.xlsx from the current DB state, then mirror
+    both it and erp.db into CLOUD_BACKUP_DIR if configured. Never raises."""
+    app = current_app._get_current_object()
+    path = excel_path(app)
     try:
         os.makedirs(os.path.dirname(path), exist_ok=True)
         _write_workbook(path)
@@ -143,3 +210,5 @@ def sync_to_excel():
     except Exception:
         current_app.logger.exception("Excel sync failed")
         flash("Saved to the database, but updating the Excel mirror failed.", "warning")
+
+    _backup_to_cloud(app)

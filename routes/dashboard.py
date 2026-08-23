@@ -5,6 +5,7 @@ from flask_login import login_required
 from sqlalchemy import func
 
 from extensions import db
+from excel_sync import cloud_backup_status
 from models import Product, Sale, SaleItem
 
 dashboard_bp = Blueprint("dashboard", __name__, url_prefix="/")
@@ -44,4 +45,5 @@ def index():
         total_products=total_products,
         total_stock_value=round(total_stock_value, 2),
         in_stock_products=in_stock_products,
+        cloud_status=cloud_backup_status(),
     )

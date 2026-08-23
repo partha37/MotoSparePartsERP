@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Cloud Backup - Lokey Auto Spare Parts{% endblock %}
+{% block content %}
+<h2 class="mb-4 d-flex align-items-center">{{ icon('cloud', 'me-2') }}Cloud Backup</h2>
+
+<div class="card p-4 mb-4">
+  <div class="d-flex align-items-center mb-3">
+    <div class="stat-card-icon {{ '' if status.connected else 'accent' }} me-3">
+      {{ icon('cloud', 'text-success' if status.connected else 'text-danger') }}
+    </div>
+    <div>
+      {% if status.connected %}
+        <div class="fs-5 fw-bold text-success">Connected</div>
+        <div class="text-muted small">Every save is mirrored to your cloud backup folder.</div>
+      {% elif status.configured %}
+        <div class="fs-5 fw-bold text-danger">Not connected</div>
+        <div class="text-muted small">The backup folder is configured but isn't reachable right now — data is only saved locally until this reconnects.</div>
+      {% else %}
+        <div class="fs-5 fw-bold text-muted">Not configured</div>
+        <div class="text-muted small">Cloud backup is off. See DEPLOYMENT.md to set it up.</div>
+      {% endif %}
+    </div>
+  </div>
+
+  <table class="table table-sm w-auto">
+    <tbody>
+      <tr>
+        <th class="text-muted fw-normal">Backup folder</th>
+        <td>{{ status.dir or '— not set —' }}</td>
+      </tr>
+      <tr>
+        <th class="text-muted fw-normal">Last synced</th>
+        <td>{{ ist(status.last_synced) if status.last_synced else '— never —' }}</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <form method="post" action="{{ url_for('settings.cloud_backup_sync_now') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button type="submit" class="btn btn-primary" {{ 'disabled' if not status.configured else '' }}>
+      {{ icon('upload') }}Sync Now
+    </button>
+  </form>
+  {% if not status.configured %}
+  <div class="form-text mt-2">Set <code>CLOUD_BACKUP_DIR</code> in <code>.env</code> to a folder your cloud client (Google Drive, OneDrive, etc.) watches, then restart the app, to turn this on.</div>
+  {% endif %}
+</div>
+
+<p class="text-muted small">
+  This mirrors <code>erp.db</code> and <code>erp_data.xlsx</code> into the folder above automatically after every save
+  — no manual step needed day to day. "Sync Now" just triggers that same process on demand (e.g. right after you've
+  confirmed your cloud client is signed back in). If the folder isn't reachable (offline, client signed out), saves
+  still work normally — this is a safety net, not something that can block billing.
+</p>
+
+<a href="{{ url_for('settings.index') }}" class="btn btn-outline-secondary mt-2">{{ icon('arrow-left') }}Back to Settings</a>
+{% endblock %}

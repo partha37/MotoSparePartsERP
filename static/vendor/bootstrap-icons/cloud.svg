@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-cloud" viewBox="0 0 16 16">
+  <circle cx="5.3" cy="7.2" r="2.4"/>
+  <circle cx="8.4" cy="5.6" r="3"/>
+  <circle cx="11.3" cy="7.6" r="2"/>
+  <rect x="3" y="7.1" width="10" height="4.4" rx="2.2"/>
+</svg>

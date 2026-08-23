@@ -670,26 +670,49 @@ def brand_detail(brand_id):
     )
 
 
+def _attach_stock_status(products):
+    """Flags each product 'out' / 'low' / 'ok' and whether it should be
+    pre-checked by default on the Reorder report — the report lists the whole
+    catalog (so any product can be picked for a purchase, not just ones
+    currently low), but only out-of-stock/low-stock rows start pre-selected."""
+    for p in products:
+        if (p.current_stock or 0) <= 0:
+            p.stock_status = "out"
+        elif p.current_stock <= p.reorder_level:
+            p.stock_status = "low"
+        else:
+            p.stock_status = "ok"
+        p.needs_reorder = p.stock_status in ("out", "low")
+    return products
+
+
 @reports_bp.route("/low-stock")
 @login_required
 def low_stock():
+    """The Reorder report — despite the route name (kept for URL stability),
+    this lists the whole product catalog, not just low-stock items, so the
+    shop owner can pick any product to reorder, not only what's flagged.
+    Low/out-of-stock rows sort first and are pre-checked by default."""
     products = (
-        Product.query.filter(Product.current_stock <= Product.reorder_level)
-        .order_by(Product.current_stock.asc())
+        Product.query
+        .order_by(Product.current_stock.asc(), Product.product_name.asc())
         .all()
     )
+    _attach_stock_status(products)
     return render_template("reports/low_stock.html", products=products)
 
 
 @reports_bp.route("/low-stock/export", methods=["POST"])
 @login_required
 def low_stock_export():
-    """Excel export for the Low Stock report — the picked-checkbox subset if
-    any were selected, otherwise every low-stock product currently shown."""
+    """Excel export for the Reorder report — exactly the checked products,
+    whatever their stock status, or every low/out-of-stock product if
+    nothing was checked (the page's own default selection)."""
     ids = [int(i) for i in request.form.getlist("product_ids[]") if i.isdigit()]
-    query = Product.query.filter(Product.current_stock <= Product.reorder_level)
     if ids:
-        query = query.filter(Product.id.in_(ids))
+        query = Product.query.filter(Product.id.in_(ids))
+    else:
+        query = Product.query.filter(Product.current_stock <= Product.reorder_level)
     products = query.order_by(Product.current_stock.asc()).all()
 
     wb = Workbook()

@@ -48,6 +48,25 @@ def list_purchases():
     return render_template("purchases/list.html", table=table)
 
 
+def _prefill_products_from_request():
+    """Builds the pre-selected line items for New Purchase when arriving from
+    the Reorder report's "Add to Purchase" action (?product_ids[]=1&...) —
+    each gets a `.suggested_qty` (how much to buy to get back to reorder_level)
+    attached for the template to default the Qty input to, still fully editable."""
+    ids = [int(i) for i in request.args.getlist("product_ids[]") if i.isdigit()]
+    if not ids:
+        return []
+    found = {p.id: p for p in Product.query.filter(Product.id.in_(ids)).all()}
+    prefill = []
+    for pid in ids:
+        product = found.get(pid)
+        if not product:
+            continue
+        product.suggested_qty = max((product.reorder_level or 0) - (product.current_stock or 0), 1)
+        prefill.append(product)
+    return prefill
+
+
 @purchases_bp.route("/new", methods=["GET", "POST"])
 @login_required
 def new_purchase():
@@ -152,7 +171,8 @@ def new_purchase():
         return redirect(url_for("purchases.list_purchases"))
 
     return render_template(
-        "purchases/form.html", suppliers=suppliers, products=products, today=date.today().isoformat()
+        "purchases/form.html", suppliers=suppliers, products=products,
+        prefill_products=_prefill_products_from_request(), today=date.today().isoformat()
     )
 
 

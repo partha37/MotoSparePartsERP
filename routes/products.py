@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_required
 
 from extensions import db
@@ -32,6 +32,34 @@ def list_products():
 
 def _all_brands():
     return Brand.query.order_by(Brand.name.asc()).all()
+
+
+@products_bp.route("/check-part-no")
+@login_required
+def check_part_no():
+    """Live duplicate check for the New/Edit Product form — called from JS as the
+    shop owner types/leaves the Part No field, so a clash surfaces immediately
+    instead of only after Save. The server-side check in new_product/edit_product
+    remains the actual source of truth; this is a convenience, not a replacement."""
+    part_no = request.args.get("part_no", "").strip()
+    exclude_id = request.args.get("exclude_id", type=int)
+    if not part_no:
+        return jsonify(exists=False)
+
+    match = Product.query.filter_by(part_no=part_no).first()
+    if match and exclude_id and match.id == exclude_id:
+        match = None
+
+    if not match:
+        return jsonify(exists=False)
+    return jsonify(
+        exists=True,
+        product={
+            "id": match.id,
+            "name": match.product_name,
+            "url": url_for("products.edit_product", product_id=match.id),
+        },
+    )
 
 
 @products_bp.route("/new", methods=["GET", "POST"])

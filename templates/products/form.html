@@ -10,7 +10,8 @@
     <div class="col-md-3">
       <label class="form-label required" for="f-part-no">Part No</label>
       <input type="text" id="f-part-no" name="part_no" class="form-control" required
-             value="{{ d.part_no if d else '' }}">
+             value="{{ d.part_no if d else '' }}" autocomplete="off">
+      <div id="part-no-feedback" class="form-text"></div>
     </div>
     <div class="col-md-6">
       <label class="form-label required" for="f-product-name">Product Name</label>
@@ -149,5 +150,50 @@
 <script>
 SearchableSelect.enhance(document.getElementById('f-unit'));
 SearchableSelect.enhance(document.getElementById('f-brand'));
+
+(function () {
+  const input = document.getElementById('f-part-no');
+  const feedback = document.getElementById('part-no-feedback');
+  const excludeId = {{ product.id if product else 'null' }};
+  let timer = null;
+  let lastChecked = '';
+
+  function clearFeedback() {
+    feedback.textContent = '';
+    feedback.className = 'form-text';
+  }
+
+  function check() {
+    const value = input.value.trim();
+    if (!value || value === lastChecked) return;
+    lastChecked = value;
+
+    const url = new URL('{{ url_for("products.check_part_no") }}', window.location.origin);
+    url.searchParams.set('part_no', value);
+    if (excludeId) url.searchParams.set('exclude_id', excludeId);
+
+    fetch(url)
+      .then(r => r.ok ? r.json() : null)
+      .then(function (data) {
+        if (!data || input.value.trim() !== value) return; // stale response or field changed since
+        if (data.exists) {
+          feedback.innerHTML = 'Already used by <a href="' + data.product.url + '">' + data.product.name + '</a>.';
+          feedback.className = 'form-text text-danger';
+        } else {
+          clearFeedback();
+        }
+      })
+      .catch(function () {
+        // Offline or request failed — say nothing; Save still does the real check server-side.
+      });
+  }
+
+  input.addEventListener('input', function () {
+    clearFeedback();
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(check, 400);
+  });
+  input.addEventListener('blur', check);
+})();
 </script>
 {% endblock %}

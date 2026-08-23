@@ -1,9 +1,12 @@
+import io
 from collections import defaultdict
 from datetime import date, timedelta
 
-from flask import Blueprint, render_template, request
+from flask import Blueprint, render_template, request, send_file
 from flask_login import login_required
+from openpyxl import Workbook
 
+from excel_sync import _autofit
 from models import Sale, SaleItem, Purchase, Product, Customer, Mechanic, Supplier, Brand
 
 reports_bp = Blueprint("reports", __name__, url_prefix="/reports")
@@ -676,3 +679,32 @@ def low_stock():
         .all()
     )
     return render_template("reports/low_stock.html", products=products)
+
+
+@reports_bp.route("/low-stock/export", methods=["POST"])
+@login_required
+def low_stock_export():
+    """Excel export for the Low Stock report — the picked-checkbox subset if
+    any were selected, otherwise every low-stock product currently shown."""
+    ids = [int(i) for i in request.form.getlist("product_ids[]") if i.isdigit()]
+    query = Product.query.filter(Product.current_stock <= Product.reorder_level)
+    if ids:
+        query = query.filter(Product.id.in_(ids))
+    products = query.order_by(Product.current_stock.asc()).all()
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Low Stock"
+    ws.append(["Part No", "Product Name", "Brand", "Vehicle", "Current Stock", "Reorder Level", "Unit"])
+    for p in products:
+        ws.append([p.part_no, p.product_name, p.brand_name, p.vehicle_name or "", p.current_stock, p.reorder_level, p.unit])
+    _autofit(ws)
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    return send_file(
+        buf, as_attachment=True,
+        download_name=f"low-stock-{date.today().isoformat()}.xlsx",
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )

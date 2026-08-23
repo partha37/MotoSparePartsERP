@@ -1,21 +1,57 @@
 {% extends "base.html" %}
 {% block title %}Low Stock - Lokey Auto Spare Parts{% endblock %}
 {% block content %}
-<h2 class="mb-4 d-flex align-items-center">{{ icon('exclamation-triangle', 'me-2') }}Low Stock Report</h2>
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h2 class="d-flex align-items-center mb-0">{{ icon('exclamation-triangle', 'me-2') }}Low Stock Report</h2>
+  {% if products %}
+  <button type="submit" form="low-stock-export-form" class="btn btn-primary">{{ icon('download') }}Export to Excel</button>
+  {% endif %}
+</div>
+
+<form method="post" action="{{ url_for('reports.low_stock_export') }}" id="low-stock-export-form">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 <div class="card p-3">
 <table class="table data-table">
-  <thead><tr><th>Part No</th><th>Product</th><th>Current Stock</th><th>Reorder Level</th></tr></thead>
+  <thead>
+    <tr>
+      <th style="width:36px"><input type="checkbox" class="form-check-input" id="select-all" checked aria-label="Select all"></th>
+      <th>Part No</th><th>Product</th><th>Status</th><th>Current Stock</th><th>Reorder Level</th>
+    </tr>
+  </thead>
   <tbody>
     {% for p in products %}
     <tr class="table-danger">
-      <td>{{ p.part_no }}</td><td>{{ p.product_name }}</td>
+      <td><input type="checkbox" class="form-check-input row-check" name="product_ids[]" value="{{ p.id }}" checked aria-label="Select {{ p.product_name }}"></td>
+      <td>{{ p.part_no }}</td>
+      <td>{{ p.product_name }}</td>
+      <td>
+        {% if p.current_stock <= 0 %}<span class="badge bg-danger">Out of Stock</span>
+        {% else %}<span class="badge bg-warning text-dark">Low Stock</span>{% endif %}
+      </td>
       <td class="fw-bold">{{ p.current_stock }}</td><td>{{ p.reorder_level }}</td>
     </tr>
     {% else %}
-    <tr><td colspan="4" class="text-center text-muted">No low-stock items. Everything is well stocked.</td></tr>
+    <tr><td colspan="6" class="text-center text-muted">No low-stock items. Everything is well stocked.</td></tr>
     {% endfor %}
   </tbody>
 </table>
 </div>
+</form>
 <a href="{{ url_for('reports.index') }}" class="btn btn-outline-secondary mt-3">{{ icon('arrow-left') }}Back to Reports</a>
+
+<script>
+(function () {
+  const selectAll = document.getElementById('select-all');
+  if (!selectAll) return;
+  const rowChecks = document.querySelectorAll('.row-check');
+  selectAll.addEventListener('change', function () {
+    rowChecks.forEach(function (cb) { cb.checked = selectAll.checked; });
+  });
+  rowChecks.forEach(function (cb) {
+    cb.addEventListener('change', function () {
+      selectAll.checked = Array.from(rowChecks).every(function (c) { return c.checked; });
+    });
+  });
+})();
+</script>
 {% endblock %}

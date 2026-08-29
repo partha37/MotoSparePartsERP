@@ -21,7 +21,7 @@ from openpyxl.utils import get_column_letter
 
 from models import (
     Product, Supplier, Customer, CustomerBrandDiscount, Mechanic, MechanicBrandDiscount,
-    Purchase, PurchaseItem, Sale, SaleItem, StockMovement, ShopSettings, Payment, Brand,
+    Purchase, PurchaseItem, PurchaseCharge, Sale, SaleItem, StockMovement, ShopSettings, Payment, Brand,
     SaleReturn, SaleReturnItem,
 )
 
@@ -41,12 +41,14 @@ SHEETS = {
     "Customers": (Customer, ["id", "name", "phone", "address", "vehicle_model"]),
     "Mechanics": (Mechanic, ["id", "name", "phone", "garage_name"]),
     "Purchases": (Purchase, [
-        "id", "date", "invoice_no", "supplier_id", "supplier_name", "pre_gst_total", "gst_total", "total",
+        "id", "date", "invoice_no", "supplier_id", "supplier_name", "pre_gst_total", "gst_total",
+        "items_total", "delivery_charge", "charges_total", "total",
     ]),
     "PurchaseItems": (PurchaseItem, [
         "id", "purchase_id", "product_id", "product_name", "qty", "price_before_gst", "gst_rate",
         "gst_amount", "purchase_price", "mrp_at_purchase", "remaining_qty", "stock_number", "total",
     ]),
+    "PurchaseCharges": (PurchaseCharge, ["id", "purchase_id", "label", "amount"]),
     "Sales": (Sale, [
         "id", "date", "invoice_no", "customer_id", "customer_name", "mechanic_id",
         "mechanic_name", "payment_mode", "amount_paid", "total", "balance_due",

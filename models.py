@@ -193,15 +193,32 @@ class Purchase(db.Model):
     supplier_id = db.Column(db.Integer, db.ForeignKey("supplier.id"), nullable=False)
     date = db.Column(db.Date, default=date.today, nullable=False)
     invoice_no = db.Column(db.String(50))
+    delivery_charge = db.Column(db.Float, default=0)  # single fixed-label extra charge, always available
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     items = db.relationship(
         "PurchaseItem", backref="purchase", lazy=True, cascade="all, delete-orphan"
     )
+    charges = db.relationship(
+        "PurchaseCharge", backref="purchase", lazy=True, cascade="all, delete-orphan"
+    )
+
+    @property
+    def items_total(self):
+        """Goods-only subtotal — what the stock itself cost, before delivery/incidental charges."""
+        return round(sum(item.total for item in self.items), 2)
+
+    @property
+    def charges_total(self):
+        """Delivery charge plus every free-form extra charge (round off, handling, etc.)."""
+        return round((self.delivery_charge or 0) + sum(c.amount for c in self.charges), 2)
 
     @property
     def total(self):
-        return round(sum(item.total for item in self.items), 2)
+        """The actual amount payable on this purchase — items_total + charges_total. Existing
+        purchases (recorded before this feature existed) have no delivery_charge/charges rows,
+        so this is numerically identical to the old items-only total for them."""
+        return round(self.items_total + self.charges_total, 2)
 
     @property
     def gst_total(self):
@@ -210,6 +227,16 @@ class Purchase(db.Model):
     @property
     def pre_gst_total(self):
         return round(sum((item.price_before_gst or 0) * item.qty for item in self.items), 2)
+
+
+class PurchaseCharge(db.Model):
+    """A free-form extra line on a purchase invoice that isn't tied to any product —
+    round-off, incidental charges, stock handling charges, etc. Distinct from
+    Purchase.delivery_charge, which is a single always-available fixed-label field."""
+    id = db.Column(db.Integer, primary_key=True)
+    purchase_id = db.Column(db.Integer, db.ForeignKey("purchase.id"), nullable=False)
+    label = db.Column(db.String(100), nullable=False)
+    amount = db.Column(db.Float, nullable=False, default=0)
 
 
 class PurchaseItem(db.Model):

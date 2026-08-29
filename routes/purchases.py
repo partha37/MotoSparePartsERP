@@ -6,7 +6,7 @@ from sqlalchemy import func
 
 from extensions import db
 from excel_sync import sync_to_excel
-from models import Purchase, PurchaseItem, Product, Supplier, StockMovement, Brand
+from models import Purchase, PurchaseItem, PurchaseCharge, Product, Supplier, StockMovement, Brand
 from routes.server_table import ServerTable, date_filter_expr
 
 purchases_bp = Blueprint("purchases", __name__, url_prefix="/purchases")
@@ -24,12 +24,25 @@ def list_purchases():
         .group_by(PurchaseItem.purchase_id)
         .subquery()
     )
-    total_expr = func.coalesce(item_agg.c.total, 0.0)
+    charge_agg = (
+        db.session.query(
+            PurchaseCharge.purchase_id.label("purchase_id"),
+            func.sum(PurchaseCharge.amount).label("total"),
+        )
+        .group_by(PurchaseCharge.purchase_id)
+        .subquery()
+    )
+    total_expr = (
+        func.coalesce(item_agg.c.total, 0.0)
+        + func.coalesce(charge_agg.c.total, 0.0)
+        + func.coalesce(Purchase.delivery_charge, 0.0)
+    )
     items_expr = func.coalesce(item_agg.c.item_count, 0)
 
     query = (
         Purchase.query
         .outerjoin(item_agg, Purchase.id == item_agg.c.purchase_id)
+        .outerjoin(charge_agg, Purchase.id == charge_agg.c.purchase_id)
         .outerjoin(Supplier, Purchase.supplier_id == Supplier.id)
     )
 
@@ -120,11 +133,26 @@ def new_purchase():
                 "purchases/form.html", suppliers=suppliers, products=products, brands=brands, today=date.today().isoformat()
             )
 
+        delivery_charge_raw = request.form.get("delivery_charge", "").strip()
+        delivery_charge = float(delivery_charge_raw) if delivery_charge_raw else 0.0
+
+        charge_labels = request.form.getlist("charge_label[]")
+        charge_amounts = request.form.getlist("charge_amount[]")
+        charge_amounts += [""] * (len(charge_labels) - len(charge_amounts))
+        extra_charges = [
+            (label.strip(), float(amount) if amount.strip() else 0.0)
+            for label, amount in zip(charge_labels, charge_amounts) if label.strip()
+        ]
+
         purchase = Purchase(
-            supplier_id=int(supplier_id), date=purchase_date, invoice_no=invoice_no
+            supplier_id=int(supplier_id), date=purchase_date, invoice_no=invoice_no,
+            delivery_charge=delivery_charge,
         )
         db.session.add(purchase)
         db.session.flush()  # get purchase.id
+
+        for label, amount in extra_charges:
+            db.session.add(PurchaseCharge(purchase_id=purchase.id, label=label, amount=amount))
 
         cost_changes = []
 

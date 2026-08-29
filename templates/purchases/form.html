@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block title %}New Purchase - Lokey Auto Spare Parts{% endblock %}
 {% block content %}
+<template id="trash-icon-template">{{ icon('trash') }}</template>
 <h2 class="mb-4 d-flex align-items-center">{{ icon('cart-plus', 'me-2') }}New Purchase (Stock In)</h2>
 
 <form method="post" class="card p-4">
@@ -68,6 +69,20 @@
     </tbody>
   </table>
   <button type="button" id="addRow" class="btn btn-sm btn-outline-primary mb-3">{{ icon('plus-lg') }}Add Line</button>
+
+  <h5 class="d-flex align-items-center mt-4">{{ icon('cash-stack', 'me-1') }}Additional Charges</h5>
+  <p class="text-muted small">Delivery is always available; add more rows for anything else on the invoice — round off, incidental charges, stock handling charges, etc.</p>
+  <table class="table table-sm" id="chargesTable" style="max-width:600px">
+    <tbody>
+      <tr>
+        <td style="width:260px" class="align-middle">Delivery Charges</td>
+        <td><input type="number" step="0.01" name="delivery_charge" class="form-control charge-amount-input" aria-label="Delivery Charges amount"></td>
+        <td style="width:40px"></td>
+      </tr>
+    </tbody>
+  </table>
+  <div id="extraCharges"></div>
+  <button type="button" id="addCharge" class="btn btn-sm btn-outline-primary mb-3">{{ icon('plus-lg') }}Add Charge</button>
 
   <div class="d-flex justify-content-end align-items-center gap-3 p-3 mb-3 border-top border-bottom">
     <div class="text-muted">Grand Total</div>
@@ -227,8 +242,62 @@ function recalcGrandTotal() {
     const gstPct = parseFloat(row.querySelector('.gst-input').value) || 0;
     total += qty * priceBeforeGst * (1 + gstPct / 100);
   });
+  document.querySelectorAll('.charge-amount-input').forEach(function (input) {
+    total += parseFloat(input.value) || 0;
+  });
   document.getElementById('grandTotalDisplay').textContent = '₹' + total.toFixed(2);
 }
+
+// Additional Charges — Delivery is a single always-present field (wired
+// above via the same .charge-amount-input class); everything else is a
+// free-form label + amount row the owner adds as needed (round off,
+// incidental charges, stock handling, ...). A row with no label typed is
+// simply ignored server-side, so an unused blank row is harmless.
+function addChargeRow() {
+  const container = document.getElementById('extraCharges');
+  const row = document.createElement('div');
+  row.className = 'd-flex gap-2 mb-2';
+  row.style.maxWidth = '600px';
+
+  const labelInput = document.createElement('input');
+  labelInput.type = 'text';
+  labelInput.name = 'charge_label[]';
+  labelInput.className = 'form-control';
+  labelInput.style.maxWidth = '260px';
+  labelInput.setAttribute('aria-label', 'Charge label');
+  labelInput.placeholder = 'e.g. Round Off';
+
+  const amountInput = document.createElement('input');
+  amountInput.type = 'number';
+  amountInput.step = '0.01';
+  amountInput.name = 'charge_amount[]';
+  amountInput.className = 'form-control charge-amount-input';
+  amountInput.setAttribute('aria-label', 'Charge amount');
+  amountInput.addEventListener('input', recalcGrandTotal);
+
+  const removeBtn = document.createElement('button');
+  removeBtn.type = 'button';
+  removeBtn.className = 'btn btn-outline-danger btn-sm remove-charge';
+  removeBtn.setAttribute('aria-label', 'Remove this charge');
+  const iconTemplate = document.getElementById('trash-icon-template');
+  if (iconTemplate) removeBtn.appendChild(iconTemplate.content.cloneNode(true));
+
+  row.appendChild(labelInput);
+  row.appendChild(amountInput);
+  row.appendChild(removeBtn);
+  container.appendChild(row);
+}
+
+document.getElementById('addCharge').addEventListener('click', addChargeRow);
+document.getElementById('extraCharges').addEventListener('click', function (e) {
+  if (e.target.closest('.remove-charge')) {
+    e.target.closest('.d-flex').remove();
+    recalcGrandTotal();
+  }
+});
+document.querySelectorAll('.charge-amount-input').forEach(function (input) {
+  input.addEventListener('input', recalcGrandTotal);
+});
 
 function wireRow(row) {
   const select = row.querySelector('.product-select');

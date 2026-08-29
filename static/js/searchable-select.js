@@ -38,8 +38,13 @@
     if (select.hasAttribute("required")) input.setAttribute("required", "");
     if (select.disabled) input.disabled = true;
 
+    // position: fixed (not Bootstrap's position-absolute) so the menu is
+    // positioned straight off the input's viewport coordinates and can never
+    // get clipped by an ancestor with overflow:auto/hidden — e.g. a
+    // line-item table wrapped for horizontal scroll (table-tools.js's
+    // .tt-wrap) would otherwise cut the dropdown off after a couple of rows.
     const menu = document.createElement("ul");
-    menu.className = "list-group searchable-select-menu position-absolute w-100 d-none";
+    menu.className = "list-group searchable-select-menu d-none";
 
     select.classList.add("d-none");
     select.parentNode.insertBefore(wrapper, select);
@@ -78,6 +83,15 @@
       menu.innerHTML = "";
       activeIdx = -1;
       setNoMatch(false);
+    }
+
+    // menu is position:fixed, so its coordinates are plain viewport pixels
+    // off the input — not relative to any positioned ancestor.
+    function positionMenu() {
+      const rect = input.getBoundingClientRect();
+      menu.style.top = rect.bottom + "px";
+      menu.style.left = rect.left + "px";
+      menu.style.width = rect.width + "px";
     }
 
     // Fires a bubbling custom event only on actual state change, so a sibling
@@ -124,6 +138,7 @@
         });
         highlight();
       }
+      positionMenu();
       menu.classList.remove("d-none");
       setNoMatch(!filtered.length && q !== "");
     }
@@ -189,6 +204,18 @@
     });
 
     input.addEventListener("blur", reconcile);
+
+    // Scroll events don't bubble, so a nested scrollable ancestor (e.g. a
+    // wide line-item table's horizontal-scroll wrapper) needs the capture
+    // phase to be seen here at all. Closing on scroll/resize is simpler and
+    // safer than repositioning the fixed menu, and no worse an experience —
+    // this is what most native comboboxes do too.
+    document.addEventListener("scroll", function () {
+      if (!menu.classList.contains("d-none")) closeMenu();
+    }, true);
+    window.addEventListener("resize", function () {
+      if (!menu.classList.contains("d-none")) closeMenu();
+    });
 
     document.addEventListener("mousedown", function (e) {
       if (!wrapper.contains(e.target) && !menu.classList.contains("d-none")) closeMenu();

@@ -13,7 +13,8 @@
     <div class="col-md-3">
       <label class="form-label" for="customerSelect">Customer <span class="text-muted small">(optional)</span></label>
       <select name="customer_id" id="customerSelect" class="form-select">
-        <option value="" data-brand-discounts="{}">-- Walk-in / None --</option>
+        <option value="" data-brand-discounts="{}">-- None --</option>
+        <option value="" data-brand-discounts="{}">Walk-in</option>
         {% for c in customers %}
         <option value="{{ c.id }}" data-brand-discounts='{{ c.brand_discount_map|tojson }}'>{{ c.name }}{% if c.brand_discount_map %} (brand rates set){% endif %}</option>
         {% endfor %}
@@ -305,10 +306,19 @@ updateRequiredFlags();
 // the other, not both. Picking one locks (and clears) the other; clearing
 // back to the placeholder unlocks it again. Both start editable since
 // neither is picked yet on a fresh form.
+// Customer has both a true placeholder ("-- None --", index 0, nothing
+// chosen yet) and a real "Walk-in" option (also value="" — a sale with no
+// linked Customer record already displays as "Walk-in" everywhere else in
+// the app) — selectedIndex, not value, is what tells "still unset" apart
+// from "explicitly chose Walk-in", since both submit the same empty value.
+function customerHasChoice() {
+  return customerSelect.selectedIndex > 0;
+}
+
 customerSelect.addEventListener('change', function () {
   activeDiscountSelect = customerSelect;
   recalcAllRows();
-  if (customerSelect.value) {
+  if (customerHasChoice()) {
     if (mechanicSelect.value) {
       mechanicSelect.value = '';
       if (mechanicSelect.refreshSearchable) mechanicSelect.refreshSearchable();
@@ -323,7 +333,7 @@ mechanicSelect.addEventListener('change', function () {
   activeDiscountSelect = mechanicSelect;
   recalcAllRows();
   if (mechanicSelect.value) {
-    if (customerSelect.value) {
+    if (customerHasChoice()) {
       customerSelect.value = '';
       if (customerSelect.refreshSearchable) customerSelect.refreshSearchable();
     }

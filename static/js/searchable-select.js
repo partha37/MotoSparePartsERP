@@ -129,7 +129,13 @@
     }
 
     function commit(opt) {
-      select.value = opt.value;
+      // Set by index, not `select.value = opt.value` — two options can
+      // legitimately share the same value (e.g. a "-- None --" placeholder
+      // and a real "Walk-in" option both submitting ""), and assigning by
+      // value always snaps to the *first* option with that value, silently
+      // discarding which one the user actually clicked.
+      const idx = Array.prototype.indexOf.call(select.options, opt);
+      if (idx !== -1) select.selectedIndex = idx;
       delete select.dataset.searchQuery;
       sync();
       closeMenu();

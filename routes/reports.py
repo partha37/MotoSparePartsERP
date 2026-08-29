@@ -84,7 +84,7 @@ def daily_sales():
             total_discount += line_discount
             total_mrp += mrp * qty
 
-    time_series = sorted(by_period.items(), key=lambda kv: kv[0])
+    time_series = [(_period_display(p), v) for p, v in sorted(by_period.items(), key=lambda kv: kv[0])]
 
     product_rows = []
     for name, v in by_product.items():
@@ -160,12 +160,25 @@ def customer_wise():
 
 def _period_label(d, group_by):
     """Buckets a date into either its ISO date string (day) or ISO
-    year-week string (week), used to group a contact's sales for the
-    "purchases over time" chart/table."""
+    year-week string (week) — ISO sorts correctly as a plain string, which
+    is why grouping/sorting always happens on this value. Never render this
+    directly — pass it through _period_display() first, since "yyyy-mm-dd"
+    doesn't match the dd-mm-yyyy format used everywhere else in the app."""
     if group_by == "week":
         iso_year, iso_week, _ = d.isocalendar()
         return f"{iso_year}-W{iso_week:02d}"
     return d.isoformat()
+
+
+def _period_display(period):
+    """Converts a _period_label() value to what should actually be shown to
+    the user — dd-mm-yyyy for a day bucket (matching every other date in the
+    app), left as-is for a week bucket ("2026-W29" isn't a single calendar
+    date, so there's no dd-mm-yyyy equivalent to convert it to)."""
+    try:
+        return date.fromisoformat(period).strftime("%d-%m-%Y")
+    except ValueError:
+        return period
 
 
 def _contact_detail(kind, contact_id):
@@ -230,7 +243,7 @@ def _contact_detail(kind, contact_id):
             total_discount += line_discount
             total_mrp += mrp * qty
 
-    time_series = sorted(by_period.items(), key=lambda kv: kv[0])
+    time_series = [(_period_display(p), v) for p, v in sorted(by_period.items(), key=lambda kv: kv[0])]
     item_rows.sort(key=lambda r: (r["date"], r["sale_id"]), reverse=True)
 
     product_rows = []
@@ -370,7 +383,7 @@ def _product_detail(product_id):
         total_mrp += mrp * qty
         total_qty += qty
 
-    time_series = sorted(by_period.items(), key=lambda kv: kv[0])
+    time_series = [(_period_display(p), v) for p, v in sorted(by_period.items(), key=lambda kv: kv[0])]
     item_rows.sort(key=lambda r: (r["date"], r["sale_id"]), reverse=True)
 
     contact_rows = []
@@ -480,7 +493,7 @@ def gst_report():
         total_spend += item.total
 
         item_rows.append({
-            "date": item.purchase.date.isoformat(),
+            "date": item.purchase.date,
             "purchase_id": item.purchase_id,
             "product_name": key,
             "qty": item.qty,
@@ -580,7 +593,7 @@ def supplier_detail(supplier_id):
             total_discount += line_discount
             total_mrp += mrp * item.qty
 
-    time_series = sorted(by_period.items(), key=lambda kv: kv[0])
+    time_series = [(_period_display(p), v) for p, v in sorted(by_period.items(), key=lambda kv: kv[0])]
     item_rows.sort(key=lambda r: (r["date"], r["purchase_id"]), reverse=True)
 
     product_rows = []
@@ -694,7 +707,7 @@ def brand_detail(brand_id):
         total_mrp += mrp * qty
         total_qty += qty
 
-    time_series = sorted(by_period.items(), key=lambda kv: kv[0])
+    time_series = [(_period_display(p), v) for p, v in sorted(by_period.items(), key=lambda kv: kv[0])]
     item_rows.sort(key=lambda r: (r["date"], r["sale_id"]), reverse=True)
 
     product_rows = []
@@ -794,12 +807,12 @@ def returns_report():
 
         return_rows.append({
             "id": r.id, "sale_id": r.sale_id, "return_no": r.return_no,
-            "date": r.date.isoformat(), "invoice_no": r.invoice_no, "contact_name": contact_name,
+            "date": r.date, "invoice_no": r.invoice_no, "contact_name": contact_name,
             "resellable_qty": row_resellable_qty, "defective_qty": row_defective_qty,
             "refund_amount": round(r.refund_amount, 2), "is_exchange": r.applied_to_sale_id is not None,
         })
 
-    time_series = sorted(by_period.items(), key=lambda kv: kv[0])
+    time_series = [(_period_display(p), v) for p, v in sorted(by_period.items(), key=lambda kv: kv[0])]
     return_rows.sort(key=lambda r: (r["date"], r["id"]), reverse=True)
 
     product_rows = sorted(

@@ -76,7 +76,7 @@
     <tbody>
       {% for r in item_rows %}
       <tr data-href="{{ url_for('purchases.view_purchase', purchase_id=r.purchase_id) }}">
-        <td>{{ r.date }}</td>
+        <td>{{ r.date.strftime('%d-%m-%Y') }}</td>
         <td>{{ r.product_name }}</td>
         <td>{{ r.qty }}</td>
         <td>{{ '₹' + '%.2f'|format(r.price_before_gst) if r.price_before_gst is not none else '-' }}</td>

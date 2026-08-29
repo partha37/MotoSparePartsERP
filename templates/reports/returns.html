@@ -110,7 +110,7 @@
     <tbody>
       {% for r in return_rows %}
       <tr data-href="{{ url_for('sale_returns.view_return', sale_id=r.sale_id, return_id=r.id) }}">
-        <td>{{ r.date }}</td>
+        <td>{{ r.date.strftime('%d-%m-%Y') }}</td>
         <td>{{ r.return_no }}</td>
         <td>{{ r.invoice_no }}</td>
         <td>{{ r.contact_name }}</td>

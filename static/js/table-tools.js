@@ -113,11 +113,25 @@
 
     function applyHidden() {
       // display:none on a <col> is a no-op in every browser — <col> boxes
-      // don't generate a visible box themselves, so only visibility:collapse
-      // (the CSS2 table-column mechanism) actually removes the column's
+      // don't generate a visible box themselves, so visibility:collapse
+      // (the CSS2 table-column mechanism) is what removes the column's
       // cells from rendering while the rest of the table reflows around it.
       cols.forEach(function (col, i) {
         col.style.visibility = state.hidden.indexOf(i) !== -1 ? "collapse" : "";
+      });
+      // A collapsed header <th> correctly gets width:0, but its sort-indicator
+      // span (added by data-table.js) is plain static inline content — with
+      // the cell's default overflow:visible, that content still paints past
+      // the zero-width box instead of disappearing. For any column that isn't
+      // the last one, the next cell's opaque background happens to paint over
+      // that leftover sliver, hiding the bug — but the *last* column has
+      // nothing after it to cover it, leaving its sort arrow floating with no
+      // header text under it. overflow:hidden on just the header cell clips
+      // it without touching `display` (unlike display:none, which would
+      // remove the cell from the row entirely and shift every later cell's
+      // column-index alignment against the colgroup).
+      headers.forEach(function (th, i) {
+        th.style.overflow = state.hidden.indexOf(i) !== -1 ? "hidden" : "";
       });
       updateBadge();
     }

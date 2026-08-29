@@ -61,12 +61,16 @@ class Product(db.Model):
             self.mrp * (1 - (self.actual_discount_pct or 0) / 100), 2
         )
 
-    def update_cost_from_purchase(self, purchase_price, new_mrp=None):
+    def update_cost_from_purchase(self, purchase_price, new_mrp=None, gst_rate=None):
         """Makes this purchase's price the product's new current cost; optionally updates MRP too
-        (e.g. the distributor revised the printed MRP). Each purchase still keeps its own price on
-        PurchaseItem — this only updates the product's "current" reference fields."""
+        (e.g. the distributor revised the printed MRP) and the product's reference GST rate.
+        Each purchase still keeps its own price/rate on PurchaseItem — this only updates the
+        product's "current" reference fields. purchase_price is GST-inclusive — that's the real
+        cost being compared against MRP here, not what the supplier quoted before tax."""
         if new_mrp is not None and new_mrp > 0:
             self.mrp = new_mrp
+        if gst_rate is not None:
+            self.gst_rate = gst_rate
         self.actual_discount_pct = (
             (self.mrp - purchase_price) / self.mrp * 100 if self.mrp else 0
         )
@@ -199,6 +203,14 @@ class Purchase(db.Model):
     def total(self):
         return round(sum(item.total for item in self.items), 2)
 
+    @property
+    def gst_total(self):
+        return round(sum(item.gst_amount for item in self.items), 2)
+
+    @property
+    def pre_gst_total(self):
+        return round(sum((item.price_before_gst or 0) * item.qty for item in self.items), 2)
+
 
 class PurchaseItem(db.Model):
     """Also doubles as a sellable stock batch: `remaining_qty` tracks how much of this
@@ -209,7 +221,9 @@ class PurchaseItem(db.Model):
     purchase_id = db.Column(db.Integer, db.ForeignKey("purchase.id"), nullable=False)
     product_id = db.Column(db.Integer, db.ForeignKey("product.id"), nullable=False)
     qty = db.Column(db.Integer, nullable=False)
-    purchase_price = db.Column(db.Float, nullable=False)
+    purchase_price = db.Column(db.Float, nullable=False)  # GST-inclusive — the real per-unit cost of this batch
+    price_before_gst = db.Column(db.Float)  # what the supplier actually quoted, before GST — null for pre-GST-tracking rows
+    gst_rate = db.Column(db.Float)  # GST% used for this line, snapshot at purchase time — null for pre-GST-tracking rows
     mrp_at_purchase = db.Column(db.Float)  # snapshot of the MRP that was in effect for this purchase
     remaining_qty = db.Column(db.Integer)  # how much of this batch hasn't been sold yet
 
@@ -218,6 +232,20 @@ class PurchaseItem(db.Model):
     @property
     def total(self):
         return round(self.qty * self.purchase_price, 2)
+
+    @property
+    def gst_amount_per_unit(self):
+        """GST paid per unit — purchase_price is GST-inclusive, price_before_gst isn't,
+        so the difference is exactly the tax. 0 for rows recorded before GST tracking
+        existed (price_before_gst is null, meaning purchase_price was entered pre-GST
+        with no tax added on top)."""
+        if self.price_before_gst is None:
+            return 0
+        return round(self.purchase_price - self.price_before_gst, 2)
+
+    @property
+    def gst_amount(self):
+        return round(self.gst_amount_per_unit * self.qty, 2)
 
     @property
     def stock_number(self):

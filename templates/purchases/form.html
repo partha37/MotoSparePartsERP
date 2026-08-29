@@ -26,7 +26,7 @@
   </div>
 
   <h5 class="d-flex align-items-center">{{ icon('box-seam', 'me-1') }}Items</h5>
-  <p class="text-muted small">This purchase's price and MRP become the product's new current cost/MRP — enter both fresh for this batch.</p>
+  <p class="text-muted small">This purchase's price and MRP become the product's new current cost/MRP — enter both fresh for this batch. "Price before GST" is what the supplier quoted, before tax — GST defaults to 18% but is editable per line; the Actual Price (what this batch really cost) and Discount % (against MRP) are computed from that automatically.</p>
   <p class="text-muted small">Fill in a line completely and a new blank line appears below it automatically. The first line is required; a line you've started filling in must be completed before saving; empty untouched lines are ignored.</p>
   {% if prefill_products %}
   <p class="text-muted small">Pre-filled from the Reorder report — Qty defaults to what's needed to reach reorder level, adjust as needed. Add more lines for anything else you want on this purchase.</p>
@@ -46,14 +46,16 @@
     </td>
     <td><input type="number" name="qty[]" class="form-control qty-input" min="1" aria-label="Quantity" value="{{ qty if qty else '' }}"></td>
     <td><input type="number" step="0.01" name="mrp[]" class="form-control mrp-input" aria-label="MRP" min="0.01"></td>
-    <td><input type="number" step="0.01" name="purchase_price[]" class="form-control price-input" aria-label="Purchase price each"></td>
+    <td><input type="number" step="0.01" name="price_before_gst[]" class="form-control price-input" aria-label="Price before GST"></td>
+    <td><input type="number" step="0.01" name="gst_rate[]" class="form-control gst-input" aria-label="GST %" value="18"></td>
+    <td><input type="text" class="form-control actual-price-input" aria-label="Actual price each (incl. GST)" disabled></td>
     <td><input type="number" step="0.01" class="form-control discount-input" aria-label="Discount %" readonly tabindex="-1"></td>
     <td><input type="text" class="form-control line-total-input" aria-label="Line total" disabled></td>
     <td><button type="button" class="btn btn-outline-danger btn-sm remove-row" aria-label="Remove this line">{{ icon('trash') }}</button></td>
   </tr>
   {% endmacro %}
   <table class="table" id="itemsTable">
-    <thead><tr><th>Product</th><th style="width:100px">Qty</th><th style="width:140px">MRP</th><th style="width:140px">Purchase Price (each)</th><th style="width:110px">Discount %</th><th style="width:120px">Line Total</th><th></th></tr></thead>
+    <thead><tr><th>Product</th><th style="width:100px">Qty</th><th style="width:140px">MRP</th><th style="width:140px">Price before GST</th><th style="width:90px">GST %</th><th style="width:140px">Actual Price (each)</th><th style="width:110px">Discount %</th><th style="width:120px">Line Total</th><th></th></tr></thead>
     <tbody>
       {% if prefill_products %}
         {% for p in prefill_products %}
@@ -172,6 +174,7 @@ function addBlankRow() {
   const newRow = tbody.rows[0].cloneNode(true);
   SearchableSelect.reset(newRow);
   newRow.querySelectorAll('input').forEach(el => el.value = '');
+  newRow.querySelector('.gst-input').value = '18';
   const newSelect = newRow.querySelector('select');
   newSelect.selectedIndex = 0;
   // cloneNode copies data-* attributes too — a stale search/no-match state
@@ -195,18 +198,23 @@ function maybeAutoAddRow(row) {
   }
 }
 
-// Discount % is derived from MRP vs Purchase Price (read-only, same formula
-// as Product.update_cost_from_purchase) rather than entered directly — the
-// two prices are what's actually written on the distributor's invoice.
+// Actual Price (each) = Price before GST × (1 + GST% / 100) — the real
+// per-unit cost of this batch, what actually gets stored/compared. Discount
+// % is derived from MRP vs that actual (GST-inclusive) price, same formula
+// as Product.update_cost_from_purchase — not entered directly.
 function recalcLine(row) {
   const qty = parseFloat(row.querySelector('.qty-input').value) || 0;
   const mrp = parseFloat(row.querySelector('.mrp-input').value) || 0;
-  const price = parseFloat(row.querySelector('.price-input').value) || 0;
+  const priceBeforeGst = parseFloat(row.querySelector('.price-input').value) || 0;
+  const gstPct = parseFloat(row.querySelector('.gst-input').value) || 0;
+  const actualPrice = priceBeforeGst * (1 + gstPct / 100);
+  const actualPriceInput = row.querySelector('.actual-price-input');
   const discountInput = row.querySelector('.discount-input');
   const lineTotalInput = row.querySelector('.line-total-input');
 
-  discountInput.value = mrp > 0 ? (100 * (1 - price / mrp)).toFixed(2) : '';
-  lineTotalInput.value = (qty && price) ? '₹' + (qty * price).toFixed(2) : '';
+  actualPriceInput.value = priceBeforeGst ? '₹' + actualPrice.toFixed(2) : '';
+  discountInput.value = mrp > 0 ? (100 * (1 - actualPrice / mrp)).toFixed(2) : '';
+  lineTotalInput.value = (qty && priceBeforeGst) ? '₹' + (qty * actualPrice).toFixed(2) : '';
 
   recalcGrandTotal();
 }
@@ -215,8 +223,9 @@ function recalcGrandTotal() {
   let total = 0;
   document.querySelectorAll('#itemsTable tbody tr').forEach(function (row) {
     const qty = parseFloat(row.querySelector('.qty-input').value) || 0;
-    const price = parseFloat(row.querySelector('.price-input').value) || 0;
-    total += qty * price;
+    const priceBeforeGst = parseFloat(row.querySelector('.price-input').value) || 0;
+    const gstPct = parseFloat(row.querySelector('.gst-input').value) || 0;
+    total += qty * priceBeforeGst * (1 + gstPct / 100);
   });
   document.getElementById('grandTotalDisplay').textContent = '₹' + total.toFixed(2);
 }
@@ -227,10 +236,12 @@ function wireRow(row) {
   const qtyInput = row.querySelector('.qty-input');
   const priceInput = row.querySelector('.price-input');
   const mrpInput = row.querySelector('.mrp-input');
+  const gstInput = row.querySelector('.gst-input');
 
   select.addEventListener('change', function () {
     maybeAutoAddRow(row);
   });
+  gstInput.addEventListener('input', function () { recalcLine(row); });
   qtyInput.addEventListener('input', function () { maybeAutoAddRow(row); recalcLine(row); });
   priceInput.addEventListener('input', function () { maybeAutoAddRow(row); recalcLine(row); });
   mrpInput.addEventListener('input', function () { maybeAutoAddRow(row); recalcLine(row); });

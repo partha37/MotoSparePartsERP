@@ -41,11 +41,11 @@ SHEETS = {
     "Customers": (Customer, ["id", "name", "phone", "address", "vehicle_model"]),
     "Mechanics": (Mechanic, ["id", "name", "phone", "garage_name"]),
     "Purchases": (Purchase, [
-        "id", "date", "invoice_no", "supplier_id", "supplier_name", "total",
+        "id", "date", "invoice_no", "supplier_id", "supplier_name", "pre_gst_total", "gst_total", "total",
     ]),
     "PurchaseItems": (PurchaseItem, [
-        "id", "purchase_id", "product_id", "product_name", "qty", "purchase_price",
-        "mrp_at_purchase", "remaining_qty", "stock_number", "total",
+        "id", "purchase_id", "product_id", "product_name", "qty", "price_before_gst", "gst_rate",
+        "gst_amount", "purchase_price", "mrp_at_purchase", "remaining_qty", "stock_number", "total",
     ]),
     "Sales": (Sale, [
         "id", "date", "invoice_no", "customer_id", "customer_name", "mechanic_id",

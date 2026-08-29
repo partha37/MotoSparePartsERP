@@ -13,7 +13,7 @@
   <thead>
     <tr>
       <th>Part No</th><th>Product</th><th>Brand</th><th>Vehicle</th><th>MRP</th>
-      <th>Cost Price</th><th>Max Margin</th><th>Stock</th><th></th>
+      <th>Cost Price</th><th>GST %</th><th>Max Margin</th><th>Stock</th><th></th>
     </tr>
   </thead>
   <tbody>
@@ -25,6 +25,7 @@
       <td>{{ p.vehicle_name or '-' }}</td>
       <td>₹{{ "%.2f"|format(p.mrp) }}</td>
       <td>₹{{ "%.2f"|format(p.actual_discounted_price) }}</td>
+      <td>{{ "%.2f"|format(p.gst_rate) if p.gst_rate is not none else '-' }}</td>
       <td>₹{{ "%.2f"|format(p.margin_per_unit) }}</td>
       <td class="{{ 'text-danger fw-bold' if p.is_low_stock else '' }}">{{ p.current_stock }} {{ p.unit }}</td>
       <td class="text-end text-nowrap">
@@ -36,7 +37,7 @@
       </td>
     </tr>
     {% else %}
-    <tr><td colspan="9" class="text-center text-muted">No products found.</td></tr>
+    <tr><td colspan="10" class="text-center text-muted">No products found.</td></tr>
     {% endfor %}
   </tbody>
 </table>

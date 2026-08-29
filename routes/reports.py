@@ -7,7 +7,7 @@ from flask_login import login_required
 from openpyxl import Workbook
 
 from excel_sync import _autofit
-from models import Sale, SaleItem, SaleReturn, Purchase, Product, Customer, Mechanic, Supplier, Brand
+from models import Sale, SaleItem, SaleReturn, Purchase, PurchaseItem, Product, Customer, Mechanic, Supplier, Brand
 
 reports_bp = Blueprint("reports", __name__, url_prefix="/reports")
 
@@ -442,6 +442,69 @@ def profit_margin():
     return render_template(
         "reports/profit_margin.html", rows=rows, total_profit=round(total_profit, 2),
         date_from=date_from, date_to=date_to
+    )
+
+
+@reports_bp.route("/gst")
+@login_required
+def gst_report():
+    """How much GST was actually paid on stock purchases — a per-product
+    breakdown plus the raw purchase-line history, both scoped to the
+    Purchase's business date (backdatable, same as every other report here).
+    PurchaseItem.gst_amount is 0 for rows recorded before GST tracking
+    existed (price_before_gst is null), so old purchases just don't
+    contribute rather than skewing the totals."""
+    date_from, date_to = _date_range_args()
+    items = (
+        PurchaseItem.query.join(Purchase)
+        .filter(Purchase.date >= date_from, Purchase.date <= date_to)
+        .order_by(Purchase.date.desc(), PurchaseItem.id.desc())
+        .all()
+    )
+
+    by_product = defaultdict(lambda: {"qty": 0, "pre_gst": 0.0, "gst": 0.0, "total": 0.0})
+    item_rows = []
+    total_pre_gst = 0.0
+    total_gst = 0.0
+    total_spend = 0.0
+
+    for item in items:
+        key = f"{item.product.part_no} - {item.product.product_name}" if item.product else "Unknown product"
+        pre_gst_line = (item.price_before_gst or 0) * item.qty
+        by_product[key]["qty"] += item.qty
+        by_product[key]["pre_gst"] += pre_gst_line
+        by_product[key]["gst"] += item.gst_amount
+        by_product[key]["total"] += item.total
+        total_pre_gst += pre_gst_line
+        total_gst += item.gst_amount
+        total_spend += item.total
+
+        item_rows.append({
+            "date": item.purchase.date.isoformat(),
+            "purchase_id": item.purchase_id,
+            "product_name": key,
+            "qty": item.qty,
+            "price_before_gst": item.price_before_gst,
+            "gst_rate": item.gst_rate,
+            "gst_amount": item.gst_amount,
+            "purchase_price": item.purchase_price,
+            "total": item.total,
+        })
+
+    product_rows = sorted(
+        (
+            {"name": name, "qty": v["qty"], "pre_gst": round(v["pre_gst"], 2),
+             "gst": round(v["gst"], 2), "total": round(v["total"], 2)}
+            for name, v in by_product.items()
+        ),
+        key=lambda r: r["gst"], reverse=True,
+    )
+
+    return render_template(
+        "reports/gst_report.html",
+        product_rows=product_rows, item_rows=item_rows,
+        total_pre_gst=round(total_pre_gst, 2), total_gst=round(total_gst, 2),
+        total_spend=round(total_spend, 2), date_from=date_from, date_to=date_to,
     )
 
 

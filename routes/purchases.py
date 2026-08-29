@@ -85,12 +85,17 @@ def new_purchase():
 
         product_ids = request.form.getlist("product_id[]")
         qtys = request.form.getlist("qty[]")
-        prices = request.form.getlist("purchase_price[]")
+        prices = request.form.getlist("price_before_gst[]")
         mrps = request.form.getlist("mrp[]")
+        gst_rates = request.form.getlist("gst_rate[]")
+        # GST% isn't part of "is this row filled in" — it always has a usable
+        # default (18%), so a blank/missing value there shouldn't block or
+        # flag a row the way a missing qty/price/mrp does.
+        gst_rates += [""] * (len(product_ids) - len(gst_rates))
 
-        raw_rows = list(zip(product_ids, qtys, prices, mrps))
-        rows = [(pid, qty, price, mrp) for pid, qty, price, mrp in raw_rows if pid and qty and price]
-        partial_rows = [pid for pid, qty, price, mrp in raw_rows if pid and not (qty and price)]
+        raw_rows = list(zip(product_ids, qtys, prices, mrps, gst_rates))
+        rows = [(pid, qty, price, mrp, gst) for pid, qty, price, mrp, gst in raw_rows if pid and qty and price]
+        partial_rows = [pid for pid, qty, price, mrp, gst in raw_rows if pid and not (qty and price)]
 
         if not supplier_id or not rows:
             flash("Select a supplier and add at least one product line.", "danger")
@@ -105,7 +110,7 @@ def new_purchase():
             )
 
         missing_mrp = []
-        for pid, qty, price, mrp in rows:
+        for pid, qty, price, mrp, gst in rows:
             if not mrp or float(mrp) <= 0:
                 product = Product.query.get(int(pid))
                 missing_mrp.append(product.product_name if product else f"product #{pid}")
@@ -123,10 +128,12 @@ def new_purchase():
 
         cost_changes = []
 
-        for pid, qty, price, mrp in rows:
+        for pid, qty, price, mrp, gst in rows:
             qty = int(qty)
-            price = float(price)
+            price_before_gst = float(price)
             mrp = float(mrp)
+            gst_rate = float(gst) if gst else 18.0
+            purchase_price = round(price_before_gst * (1 + gst_rate / 100), 2)
             product = Product.query.get(int(pid))
             if not product:
                 continue
@@ -135,7 +142,9 @@ def new_purchase():
                 purchase_id=purchase.id,
                 product_id=product.id,
                 qty=qty,
-                purchase_price=price,
+                purchase_price=purchase_price,
+                price_before_gst=price_before_gst,
+                gst_rate=gst_rate,
                 remaining_qty=qty,
                 mrp_at_purchase=mrp,
             )
@@ -157,7 +166,7 @@ def new_purchase():
 
             old_cost = product.actual_discounted_price
             old_mrp = product.mrp
-            product.update_cost_from_purchase(price, new_mrp=mrp)
+            product.update_cost_from_purchase(purchase_price, new_mrp=mrp, gst_rate=gst_rate)
             if round(old_cost or 0, 2) != product.actual_discounted_price:
                 change = f"{product.part_no}: cost ₹{old_cost:.2f} → ₹{product.actual_discounted_price:.2f}"
                 if round(old_mrp or 0, 2) != product.mrp:

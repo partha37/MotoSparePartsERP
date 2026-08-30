@@ -1,7 +1,7 @@
 {% extends "base.html" %}
-{% block title %}New Sale - Lokey Auto Spare Parts{% endblock %}
+{% block title %}{{ 'Edit' if sale else 'New' }} Sale - Lokey Auto Spare Parts{% endblock %}
 {% block content %}
-<h2 class="mb-4 d-flex align-items-center">{{ icon('receipt', 'me-2') }}New Sale (Billing)</h2>
+<h2 class="mb-4 d-flex align-items-center">{{ icon('receipt', 'me-2') }}{{ 'Edit' if sale else 'New' }} Sale (Billing)</h2>
 
 <form method="post" class="card p-4">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -15,27 +15,27 @@
       <select id="f-mechanic" name="mechanic_id" class="form-select">
         <option value="" data-brand-discounts="{}">-- None --</option>
         {% for m in mechanics %}
-        <option value="{{ m.id }}" data-brand-discounts='{{ m.brand_discount_map|tojson }}'>{{ m.name }}{% if m.brand_discount_map %} (brand rates set){% endif %}</option>
+        <option value="{{ m.id }}" data-brand-discounts='{{ m.brand_discount_map|tojson }}' {{ 'selected' if sale and sale.mechanic_id == m.id else '' }}>{{ m.name }}{% if m.brand_discount_map %} (brand rates set){% endif %}</option>
         {% endfor %}
       </select>
     </div>
     <div class="col-md-3">
       <label class="form-label" for="customerSelect">Customer <span class="text-muted small">(choose this or Mechanic)</span></label>
       <select name="customer_id" id="customerSelect" class="form-select">
-        <option value="" data-brand-discounts="{}">-- None --</option>
-        <option value="walkin" data-brand-discounts="{}">Walk-in</option>
+        <option value="" data-brand-discounts="{}" {{ 'selected' if sale and not sale.customer_id and not sale.is_walkin else '' }}>-- None --</option>
+        <option value="walkin" data-brand-discounts="{}" {{ 'selected' if sale and not sale.customer_id and sale.is_walkin else '' }}>Walk-in</option>
         {% for c in customers %}
-        <option value="{{ c.id }}" data-brand-discounts='{{ c.brand_discount_map|tojson }}'>{{ c.name }}{% if c.brand_discount_map %} (brand rates set){% endif %}</option>
+        <option value="{{ c.id }}" data-brand-discounts='{{ c.brand_discount_map|tojson }}' {{ 'selected' if sale and sale.customer_id == c.id else '' }}>{{ c.name }}{% if c.brand_discount_map %} (brand rates set){% endif %}</option>
         {% endfor %}
       </select>
     </div>
     <div class="col-md-3">
       <label class="form-label" for="f-payment">Payment Mode</label>
       <select id="f-payment" name="payment_mode" class="form-select">
-        <option value="cash">Cash</option>
-        <option value="upi">UPI</option>
-        <option value="card">Card</option>
-        <option value="credit">Credit / Due</option>
+        <option value="cash" {{ 'selected' if sale and sale.payment_mode == 'cash' else '' }}>Cash</option>
+        <option value="upi" {{ 'selected' if sale and sale.payment_mode == 'upi' else '' }}>UPI</option>
+        <option value="card" {{ 'selected' if sale and sale.payment_mode == 'card' else '' }}>Card</option>
+        <option value="credit" {{ 'selected' if sale and sale.payment_mode == 'credit' else '' }}>Credit / Due</option>
       </select>
     </div>
   </div>
@@ -43,31 +43,44 @@
   <h5 class="d-flex align-items-center">{{ icon('box-seam', 'me-1') }}Items</h5>
   <p class="text-muted small">Pick which stock batch to sell from — price defaults to that batch's MRP minus the selected customer's/mechanic's discount rate for that product's brand (if any), oldest stock listed first. GST is already included in MRP, so it isn't added separately.</p>
   <p class="text-muted small">Fill in a line completely and a new blank line appears below it automatically. The first line is required; a line you've started filling in must be completed before saving; empty untouched lines are ignored.</p>
+  {% macro item_row(item=none) %}
+  <tr>
+    <td>
+      <select name="product_filter[]" class="form-select product-select" aria-label="Product">
+        <option value="">-- Select Product --</option>
+        {% for p in products %}
+        <option value="{{ p.id }}" data-batches='{{ p.available_batches|tojson }}' data-brand-id="{{ p.brand_id or '' }}" {{ 'selected' if item and item.product_id == p.id else '' }}>
+          {{ p.part_no }} - {{ p.product_name }}
+        </option>
+        {% endfor %}
+      </select>
+    </td>
+    <td>
+      <select name="purchase_item_id[]" class="form-select batch-select" aria-label="Stock batch">
+        <option value="">-- Select Batch --</option>
+        {% if item and item.purchase_item %}
+        <option value="{{ item.purchase_item_id }}" selected data-price="{{ item.selling_price }}" data-stock="{{ (item.purchase_item.remaining_qty or 0) + item.qty }}">{{ item.purchase_item.stock_number }} — {{ (item.purchase_item.remaining_qty or 0) + item.qty }} left — MRP ₹{{ '%.2f'|format(item.purchase_item.effective_mrp) }}</option>
+        {% endif %}
+      </select>
+    </td>
+    <td><input type="number" name="qty[]" class="form-control qty-input" min="1" value="{{ item.qty if item else 1 }}" {% if item and item.purchase_item %}max="{{ (item.purchase_item.remaining_qty or 0) + item.qty }}"{% endif %} aria-label="Quantity"></td>
+    <td><input type="number" step="0.01" class="form-control discount-input" aria-label="Discount %" value="{{ item.discount_pct if item else 0 }}"></td>
+    <td><input type="number" step="0.01" name="selling_price[]" class="form-control price-input" aria-label="Price each" value="{{ item.selling_price if item else '' }}"></td>
+    <td><input type="text" name="line_total_display[]" class="form-control line-total" disabled aria-label="Line total" value="{{ '₹%.2f'|format(item.line_total) if item else '' }}"></td>
+    <td><button type="button" class="btn btn-outline-danger btn-sm remove-row" aria-label="Remove this line">{{ icon('trash') }}</button></td>
+  </tr>
+  {% endmacro %}
   <table class="table" id="itemsTable">
     <thead><tr><th>Product</th><th style="width:260px">Batch (stock)</th><th style="width:90px">Qty</th><th style="width:110px">Discount %</th><th style="width:130px">Price (each)</th><th style="width:110px">Line Total</th><th></th></tr></thead>
     <tbody>
-      <tr>
-        <td>
-          <select name="product_filter[]" class="form-select product-select" aria-label="Product">
-            <option value="">-- Select Product --</option>
-            {% for p in products %}
-            <option value="{{ p.id }}" data-batches='{{ p.available_batches|tojson }}' data-brand-id="{{ p.brand_id or '' }}">
-              {{ p.part_no }} - {{ p.product_name }}
-            </option>
-            {% endfor %}
-          </select>
-        </td>
-        <td>
-          <select name="purchase_item_id[]" class="form-select batch-select" aria-label="Stock batch">
-            <option value="">-- Select Batch --</option>
-          </select>
-        </td>
-        <td><input type="number" name="qty[]" class="form-control qty-input" min="1" value="1" aria-label="Quantity"></td>
-        <td><input type="number" step="0.01" class="form-control discount-input" aria-label="Discount %" value="0"></td>
-        <td><input type="number" step="0.01" name="selling_price[]" class="form-control price-input" aria-label="Price each"></td>
-        <td><input type="text" name="line_total_display[]" class="form-control line-total" disabled aria-label="Line total"></td>
-        <td><button type="button" class="btn btn-outline-danger btn-sm remove-row" aria-label="Remove this line">{{ icon('trash') }}</button></td>
-      </tr>
+      {% if sale %}
+        {% for item in sale.items %}
+        {{ item_row(item=item) }}
+        {% endfor %}
+        {{ item_row() }}
+      {% else %}
+        {{ item_row() }}
+      {% endif %}
     </tbody>
   </table>
   <button type="button" id="addRow" class="btn btn-sm btn-outline-primary mb-3">{{ icon('plus-lg') }}Add Line</button>
@@ -80,12 +93,12 @@
   <div class="row g-3 mt-2">
     <div class="col-md-3">
       <label class="form-label" for="f-amount-paid">Amount Paid Now (₹)</label>
-      <input type="number" step="0.01" id="f-amount-paid" name="amount_paid" class="form-control" value="0">
+      <input type="number" step="0.01" id="f-amount-paid" name="amount_paid" class="form-control" value="{{ sale.payments[0].amount if sale and sale.payments else 0 }}">
     </div>
   </div>
 
   <div class="mt-3 d-flex gap-2">
-    <button type="submit" class="btn btn-primary">{{ icon('save') }}Save Sale</button>
+    <button type="submit" class="btn btn-primary">{{ icon('save') }}{{ 'Update' if sale else 'Save' }} Sale</button>
     <a href="{{ url_for('sales.list_sales') }}" class="btn btn-outline-secondary">{{ icon('x-lg') }}Cancel</a>
   </div>
 </form>
@@ -301,6 +314,10 @@ function wireRow(row) {
 
 document.querySelectorAll('#itemsTable tbody tr').forEach(wireRow);
 updateRequiredFlags();
+// Nothing above triggers an initial total calc — harmless for a blank New
+// Sale form (all zeros), but Edit Sale's server-prefilled rows need this so
+// Grand Total isn't stuck at ₹0.00 until the owner touches a field.
+recalcGrandTotal();
 
 // Customer and Mechanic are mutually exclusive — a sale is billed to
 // exactly one of them, not both and not neither. Picking one locks (and
@@ -347,6 +364,23 @@ mechanicSelect.addEventListener('change', function () {
     SearchableSelect.setDisabled(customerSelect, false);
   }
 });
+
+// Edit Sale loads with Customer/Mechanic already server-rendered as
+// `selected` from the existing sale — but the lock logic above only reacts
+// to a live 'change' event, so without this the *other* field would sit
+// visibly enabled despite one already being chosen, until the user touches
+// either select. Priming activeDiscountSelect too, so a qty/price edit on
+// an existing line recalculates against the right brand-discount map
+// instead of none.
+{% if sale %}
+if (customerHasChoice()) {
+  activeDiscountSelect = customerSelect;
+  SearchableSelect.setDisabled(mechanicSelect, true);
+} else if (mechanicSelect.value) {
+  activeDiscountSelect = mechanicSelect;
+  SearchableSelect.setDisabled(customerSelect, true);
+}
+{% endif %}
 
 document.getElementById('addRow').addEventListener('click', addBlankRow);
 

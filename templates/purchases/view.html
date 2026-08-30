@@ -1,7 +1,15 @@
 {% extends "base.html" %}
 {% block title %}Purchase #{{ purchase.id }} - Lokey Auto Spare Parts{% endblock %}
 {% block content %}
-<h2 class="mb-4">Purchase #{{ purchase.id }}</h2>
+<div class="d-flex justify-content-between align-items-center mb-4 no-print">
+  <h2 class="mb-0">Purchase #{{ purchase.id }}</h2>
+  <div>
+    {% if purchase.is_editable %}
+    <a href="{{ url_for('purchases.edit_purchase', purchase_id=purchase.id) }}" class="btn btn-outline-primary">{{ icon('pencil') }}Edit</a>
+    {% endif %}
+    <a href="{{ url_for('purchases.list_purchases') }}" class="btn btn-outline-secondary">{{ icon('arrow-left') }}Back to Purchases</a>
+  </div>
+</div>
 <div class="card p-4 mb-3">
   <div class="row">
     <div class="col-md-3"><strong>Supplier:</strong> {{ purchase.supplier.name if purchase.supplier else '-' }}</div>
@@ -41,5 +49,4 @@
     </tfoot>
   </table>
 </div>
-<a href="{{ url_for('purchases.list_purchases') }}" class="btn btn-outline-secondary mt-3">{{ icon('arrow-left') }}Back to Purchases</a>
 {% endblock %}

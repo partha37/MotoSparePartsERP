@@ -47,6 +47,128 @@ def _attach_brand_discount_maps(owners):
     return owners
 
 
+def _validate_sale_form(form, editing_sale=None):
+    """Parses+validates the New/Edit Sale form. Returns (errors, parsed) —
+    on any error, `parsed` is None and the caller should flash each error and
+    re-render the form; on success, `errors` is empty and `parsed` holds
+    everything needed to build/update a Sale (batches already resolved to
+    PurchaseItem rows, so the caller never re-queries them).
+
+    `editing_sale`, when given, is the Sale being edited — its own line
+    items haven't been reversed yet at validation time (that only happens
+    after validation succeeds, see edit_sale), so a batch this sale already
+    drew from would otherwise look short on stock even when the edited
+    qty is unchanged or lower. Availability is checked against
+    remaining_qty *plus* whatever this same sale currently holds from that
+    batch, so re-submitting the same (or a smaller) qty against an
+    already-fully-drawn batch validates correctly."""
+    already_held = {}
+    if editing_sale:
+        for item in editing_sale.items:
+            if item.purchase_item_id:
+                already_held[item.purchase_item_id] = already_held.get(item.purchase_item_id, 0) + item.qty
+
+    sale_date = date.fromisoformat(form.get("date") or date.today().isoformat())
+    customer_raw = form.get("customer_id", "")
+    is_walkin = customer_raw == "walkin"
+    customer_id = None if is_walkin else (customer_raw or None)
+    mechanic_id = form.get("mechanic_id") or None
+    payment_mode = form.get("payment_mode", "cash")
+    amount_paid = float(form.get("amount_paid") or 0)
+
+    product_ids = form.getlist("product_filter[]")
+    batch_ids = form.getlist("purchase_item_id[]")
+    qtys = form.getlist("qty[]")
+    prices = form.getlist("selling_price[]")
+
+    raw_rows = list(zip(product_ids, batch_ids, qtys, prices))
+    raw_valid_rows = [(bid, qty, price) for pid, bid, qty, price in raw_rows if bid and qty and price]
+    # Qty is excluded from the "did the user touch this row" check: a fresh
+    # blank row's qty always defaults to 1 client-side (see addBlankRow in
+    # sales/form.html), so its presence alone doesn't indicate real intent —
+    # only a picked product/batch or a typed price does.
+    partial_rows = [
+        pid for pid, bid, qty, price in raw_rows
+        if (pid or bid or price) and not (bid and qty and price)
+    ]
+
+    errors = []
+
+    # A sale is billed to exactly one of Mechanic or Customer — "Walk-in"
+    # counts as a customer choice here (it's a real, deliberate answer to
+    # "who's this for"), but the "-- None --" placeholder does not. The
+    # form's own JS already locks each field once the other has a value,
+    # but that's client-side only, so it's re-checked here too.
+    mechanic_chosen = bool(mechanic_id)
+    customer_chosen = is_walkin or bool(customer_id)
+    if mechanic_chosen and customer_chosen:
+        errors.append("Choose either a Mechanic or a Customer, not both.")
+    elif not mechanic_chosen and not customer_chosen:
+        errors.append("Choose a Mechanic or a Customer before saving the sale.")
+
+    if not raw_valid_rows:
+        errors.append("Add at least one product to the sale.")
+
+    if partial_rows:
+        errors.append("Some lines have a product/batch selected but are missing Qty or Price — fill them in or remove the line.")
+
+    rows = []
+    if not errors:
+        # Validate batch availability before committing anything.
+        shortages = []
+        for bid, qty, price in raw_valid_rows:
+            batch = PurchaseItem.query.get(int(bid))
+            qty = int(qty)
+            if not batch:
+                shortages.append("Selected stock batch no longer exists — please re-pick it.")
+                continue
+            effective_remaining = (batch.remaining_qty or 0) + already_held.get(batch.id, 0)
+            if qty > effective_remaining:
+                shortages.append(
+                    f"{batch.product.product_name} ({batch.stock_number}): "
+                    f"have {effective_remaining}, need {qty}"
+                )
+                continue
+            rows.append((batch, qty, float(price)))
+
+        if shortages:
+            errors.append("Not enough stock for: " + ", ".join(shortages))
+
+    if errors:
+        return errors, None
+
+    return [], {
+        "sale_date": sale_date,
+        "customer_id": customer_id,
+        "mechanic_id": mechanic_id,
+        "payment_mode": payment_mode,
+        "is_walkin": is_walkin,
+        "amount_paid": amount_paid,
+        "rows": rows,
+    }
+
+
+def _reverse_sale_side_effects(sale):
+    """Undoes this sale's stock/StockMovement/Payment footprint before
+    re-applying edited data — restores each batch's remaining_qty and the
+    product's current_stock, deletes the old StockMovement rows (found by
+    reference, since StockMovement has no FK/relationship), then deletes the
+    old SaleItem rows and the single checkout-time Payment (if any). Does not
+    commit — the caller commits once, after re-applying the new data, so the
+    whole edit is one transaction. Only ever called from edit_sale, which has
+    already confirmed via Sale.is_editable that there's at most one Payment
+    and no return referencing this sale."""
+    for item in list(sale.items):
+        if item.purchase_item:
+            item.purchase_item.remaining_qty = (item.purchase_item.remaining_qty or 0) + item.qty
+        if item.product:
+            item.product.current_stock = (item.product.current_stock or 0) + item.qty
+        db.session.delete(item)
+    StockMovement.query.filter_by(reference_type="sale", reference_id=sale.id).delete()
+    for payment in list(sale.payments):
+        db.session.delete(payment)
+
+
 @sales_bp.route("/")
 @login_required
 def list_sales():
@@ -127,79 +249,10 @@ def new_sale():
     mechanics = _attach_brand_discount_maps(Mechanic.query.order_by(Mechanic.name.asc()).all())
 
     if request.method == "POST":
-        sale_date = date.fromisoformat(request.form.get("date") or date.today().isoformat())
-        customer_raw = request.form.get("customer_id", "")
-        is_walkin = customer_raw == "walkin"
-        customer_id = None if is_walkin else (customer_raw or None)
-        mechanic_id = request.form.get("mechanic_id") or None
-        payment_mode = request.form.get("payment_mode", "cash")
-        amount_paid = float(request.form.get("amount_paid") or 0)
-
-        product_ids = request.form.getlist("product_filter[]")
-        batch_ids = request.form.getlist("purchase_item_id[]")
-        qtys = request.form.getlist("qty[]")
-        prices = request.form.getlist("selling_price[]")
-
-        raw_rows = list(zip(product_ids, batch_ids, qtys, prices))
-        rows = [(bid, qty, price) for pid, bid, qty, price in raw_rows if bid and qty and price]
-        # Qty is excluded from the "did the user touch this row" check: a fresh
-        # blank row's qty always defaults to 1 client-side (see addBlankRow in
-        # sales/form.html), so its presence alone doesn't indicate real intent —
-        # only a picked product/batch or a typed price does.
-        partial_rows = [
-            pid for pid, bid, qty, price in raw_rows
-            if (pid or bid or price) and not (bid and qty and price)
-        ]
-
-        # A sale is billed to exactly one of Mechanic or Customer — "Walk-in"
-        # counts as a customer choice here (it's a real, deliberate answer to
-        # "who's this for"), but the "-- None --" placeholder does not. The
-        # form's own JS already locks each field once the other has a value,
-        # but that's client-side only, so it's re-checked here too.
-        mechanic_chosen = bool(mechanic_id)
-        customer_chosen = is_walkin or bool(customer_id)
-        if mechanic_chosen and customer_chosen:
-            flash("Choose either a Mechanic or a Customer, not both.", "danger")
-            return render_template(
-                "sales/form.html", products=products, customers=customers,
-                mechanics=mechanics, today=date.today().isoformat()
-            )
-        if not mechanic_chosen and not customer_chosen:
-            flash("Choose a Mechanic or a Customer before saving the sale.", "danger")
-            return render_template(
-                "sales/form.html", products=products, customers=customers,
-                mechanics=mechanics, today=date.today().isoformat()
-            )
-
-        if not rows:
-            flash("Add at least one product to the sale.", "danger")
-            return render_template(
-                "sales/form.html", products=products, customers=customers,
-                mechanics=mechanics, today=date.today().isoformat()
-            )
-
-        if partial_rows:
-            flash("Some lines have a product/batch selected but are missing Qty or Price — fill them in or remove the line.", "danger")
-            return render_template(
-                "sales/form.html", products=products, customers=customers,
-                mechanics=mechanics, today=date.today().isoformat()
-            )
-
-        # Validate batch availability before committing anything.
-        shortages = []
-        for bid, qty, _price in rows:
-            batch = PurchaseItem.query.get(int(bid))
-            qty = int(qty)
-            if not batch:
-                shortages.append("Selected stock batch no longer exists — please re-pick it.")
-            elif qty > (batch.remaining_qty or 0):
-                shortages.append(
-                    f"{batch.product.product_name} ({batch.stock_number}): "
-                    f"have {batch.remaining_qty}, need {qty}"
-                )
-
-        if shortages:
-            flash("Not enough stock for: " + ", ".join(shortages), "danger")
+        errors, parsed = _validate_sale_form(request.form)
+        if errors:
+            for e in errors:
+                flash(e, "danger")
             return render_template(
                 "sales/form.html", products=products, customers=customers,
                 mechanics=mechanics, today=date.today().isoformat()
@@ -207,32 +260,27 @@ def new_sale():
 
         sale = Sale(
             invoice_no=_next_invoice_no(),
-            date=sale_date,
-            customer_id=int(customer_id) if customer_id else None,
-            mechanic_id=int(mechanic_id) if mechanic_id else None,
-            payment_mode=payment_mode,
-            is_walkin=is_walkin,
+            date=parsed["sale_date"],
+            customer_id=int(parsed["customer_id"]) if parsed["customer_id"] else None,
+            mechanic_id=int(parsed["mechanic_id"]) if parsed["mechanic_id"] else None,
+            payment_mode=parsed["payment_mode"],
+            is_walkin=parsed["is_walkin"],
         )
         db.session.add(sale)
         db.session.flush()
 
-        if amount_paid > 0:
+        if parsed["amount_paid"] > 0:
             db.session.add(
                 Payment(
                     sale_id=sale.id,
-                    date=sale_date,
-                    amount=amount_paid,
-                    payment_mode=payment_mode,
+                    date=parsed["sale_date"],
+                    amount=parsed["amount_paid"],
+                    payment_mode=parsed["payment_mode"],
                     note="Payment at sale",
                 )
             )
 
-        for bid, qty, price in rows:
-            qty = int(qty)
-            price = float(price)
-            batch = PurchaseItem.query.get(int(bid))
-            if not batch:
-                continue
+        for batch, qty, price in parsed["rows"]:
             product = batch.product
 
             db.session.add(
@@ -251,7 +299,7 @@ def new_sale():
             db.session.add(
                 StockMovement(
                     product_id=product.id,
-                    date=sale_date,
+                    date=parsed["sale_date"],
                     type="sale_out",
                     qty=-qty,
                     reference_type="sale",
@@ -268,6 +316,91 @@ def new_sale():
     return render_template(
         "sales/form.html", products=products, customers=customers,
         mechanics=mechanics, today=date.today().isoformat()
+    )
+
+
+@sales_bp.route("/<int:sale_id>/edit", methods=["GET", "POST"])
+@login_required
+def edit_sale(sale_id):
+    sale = Sale.query.get_or_404(sale_id)
+    if not sale.is_editable:
+        flash("This sale can no longer be edited.", "danger")
+        return redirect(url_for("sales.view_sale", sale_id=sale.id))
+
+    products = _attach_available_batches(Product.query.order_by(Product.product_name.asc()).all())
+    customers = _attach_brand_discount_maps(Customer.query.order_by(Customer.name.asc()).all())
+    mechanics = _attach_brand_discount_maps(Mechanic.query.order_by(Mechanic.name.asc()).all())
+
+    if request.method == "POST":
+        if not sale.is_editable:  # re-check in case something changed since the GET
+            flash("This sale can no longer be edited.", "danger")
+            return redirect(url_for("sales.view_sale", sale_id=sale.id))
+
+        errors, parsed = _validate_sale_form(request.form, editing_sale=sale)
+        if errors:
+            for e in errors:
+                flash(e, "danger")
+            return render_template(
+                "sales/form.html", sale=sale, products=products, customers=customers,
+                mechanics=mechanics, today=sale.date.isoformat()
+            )
+
+        _reverse_sale_side_effects(sale)
+
+        sale.date = parsed["sale_date"]
+        sale.customer_id = int(parsed["customer_id"]) if parsed["customer_id"] else None
+        sale.mechanic_id = int(parsed["mechanic_id"]) if parsed["mechanic_id"] else None
+        sale.payment_mode = parsed["payment_mode"]
+        sale.is_walkin = parsed["is_walkin"]
+        # invoice_no / id / created_at are never touched by an edit
+
+        if parsed["amount_paid"] > 0:
+            db.session.add(
+                Payment(
+                    sale_id=sale.id,
+                    date=sale.date,
+                    amount=parsed["amount_paid"],
+                    payment_mode=sale.payment_mode,
+                    note="Payment at sale",
+                )
+            )
+
+        for batch, qty, price in parsed["rows"]:
+            product = batch.product
+
+            db.session.add(
+                SaleItem(
+                    sale_id=sale.id,
+                    product_id=product.id,
+                    qty=qty,
+                    selling_price=price,
+                    purchase_item_id=batch.id,
+                )
+            )
+
+            batch.remaining_qty = (batch.remaining_qty or 0) - qty
+            product.current_stock = (product.current_stock or 0) - qty
+
+            db.session.add(
+                StockMovement(
+                    product_id=product.id,
+                    date=sale.date,
+                    type="sale_out",
+                    qty=-qty,
+                    reference_type="sale",
+                    reference_id=sale.id,
+                    note=f"Sale {sale.invoice_no} (batch {batch.stock_number})",
+                )
+            )
+
+        db.session.commit()
+        sync_to_excel()
+        flash("Sale updated.", "success")
+        return redirect(url_for("sales.view_sale", sale_id=sale.id))
+
+    return render_template(
+        "sales/form.html", sale=sale, products=products, customers=customers,
+        mechanics=mechanics, today=sale.date.isoformat()
     )
 
 

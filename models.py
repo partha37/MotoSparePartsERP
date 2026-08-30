@@ -228,6 +228,23 @@ class Purchase(db.Model):
     def pre_gst_total(self):
         return round(sum((item.price_before_gst or 0) * item.qty for item in self.items), 2)
 
+    @property
+    def is_editable(self):
+        """True only for the single most-recently-created Purchase, and only
+        while none of its batches have been drawn from yet — editing needs to
+        reverse this purchase's stock effects (see
+        routes/purchases.py::edit_purchase), but a SaleItem already pointing
+        at one of its PurchaseItem rows means real stock has left on this
+        exact batch, and Product.current_stock can no longer be safely
+        unwound to "as if this purchase never happened"."""
+        last = Purchase.query.order_by(Purchase.id.desc()).first()
+        if not last or last.id != self.id:
+            return False
+        batch_ids = [item.id for item in self.items]
+        if batch_ids and SaleItem.query.filter(SaleItem.purchase_item_id.in_(batch_ids)).first():
+            return False
+        return True
+
 
 class PurchaseCharge(db.Model):
     """A free-form extra line on a purchase invoice that isn't tied to any product —
@@ -356,6 +373,26 @@ class Sale(db.Model):
         """Can go negative — that means a refund is owed back to the customer
         (e.g. they'd already paid in full before returning something)."""
         return round(self.total - self.amount_paid - self.return_credit, 2)
+
+    @property
+    def is_editable(self):
+        """True only for the single most-recently-created Sale, and only
+        while nothing downstream has been recorded against it yet — a
+        return/exchange, or more than the one checkout-time Payment. Editing
+        needs to safely reverse and redo this sale's stock/payment side
+        effects (see routes/sales.py::edit_sale); anything beyond that single
+        initial Payment (a later installment, a refund) would mean real cash
+        history gets silently destroyed by an edit, so it's blocked instead."""
+        last = Sale.query.order_by(Sale.id.desc()).first()
+        if not last or last.id != self.id:
+            return False
+        if SaleReturn.query.filter(
+            (SaleReturn.sale_id == self.id) | (SaleReturn.applied_to_sale_id == self.id)
+        ).first():
+            return False
+        if len(self.payments) > 1 or (self.payments and self.payments[0].amount < 0):
+            return False
+        return True
 
 
 class SaleItem(db.Model):

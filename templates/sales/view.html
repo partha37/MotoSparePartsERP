@@ -5,6 +5,9 @@
   <h2>Invoice {{ sale.invoice_no }}</h2>
   <div>
     <button onclick="window.print()" class="btn btn-primary">{{ icon('printer') }}Print / Save PDF</button>
+    {% if sale.is_editable %}
+    <a href="{{ url_for('sales.edit_sale', sale_id=sale.id) }}" class="btn btn-outline-primary">{{ icon('pencil') }}Edit</a>
+    {% endif %}
     <a href="{{ url_for('sale_returns.new_return', sale_id=sale.id) }}" class="btn btn-outline-secondary">{{ icon('arrow-return-left') }}Process Return</a>
     <a href="{{ url_for('sale_returns.new_exchange', sale_id=sale.id) }}" class="btn btn-outline-secondary">{{ icon('arrow-return-left') }}Process Exchange</a>
     <a href="{{ url_for('sales.list_sales') }}" class="btn btn-outline-secondary">{{ icon('arrow-left') }}Back</a>

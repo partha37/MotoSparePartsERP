@@ -224,9 +224,15 @@
     // wide line-item table's horizontal-scroll wrapper) needs the capture
     // phase to be seen here at all. Closing on scroll/resize is simpler and
     // safer than repositioning the fixed menu, and no worse an experience —
-    // this is what most native comboboxes do too.
-    document.addEventListener("scroll", function () {
-      if (!menu.classList.contains("d-none")) closeMenu();
+    // this is what most native comboboxes do too. Scrolling *within the menu
+    // itself* must be excluded, though — a scroll event's target is the
+    // scrolled element regardless of bubbling, so without this check,
+    // scrolling the option list to reach an item below the fold would
+    // immediately close the menu before a click could ever land.
+    document.addEventListener("scroll", function (e) {
+      if (menu.classList.contains("d-none")) return;
+      if (menu.contains(e.target)) return;
+      closeMenu();
     }, true);
     window.addEventListener("resize", function () {
       if (!menu.classList.contains("d-none")) closeMenu();

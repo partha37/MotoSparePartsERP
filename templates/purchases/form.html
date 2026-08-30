@@ -1,8 +1,8 @@
 {% extends "base.html" %}
-{% block title %}New Purchase - Lokey Auto Spare Parts{% endblock %}
+{% block title %}{{ 'Edit' if purchase else 'New' }} Purchase - Lokey Auto Spare Parts{% endblock %}
 {% block content %}
 <template id="trash-icon-template">{{ icon('trash') }}</template>
-<h2 class="mb-4 d-flex align-items-center">{{ icon('cart-plus', 'me-2') }}New Purchase (Stock In)</h2>
+<h2 class="mb-4 d-flex align-items-center">{{ icon('cart-plus', 'me-2') }}{{ 'Edit' if purchase else 'New' }} Purchase (Stock In)</h2>
 
 <form method="post" class="card p-4">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -12,7 +12,7 @@
       <select id="f-supplier" name="supplier_id" class="form-select" required>
         <option value="">-- Select Supplier --</option>
         {% for s in suppliers %}
-        <option value="{{ s.id }}">{{ s.name }} {{ '(' + s.brand.name + ')' if s.brand else '' }}</option>
+        <option value="{{ s.id }}" {{ 'selected' if purchase and purchase.supplier_id == s.id else '' }}>{{ s.name }} {{ '(' + s.brand.name + ')' if s.brand else '' }}</option>
         {% endfor %}
       </select>
     </div>
@@ -22,7 +22,7 @@
     </div>
     <div class="col-md-5">
       <label class="form-label" for="f-invoice">Supplier Invoice No</label>
-      <input type="text" id="f-invoice" name="invoice_no" class="form-control">
+      <input type="text" id="f-invoice" name="invoice_no" class="form-control" value="{{ purchase.invoice_no or '' if purchase else '' }}">
     </div>
   </div>
 
@@ -32,7 +32,7 @@
   {% if prefill_products %}
   <p class="text-muted small">Pre-filled from the Reorder report — Qty defaults to what's needed to reach reorder level, adjust as needed. Add more lines for anything else you want on this purchase.</p>
   {% endif %}
-  {% macro item_row(product=none, qty=none) %}
+  {% macro item_row(product=none, qty=none, price_before_gst=none, mrp=none, gst_rate=none) %}
   <tr>
     <td>
       <div class="d-flex gap-1">
@@ -46,9 +46,9 @@
       </div>
     </td>
     <td><input type="number" name="qty[]" class="form-control qty-input" min="1" aria-label="Quantity" value="{{ qty if qty else '' }}"></td>
-    <td><input type="number" step="0.01" name="mrp[]" class="form-control mrp-input" aria-label="MRP" min="0.01"></td>
-    <td><input type="number" step="0.01" name="price_before_gst[]" class="form-control price-input" aria-label="Price before GST"></td>
-    <td><input type="number" step="0.01" name="gst_rate[]" class="form-control gst-input" aria-label="GST %" value="18"></td>
+    <td><input type="number" step="0.01" name="mrp[]" class="form-control mrp-input" aria-label="MRP" min="0.01" value="{{ mrp if mrp else '' }}"></td>
+    <td><input type="number" step="0.01" name="price_before_gst[]" class="form-control price-input" aria-label="Price before GST" value="{{ price_before_gst if price_before_gst else '' }}"></td>
+    <td><input type="number" step="0.01" name="gst_rate[]" class="form-control gst-input" aria-label="GST %" value="{{ gst_rate if gst_rate is not none else 18 }}"></td>
     <td><input type="text" class="form-control actual-price-input" aria-label="Actual price each (incl. GST)" disabled></td>
     <td><input type="number" step="0.01" class="form-control discount-input" aria-label="Discount %" readonly tabindex="-1"></td>
     <td><input type="text" class="form-control line-total-input" aria-label="Line total" disabled></td>
@@ -58,7 +58,12 @@
   <table class="table" id="itemsTable">
     <thead><tr><th>Product</th><th style="width:100px">Qty</th><th style="width:140px">MRP</th><th style="width:140px">Price before GST</th><th style="width:90px">GST %</th><th style="width:140px">Actual Price (each)</th><th style="width:110px">Discount %</th><th style="width:120px">Line Total</th><th></th></tr></thead>
     <tbody>
-      {% if prefill_products %}
+      {% if purchase %}
+        {% for item in purchase.items %}
+        {{ item_row(product=item.product, qty=item.qty, price_before_gst=item.price_before_gst, mrp=item.mrp_at_purchase, gst_rate=item.gst_rate) }}
+        {% endfor %}
+        {{ item_row() }}
+      {% elif prefill_products %}
         {% for p in prefill_products %}
         {{ item_row(product=p, qty=p.suggested_qty) }}
         {% endfor %}
@@ -76,7 +81,7 @@
     <tbody>
       <tr>
         <td style="width:260px" class="align-middle">Delivery Charges</td>
-        <td><input type="number" step="0.01" name="delivery_charge" class="form-control charge-amount-input" aria-label="Delivery Charges amount"></td>
+        <td><input type="number" step="0.01" name="delivery_charge" class="form-control charge-amount-input" aria-label="Delivery Charges amount" value="{{ purchase.delivery_charge if purchase and purchase.delivery_charge else '' }}"></td>
         <td style="width:40px"></td>
       </tr>
     </tbody>
@@ -90,10 +95,25 @@
   </div>
 
   <div class="mt-3 d-flex gap-2">
-    <button type="submit" class="btn btn-primary">{{ icon('save') }}Save Purchase</button>
+    <button type="submit" class="btn btn-primary">{{ icon('save') }}{{ 'Update' if purchase else 'Save' }} Purchase</button>
     <a href="{{ url_for('purchases.list_purchases') }}" class="btn btn-outline-secondary">{{ icon('x-lg') }}Cancel</a>
   </div>
 </form>
+{% if purchase and purchase.charges %}
+<script>
+// Pre-existing free-form PurchaseCharge rows (Round Off, handling, etc.) —
+// there's no server-rendered markup for these, only addChargeRow() (below),
+// so edit mode replays it once per existing charge instead of duplicating
+// its DOM/listener wiring in Jinja. Two parallel arrays (not a list of
+// objects) since Jinja2 doesn't support Python-style dict-literal
+// comprehensions — |map(attribute=...) is the supported equivalent.
+var existingChargeLabels = {{ purchase.charges|map(attribute='label')|list|tojson }};
+var existingChargeAmounts = {{ purchase.charges|map(attribute='amount')|list|tojson }};
+var existingCharges = existingChargeLabels.map(function (label, i) {
+  return { label: label, amount: existingChargeAmounts[i] };
+});
+</script>
+{% endif %}
 
 <div class="modal fade" id="quickAddProductModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog">
@@ -319,6 +339,20 @@ function wireRow(row) {
 document.querySelectorAll('#itemsTable tbody tr').forEach(wireRow);
 SearchableSelect.enhance(document.getElementById('f-supplier'));
 updateRequiredFlags();
+// Nothing above computes Actual Price/Discount %/Line Total for a
+// server-prefilled row (wireRow only attaches listeners) — needed for Edit
+// Purchase's pre-filled rows; harmless no-op for New Purchase's blank ones.
+document.querySelectorAll('#itemsTable tbody tr').forEach(recalcLine);
+
+if (typeof existingCharges !== 'undefined') {
+  existingCharges.forEach(function (charge) {
+    addChargeRow();
+    const row = document.getElementById('extraCharges').lastElementChild;
+    row.querySelector('input[name="charge_label[]"]').value = charge.label;
+    row.querySelector('input[name="charge_amount[]"]').value = charge.amount;
+  });
+  recalcGrandTotal();
+}
 
 document.getElementById('addRow').addEventListener('click', addBlankRow);
 

@@ -2,7 +2,10 @@
 {% block title %}{{ brand.name }} - Brand Report - Lokey Auto Spare Parts{% endblock %}
 {% block content %}
 <div class="page-toolbar">
-<h2 class="mb-1 d-flex align-items-center">{{ icon('tags', 'me-2') }}{{ brand.name }}</h2>
+<div class="d-flex justify-content-between align-items-center">
+  <h2 class="mb-1 d-flex align-items-center">{{ icon('tags', 'me-2') }}{{ brand.name }}</h2>
+  <a href="{{ url_for('reports.brand_detail_export', brand_id=brand.id, date_from=date_from, date_to=date_to, group=group_by) }}" class="btn btn-outline-secondary btn-sm">{{ icon('download') }}Export to Excel</a>
+</div>
 <div class="text-muted small mb-3">Brand · {{ summary.product_count }} product(s)</div>
 <form method="get" class="row g-3 mb-3 align-items-end">
   <div class="col-md-3"><label class="form-label" for="f-date-from">From</label><input type="date" id="f-date-from" name="date_from" class="form-control" value="{{ date_from }}"></div>

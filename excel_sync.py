@@ -132,6 +132,63 @@ def _write_workbook(path):
     os.replace(tmp_path, path)
 
 
+def _ranged_filters(date_from, date_to, purchase_ids, sale_ids, return_ids):
+    """Sheet name -> function narrowing a base query to a date range. Only
+    transactional sheets are scoped this way — Products/Suppliers/Brands/
+    Customers/Mechanics/*BrandDiscounts are master data, not tied to a date,
+    so they're left out here and included in full by build_ranged_workbook()
+    regardless of range. Child sheets with no date column of their own
+    (PurchaseItems/PurchaseCharges/SaleItems/SaleReturnItems) are scoped by
+    their parent's id instead."""
+    return {
+        "Purchases": lambda q: q.filter(Purchase.date >= date_from, Purchase.date <= date_to),
+        "PurchaseItems": lambda q: q.filter(PurchaseItem.purchase_id.in_(purchase_ids)),
+        "PurchaseCharges": lambda q: q.filter(PurchaseCharge.purchase_id.in_(purchase_ids)),
+        "Sales": lambda q: q.filter(Sale.date >= date_from, Sale.date <= date_to),
+        "SaleItems": lambda q: q.filter(SaleItem.sale_id.in_(sale_ids)),
+        "StockMovements": lambda q: q.filter(StockMovement.date >= date_from, StockMovement.date <= date_to),
+        "Payments": lambda q: q.filter(Payment.date >= date_from, Payment.date <= date_to),
+        "SaleReturns": lambda q: q.filter(SaleReturn.date >= date_from, SaleReturn.date <= date_to),
+        "SaleReturnItems": lambda q: q.filter(SaleReturnItem.sale_return_id.in_(return_ids)),
+    }
+
+
+def build_ranged_workbook(date_from, date_to):
+    """Same shape as the full erp_data.xlsx mirror (one sheet per SHEETS
+    entry), but transactional sheets are narrowed to [date_from, date_to] —
+    for the shop owner to download just a slice (e.g. one month for an
+    accountant) instead of the entire history every time. This is a
+    standalone in-memory build, never written to instance/erp_data.xlsx and
+    never fed into the cloud backup — the canonical mirror on disk must
+    always reflect full current state, so a partial export has to stay a
+    separate on-demand download, not a variant of sync_to_excel()."""
+    purchase_ids = [p.id for p in Purchase.query.filter(Purchase.date >= date_from, Purchase.date <= date_to).all()]
+    sale_ids = [s.id for s in Sale.query.filter(Sale.date >= date_from, Sale.date <= date_to).all()]
+    return_ids = [r.id for r in SaleReturn.query.filter(SaleReturn.date >= date_from, SaleReturn.date <= date_to).all()]
+    filters = _ranged_filters(date_from, date_to, purchase_ids, sale_ids, return_ids)
+
+    wb = Workbook()
+    wb.remove(wb.active)
+    for sheet_name, (model, columns) in SHEETS.items():
+        ws = wb.create_sheet(title=sheet_name)
+        ws.append(columns)
+        query = model.query
+        if sheet_name in filters:
+            query = filters[sheet_name](query)
+        for row in query.order_by(model.id.asc()).all():
+            ws.append([_cell_value(row, col) for col in columns])
+        _autofit(ws)
+
+    shop = ShopSettings.query.first()
+    ws = wb.create_sheet(title="ShopSettings")
+    ws.append(["shop_name", "address", "phone", "gstin"])
+    if shop:
+        ws.append([shop.shop_name, shop.address, shop.phone, shop.gstin])
+    _autofit(ws)
+
+    return wb
+
+
 def _db_path(app):
     uri = app.config["SQLALCHEMY_DATABASE_URI"]
     prefix = "sqlite:///"

@@ -43,7 +43,23 @@
 <div class="card p-4 mb-4">
   <h5 class="mb-3 d-flex align-items-center">{{ icon('card-text', 'me-2') }}Excel Mirror</h5>
   <p class="text-muted small">Every save also updates <code>instance/erp_data.xlsx</code> automatically, with one sheet per table. Download the latest copy below.</p>
-  <a href="{{ url_for('settings.export_excel') }}" class="btn btn-outline-secondary btn-sm">{{ icon('download') }}Download erp_data.xlsx</a>
+  <a href="{{ url_for('settings.export_excel') }}" class="btn btn-outline-secondary btn-sm">{{ icon('download') }}Download erp_data.xlsx (Full)</a>
+
+  <hr class="my-3">
+  <p class="text-muted small mb-2">Or just a date range — Purchases, Sales, Payments, Stock Movements and Returns are narrowed to the range below; catalog/contact data (Products, Customers, Mechanics, Suppliers, Brands) is always included in full since it isn't tied to a date.</p>
+  <form method="get" action="{{ url_for('settings.export_excel_range') }}" class="row g-2 align-items-end">
+    <div class="col-auto">
+      <label class="form-label small mb-1" for="f-excel-range-from">From</label>
+      <input type="date" id="f-excel-range-from" name="date_from" class="form-control form-control-sm" value="{{ default_from }}">
+    </div>
+    <div class="col-auto">
+      <label class="form-label small mb-1" for="f-excel-range-to">To</label>
+      <input type="date" id="f-excel-range-to" name="date_to" class="form-control form-control-sm" value="{{ default_to }}">
+    </div>
+    <div class="col-auto">
+      <button type="submit" class="btn btn-outline-secondary btn-sm">{{ icon('download') }}Download for Range</button>
+    </div>
+  </form>
 </div>
 
 <div class="card p-4 mb-4">

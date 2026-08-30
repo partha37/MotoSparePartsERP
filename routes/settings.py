@@ -1,7 +1,7 @@
 import csv
 import io
 import os
-from datetime import date
+from datetime import date, timedelta
 
 from flask import (
     Blueprint, render_template, request, redirect, url_for, flash, Response, send_file, current_app
@@ -9,7 +9,7 @@ from flask import (
 from flask_login import login_required
 
 from extensions import db
-from excel_sync import sync_to_excel, excel_path, cloud_backup_status
+from excel_sync import sync_to_excel, excel_path, cloud_backup_status, build_ranged_workbook
 from models import (
     ShopSettings, Product, Customer, CustomerBrandDiscount, Mechanic, MechanicBrandDiscount,
     Supplier, Sale, Purchase, Payment, Brand, SaleReturn,
@@ -54,7 +54,12 @@ def index():
         flash("Shop settings saved.", "success")
         return redirect(url_for("settings.index"))
 
-    return render_template("settings/index.html", shop=shop, exportable=EXPORTABLE.keys())
+    default_from = (date.today() - timedelta(days=30)).isoformat()
+    default_to = date.today().isoformat()
+    return render_template(
+        "settings/index.html", shop=shop, exportable=EXPORTABLE.keys(),
+        default_from=default_from, default_to=default_to,
+    )
 
 
 @settings_bp.route("/export/<table_name>")
@@ -89,6 +94,31 @@ def export_excel():
         flash("Excel mirror hasn't been created yet — make any change first.", "warning")
         return redirect(url_for("settings.index"))
     return send_file(path, as_attachment=True, download_name="erp_data.xlsx")
+
+
+@settings_bp.route("/export/excel-range")
+@login_required
+def export_excel_range():
+    """Same Excel mirror as /export/excel, but Purchases/Sales/StockMovements/
+    Payments/SaleReturns (and their line-item child sheets) are narrowed to
+    a date range instead of full history — master-data sheets (Products,
+    Customers, Mechanics, Suppliers, Brands, discount tables) are always
+    included in full since they aren't scoped to a date. Built on demand in
+    memory, not the same file as the full mirror download."""
+    default_from = (date.today() - timedelta(days=30)).isoformat()
+    default_to = date.today().isoformat()
+    date_from = request.args.get("date_from") or default_from
+    date_to = request.args.get("date_to") or default_to
+
+    wb = build_ranged_workbook(date_from, date_to)
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    return send_file(
+        buf, as_attachment=True,
+        download_name=f"erp_data_{date_from}_to_{date_to}.xlsx",
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
 
 
 @settings_bp.route("/backup")

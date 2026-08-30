@@ -29,6 +29,8 @@ flask db upgrade
 
 There is no test suite, linter, or build step configured.
 
+**Before verifying any change in a real browser, use `qa/qa_server.py` — never click through the live app on real data.** `python qa/qa_server.py` runs the app against a disposable copy of `instance/erp.db` on port 5099 (with the Excel mirror and cloud backup both isolated too), and exposes `/qa-auto-login` to skip the login form. See [qa/README.md](qa/README.md) for usage/flags and exactly what it isolates — don't hand-roll a one-off isolation script, extend this one instead.
+
 **Daily/production use is `serve.py` (waitress), not `python app.py`.** `app.py`'s dev server has `debug=True` (auto-reload, interactive debugger) — fine while developing, wrong to leave running for real billing. `start.bat`/`stop.bat` wrap `serve.py` for the shop owner (double-click to start/stop, console window = the running process). See [DEPLOYMENT.md](DEPLOYMENT.md) for the full setup (including the `.env`-based `SECRET_KEY` `config.py` now loads via `python-dotenv`, silent/hidden startup options, and backup guidance) — don't duplicate that detail here, just be aware `python app.py` is a dev-only path when reasoning about how the app actually runs day to day.
 
 ## Architecture

@@ -303,11 +303,25 @@ class Sale(db.Model):
     customer_id = db.Column(db.Integer, db.ForeignKey("customer.id"), nullable=True)
     mechanic_id = db.Column(db.Integer, db.ForeignKey("mechanic.id"), nullable=True)
     payment_mode = db.Column(db.String(20), default="cash")
+    # True only when the "Walk-in" option was explicitly chosen at checkout;
+    # False + customer_id None means "-- None --" was left/chosen instead —
+    # both display as no linked Customer record, but customer_display below
+    # tells them apart. Existing rows predate this distinction entirely, so
+    # they default to True (Walk-in) via the migration's server_default —
+    # matching how every one of them already displayed before this column
+    # existed, with no separate backfill needed.
+    is_walkin = db.Column(db.Boolean, nullable=False, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     items = db.relationship(
         "SaleItem", backref="sale", lazy=True, cascade="all, delete-orphan"
     )
+
+    @property
+    def customer_display(self):
+        if self.customer:
+            return self.customer.name
+        return "Walk-in" if self.is_walkin else "-"
 
     @property
     def total(self):

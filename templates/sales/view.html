@@ -29,7 +29,7 @@
 
   <div class="row mb-4">
     <div class="col-md-6">
-      <strong>Customer:</strong> {{ sale.customer.name if sale.customer else 'Walk-in' }}<br>
+      <strong>Customer:</strong> {{ sale.customer_display }}<br>
       {% if sale.customer %}{{ sale.customer.phone or '' }}{% endif %}
     </div>
     <div class="col-md-6">

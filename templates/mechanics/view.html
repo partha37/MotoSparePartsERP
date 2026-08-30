@@ -23,7 +23,7 @@
     <tr data-href="{{ url_for('sales.view_sale', sale_id=s.id) }}">
       <td>{{ s.date.strftime('%d-%m-%Y') }}</td>
       <td>{{ s.invoice_no }}</td>
-      <td>{{ s.customer.name if s.customer else 'Walk-in' }}</td>
+      <td>{{ s.customer_display }}</td>
       <td>₹{{ "%.2f"|format(s.total) }}</td>
       <td class="text-muted small">{{ ist(s.created_at) }}</td>
       <td><a href="{{ url_for('sales.view_sale', sale_id=s.id) }}" class="btn btn-sm btn-outline-secondary" title="View" aria-label="View">{{ icon('eye') }}</a></td>

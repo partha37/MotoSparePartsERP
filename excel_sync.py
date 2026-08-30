@@ -50,7 +50,7 @@ SHEETS = {
     ]),
     "PurchaseCharges": (PurchaseCharge, ["id", "purchase_id", "label", "amount"]),
     "Sales": (Sale, [
-        "id", "date", "invoice_no", "customer_id", "customer_name", "mechanic_id",
+        "id", "date", "invoice_no", "customer_id", "is_walkin", "customer_name", "mechanic_id",
         "mechanic_name", "payment_mode", "amount_paid", "total", "balance_due",
     ]),
     "SaleItems": (SaleItem, [
@@ -80,7 +80,7 @@ SHEETS = {
 
 _DERIVED = {
     "supplier_name": lambda row: row.supplier.name if row.supplier else "",
-    "customer_name": lambda row: row.customer.name if row.customer else "Walk-in",
+    "customer_name": lambda row: row.customer.name if row.customer else ("Walk-in" if getattr(row, "is_walkin", True) else "-"),
     "mechanic_name": lambda row: row.mechanic.name if row.mechanic else "",
     "product_name": lambda row: row.product.product_name if row.product else "",
 }

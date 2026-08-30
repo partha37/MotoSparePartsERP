@@ -40,7 +40,7 @@
       <tr data-href="{{ url_for('sales.view_sale', sale_id=s.id) }}">
         <td>{{ s.date.strftime('%d-%m-%Y') }}</td>
         <td>{{ s.invoice_no }}{% if s.returns or s.applied_returns %} <span class="badge bg-info text-dark" title="Has returns">{{ icon('arrow-return-left') }}</span>{% endif %}</td>
-        <td>{{ s.customer.name if s.customer else 'Walk-in' }}</td>
+        <td>{{ s.customer_display }}</td>
         <td>{{ s.mechanic.name if s.mechanic else '-' }}</td>
         <td>₹{{ "%.2f"|format(s.total) }}</td>
         <td class="{{ 'text-danger fw-bold' if s.balance_due > 0 else '' }}">₹{{ "%.2f"|format(s.balance_due) }}</td>

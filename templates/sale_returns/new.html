@@ -7,7 +7,7 @@
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <div class="row mb-3">
     <div class="col-md-6">
-      <strong>Customer:</strong> {{ sale.customer.name if sale.customer else 'Walk-in' }}
+      <strong>Customer:</strong> {{ sale.customer_display }}
     </div>
     <div class="col-md-6">
       {% if sale.mechanic %}<strong>Mechanic:</strong> {{ sale.mechanic.name }}{% endif %}

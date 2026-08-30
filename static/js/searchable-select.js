@@ -158,6 +158,21 @@
     }
 
     function reconcile() {
+      // If the user cleared the input entirely (selected-all + delete, or
+      // backspaced it out) without picking a new option, treat that as "I
+      // want no selection" rather than silently snapping back to whatever
+      // was previously committed — sync() alone would just redisplay the
+      // stale value, undoing the user's clear with no visible feedback.
+      if (input.value.trim() === "" && select.selectedIndex !== -1 && !isPlaceholder(select.options[select.selectedIndex])) {
+        const placeholderIdx = Array.prototype.findIndex.call(select.options, isPlaceholder);
+        if (placeholderIdx !== -1) {
+          select.selectedIndex = placeholderIdx;
+          sync();
+          closeMenu();
+          select.dispatchEvent(new Event("change", { bubbles: true }));
+          return;
+        }
+      }
       sync();
       closeMenu();
     }

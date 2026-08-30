@@ -164,6 +164,28 @@ def new_exchange(sale_id):
     if request.method == "POST":
         return_rows, errors = _parse_return_rows(sale, request.form)
 
+        exchange_date = date.fromisoformat(request.form.get("date") or date.today().isoformat())
+        customer_raw = request.form.get("customer_id", "")
+        if customer_raw == "walkin":
+            customer_id, is_walkin = None, True
+        elif customer_raw:
+            customer_id, is_walkin = customer_raw, False
+        else:
+            # No selection submitted — fall back to the original sale's
+            # customer/walk-in state, same as the mechanic_id fallback below.
+            customer_id = sale.customer_id
+            is_walkin = sale.is_walkin if not sale.customer_id else False
+        mechanic_id = request.form.get("mechanic_id") or (sale.mechanic_id or None)
+
+        # A sale is billed to exactly one of Mechanic or Customer — see the
+        # matching check in routes/sales.py::new_sale for the reasoning.
+        mechanic_chosen = bool(mechanic_id)
+        customer_chosen = is_walkin or bool(customer_id)
+        if mechanic_chosen and customer_chosen:
+            errors.append("Choose either a Mechanic or a Customer, not both.")
+        elif not mechanic_chosen and not customer_chosen:
+            errors.append("Choose a Mechanic or a Customer before saving.")
+
         product_ids = request.form.getlist("product_filter[]")
         batch_ids = request.form.getlist("purchase_item_id[]")
         qtys = request.form.getlist("qty_sell[]")
@@ -199,18 +221,16 @@ def new_exchange(sale_id):
                 flash(e, "danger")
             return _rerender()
 
-        exchange_date = date.fromisoformat(request.form.get("date") or date.today().isoformat())
-        customer_id = request.form.get("customer_id") or None
-        mechanic_id = request.form.get("mechanic_id") or None
         payment_mode = request.form.get("payment_mode", "cash")
         note = request.form.get("note", "").strip()
 
         exchange_sale = Sale(
             invoice_no=_next_invoice_no(),
             date=exchange_date,
-            customer_id=int(customer_id) if customer_id else (sale.customer_id or None),
-            mechanic_id=int(mechanic_id) if mechanic_id else (sale.mechanic_id or None),
+            customer_id=int(customer_id) if customer_id else None,
+            mechanic_id=int(mechanic_id) if mechanic_id else None,
             payment_mode=payment_mode,
+            is_walkin=is_walkin,
         )
         db.session.add(exchange_sale)
         db.session.flush()

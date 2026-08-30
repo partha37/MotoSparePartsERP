@@ -128,7 +128,9 @@ def new_sale():
 
     if request.method == "POST":
         sale_date = date.fromisoformat(request.form.get("date") or date.today().isoformat())
-        customer_id = request.form.get("customer_id") or None
+        customer_raw = request.form.get("customer_id", "")
+        is_walkin = customer_raw == "walkin"
+        customer_id = None if is_walkin else (customer_raw or None)
         mechanic_id = request.form.get("mechanic_id") or None
         payment_mode = request.form.get("payment_mode", "cash")
         amount_paid = float(request.form.get("amount_paid") or 0)
@@ -148,6 +150,26 @@ def new_sale():
             pid for pid, bid, qty, price in raw_rows
             if (pid or bid or price) and not (bid and qty and price)
         ]
+
+        # A sale is billed to exactly one of Mechanic or Customer — "Walk-in"
+        # counts as a customer choice here (it's a real, deliberate answer to
+        # "who's this for"), but the "-- None --" placeholder does not. The
+        # form's own JS already locks each field once the other has a value,
+        # but that's client-side only, so it's re-checked here too.
+        mechanic_chosen = bool(mechanic_id)
+        customer_chosen = is_walkin or bool(customer_id)
+        if mechanic_chosen and customer_chosen:
+            flash("Choose either a Mechanic or a Customer, not both.", "danger")
+            return render_template(
+                "sales/form.html", products=products, customers=customers,
+                mechanics=mechanics, today=date.today().isoformat()
+            )
+        if not mechanic_chosen and not customer_chosen:
+            flash("Choose a Mechanic or a Customer before saving the sale.", "danger")
+            return render_template(
+                "sales/form.html", products=products, customers=customers,
+                mechanics=mechanics, today=date.today().isoformat()
+            )
 
         if not rows:
             flash("Add at least one product to the sale.", "danger")
@@ -189,6 +211,7 @@ def new_sale():
             customer_id=int(customer_id) if customer_id else None,
             mechanic_id=int(mechanic_id) if mechanic_id else None,
             payment_mode=payment_mode,
+            is_walkin=is_walkin,
         )
         db.session.add(sale)
         db.session.flush()

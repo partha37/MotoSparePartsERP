@@ -24,7 +24,7 @@ EXPORTABLE = {
     "customers": (Customer, ["id", "name", "phone", "address", "vehicle_model"]),
     "mechanics": (Mechanic, ["id", "name", "phone", "garage_name"]),
     "suppliers": (Supplier, ["id", "name", "brand_name", "phone", "address", "gstin"]),
-    "sales": (Sale, ["id", "invoice_no", "date", "customer_id", "mechanic_id",
+    "sales": (Sale, ["id", "invoice_no", "date", "customer_id", "is_walkin", "mechanic_id",
                       "payment_mode", "amount_paid"]),
     "purchases": (Purchase, ["id", "supplier_id", "date", "invoice_no"]),
     "payments": (Payment, ["id", "sale_id", "invoice_no", "date", "amount", "payment_mode", "note"]),

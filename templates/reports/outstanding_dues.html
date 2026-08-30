@@ -10,7 +10,7 @@
     <tr class="table-danger" data-href="{{ url_for('sales.view_sale', sale_id=s.id) }}">
       <td>{{ s.date.strftime('%d-%m-%Y') }}</td>
       <td>{{ s.invoice_no }}</td>
-      <td>{{ s.customer.name if s.customer else 'Walk-in' }}</td>
+      <td>{{ s.customer_display }}</td>
       <td>{{ s.mechanic.name if s.mechanic else '-' }}</td>
       <td>₹{{ "%.2f"|format(s.total) }}</td>
       <td>₹{{ "%.2f"|format(s.amount_paid) }}</td>

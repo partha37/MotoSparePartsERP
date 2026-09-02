@@ -11,8 +11,67 @@ Just double-click **`start.bat`** in the project folder.
   server, not the dev one), and opens your browser to it automatically.
 - A console window titled "MotoSpareParts ERP Server" opens and stays open
   while the app runs — **closing that window stops the app**.
-- Only reachable from this PC (`http://127.0.0.1:5000`), not from other
-  devices on the shop WiFi.
+- Reachable from this PC at `http://127.0.0.1:5000`, and also from other
+  devices on the same WiFi/hotspot — see below.
+
+## Access from other devices on the network
+
+`serve.py` binds to all network interfaces, not just this PC, so a phone or
+another PC connected to the **same WiFi network or hotspot** can open the app
+too — handy for a second billing point, or checking reports from the counter
+without walking over to the PC.
+
+1. Start the server as usual (`start.bat`, or the silent options below). The
+   console window prints two URLs — use the second one on other devices:
+   ```
+   Server starting:
+     On this PC:        http://127.0.0.1:5000
+     On other devices:  http://192.168.1.23:5000  (same WiFi/hotspot only)
+   ```
+   That IP address is this PC's address on whichever network it's currently
+   connected to — it changes if you switch networks (e.g. a different mobile
+   hotspot), so re-check it each time rather than writing it down once.
+2. On the phone/other PC, connect to the **exact same WiFi network or
+   hotspot** as the shop PC, then open that address in a browser.
+3. **First time only — Windows Firewall**: Windows will likely pop up a
+   "Windows Defender Firewall has blocked some features of this app" prompt
+   the first time `python.exe`/`pythonw.exe` binds to the network. Check
+   **Private networks** (not Public) and click **Allow access**. If you
+   missed the prompt, open **Windows Defender Firewall → Allow an app
+   through firewall** and add it manually — browse to the *real* interpreter
+   path, not `venv\Scripts\python.exe` (that's just a redirect on this
+   machine; Windows Firewall matches on the actual file, which resolves to
+   somewhere like `C:\Users\<you>\AppData\Local\Programs\Python\Python3xx\python.exe` —
+   check Task Manager → Details tab while the server is running, right-click
+   `python.exe` → **Open file location**, to find the exact path). Tick
+   **Private** for it.
+4. **If it still won't connect even with that rule allowed** — check one
+   more Windows Firewall setting that's easy to miss and silently overrides
+   the app-specific allow rule: **Windows Security → Firewall & network
+   protection → Private network → make sure "Block all incoming
+   connections, including those in the list of allowed apps" is OFF.**
+   When this is on, connections *from this PC to itself* (e.g. opening
+   `127.0.0.1:5000`, or even testing the PC's own LAN IP from itself) still
+   work fine, which makes it look like everything's configured correctly —
+   but genuine incoming connections from another device (a phone, another
+   PC) get silently refused. This was the actual cause the one time this was
+   debugged end-to-end, after the firewall app-rule and router settings had
+   already checked out fine.
+5. If it still doesn't connect: confirm both devices show the *same* WiFi
+   network name, and that the network is set to "Private" in Windows (not
+   "Public") — Windows blocks more by default on Public networks, which is
+   the usual reason a phone can't reach it even with the firewall rule
+   allowed. Also check the router isn't isolating WiFi clients from each
+   other ("AP Isolation"/"Client Isolation", sometimes labeled something
+   unexpected like "Block Relay") — usually under the router's WiFi/wireless
+   settings.
+
+**Security note**: this makes the app reachable by anything on that WiFi
+network, not just your own devices — fine for a private shop WiFi or a
+personal mobile hotspot, but don't do this on a shared/public network. There's
+no HTTPS (plain HTTP only), so treat it the same as any other device on your
+own trusted network, not something to expose further (e.g. via router port
+forwarding to the internet) — this app was never built with that in mind.
 
 ## While developing (dev server)
 

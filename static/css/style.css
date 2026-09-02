@@ -43,11 +43,35 @@
 
 body {
   background-color: var(--page-bg);
+  /* Defensive: a single element wider than the viewport (a long unbroken
+     string, a fixed-width table before table-tools.js wraps it, etc.) would
+     otherwise widen the whole page and force a body-level horizontal
+     scrollbar — every other element that would have wrapped/stacked
+     correctly at that viewport width then looks cut off instead, because
+     the *page* is wider than the screen, not just that one element. Only
+     ever hides horizontal overflow at the body level; elements meant to
+     scroll sideways on their own (.tt-wrap) still do, since this doesn't
+     touch their own overflow-x. */
+  overflow-x: hidden;
 }
 
 /* ---- Clickable table rows ---- */
 tr[data-href] {
   cursor: pointer;
+}
+
+/* `.d-flex.justify-content-between` is the standard "title + action
+   button(s)" header bar used across list/view/report pages (26 templates
+   at last count). None of them set flex-wrap, so on a narrow phone — where
+   the heading text plus one or more buttons genuinely don't fit on one
+   line — the buttons get pushed off the right edge and clipped instead of
+   dropping to their own row. Scoped to this specific combination (not all
+   .d-flex) since that pairing is consistently used for this one purpose
+   throughout the app; wrapping only ever kicks in when content doesn't
+   fit, so this has no effect at desktop widths. */
+.d-flex.justify-content-between {
+  flex-wrap: wrap;
+  row-gap: 0.5rem;
 }
 
 /* ---- Sticky page header/toolbar (title + search/filter/Add row) ---- */
@@ -79,6 +103,31 @@ a:hover {
 
 .navbar-dark.bg-dark {
   background-color: #142743 !important;
+}
+
+/* The full shop name next to the wrench icon is fine at desktop widths, but
+   on a narrow phone it doesn't wrap (browsers won't break mid-word by
+   default) and was overflowing past the navbar-toggler — which, combined
+   with .navbar-brand's flex item not being allowed to shrink below its
+   content size, pushed the toggler off-screen entirely and widened the
+   whole page. Drop the text below the point the toggler needs the room,
+   keeping just the icon as a compact brand mark. */
+@media (max-width: 480px) {
+  .navbar-brand-text {
+    display: none;
+  }
+}
+
+/* Below the navbar-expand-lg breakpoint, the collapsed nav links stack
+   vertically below the brand row — which lands them in the same screen
+   region as .side-pane (a `position: fixed` rail running the full height
+   below the navbar, z-index 1030, always present regardless of screen
+   size). Without this, the side-pane paints over the left ~44px of each
+   stacked link, clipping the first few letters of its text. */
+@media (max-width: 991.98px) {
+  #navMain {
+    padding-left: 44px;
+  }
 }
 
 .navbar-dark .navbar-nav .nav-link.active,
@@ -171,6 +220,45 @@ label.required::after {
   flex-direction: row;
   align-items: center;
   gap: 1rem;
+}
+/* The label+value block is a flex item that defaults to min-width: auto,
+   so it refused to shrink below its content's natural width — a wide
+   currency value like "₹13476.95" was overflowing past the card's own
+   right edge and getting invisibly clipped at the viewport boundary rather
+   than wrapping. min-width: 0 lets it shrink to the available flex space
+   at any screen size. Bootstrap's own .card already sets an *inherited*
+   word-wrap: break-word (bootstrap.min.css), which had no visible effect
+   as long as this flex item refused to shrink — once it can, that
+   inherited rule starts wrapping mid-number on a merely-tight col-md-2
+   desktop card too, which looks worse than the pre-existing (if slightly
+   sloppy) edge overflow it used to have. Explicitly cancel it back to
+   normal here so desktop keeps its old look; the phone breakpoint below
+   re-enables break-word deliberately, once it's actually needed there. */
+.stat-card > div:last-child {
+  min-width: 0;
+  overflow-wrap: normal;
+}
+/* Several report pages lay these cards out via `col-md-X col-6` — 2-per-row
+   on anything narrower than "md", with no intermediate step for a phone.
+   At 134px (half a 390px screen minus the side-pane rail), there's only
+   ~38px left for text after the 48px icon, which is too tight for even
+   short labels like "Profit Margin" to wrap cleanly. Below "sm", force
+   these to one per row instead — full card width comfortably fits icon +
+   text without needing to shrink either. col-6 isn't used for anything
+   else in the app, so this is safe to target directly rather than needing
+   a class on every template that uses the pattern. overflow-wrap is a
+   last-resort safety net scoped to this same breakpoint, in case a value
+   still doesn't fit even at full card width — better a rare mid-number
+   wrap on a phone than the old silent clipping, but not worth risking on
+   desktop where the col-md-2 grid is tighter by design. */
+@media (max-width: 575.98px) {
+  .col-6 {
+    flex: 0 0 100%;
+    max-width: 100%;
+  }
+  .stat-card > div:last-child {
+    overflow-wrap: break-word;
+  }
 }
 .stat-card-icon {
   width: 48px;

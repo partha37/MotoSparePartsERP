@@ -1,21 +1,153 @@
 {% extends "base.html" %}
 {% block title %}Login - Lokey Auto Spare Parts{% endblock %}
 {% block content %}
-<div class="row justify-content-center mt-5">
-  <div class="col-md-4">
-    <div class="card p-4">
-      <h3 class="mb-3 text-center d-flex align-items-center justify-content-center">{{ icon('wrench', 'me-2') }}Shop Login</h3>
+<style>
+  /* Custom Unique Styles for Lokey Auto Spare Parts */
+  .login-container {
+    min-height: 85vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background:
+      radial-gradient(circle at 15% 15%, rgba(255, 94, 0, 0.30) 0%, rgba(255, 94, 0, 0) 45%),
+      radial-gradient(circle at 85% 20%, rgba(6, 182, 212, 0.25) 0%, rgba(6, 182, 212, 0) 45%),
+      radial-gradient(circle at 80% 90%, rgba(255, 176, 32, 0.22) 0%, rgba(255, 176, 32, 0) 50%),
+      radial-gradient(circle at 10% 85%, rgba(242, 13, 19, 0.20) 0%, rgba(242, 13, 19, 0) 50%),
+      linear-gradient(135deg, #0b1330 0%, #030712 60%, #1a0f2e 100%);
+    position: relative;
+    overflow: hidden;
+    border-radius: 16px;
+    padding: 2rem;
+  }
+
+  /* --- Scattered "spare parts" background icons --- */
+  .bg-part {
+    position: absolute;
+    line-height: 1;
+    user-select: none;
+    pointer-events: none;
+    z-index: 1;
+  }
+  .bg-part svg { width: 1em; height: 1em; }
+
+  .bg-part-gear   { top: 6%;  left: 4%;  font-size: 11rem; color: rgba(255, 94, 0, 0.16);   transform: rotate(-12deg); }
+  .bg-part-wrench { bottom: 6%; right: 5%; font-size: 13rem; color: rgba(6, 182, 212, 0.14);  transform: rotate(22deg); }
+  .bg-part-truck  { top: 8%;  right: 8%; font-size: 6.5rem; color: rgba(255, 176, 32, 0.16); transform: rotate(-6deg); }
+  .bg-part-box    { bottom: 8%; left: 7%; font-size: 7rem;   color: rgba(242, 13, 19, 0.16);  transform: rotate(10deg); }
+  .bg-part-speed  { top: 42%; left: 50%; font-size: 20rem;  color: rgba(255, 255, 255, 0.03); transform: translate(-50%, -50%) rotate(-8deg); }
+
+  @media (max-width: 992px) {
+    .bg-part-gear, .bg-part-wrench, .bg-part-truck, .bg-part-box { display: none; }
+    .bg-part-speed { font-size: 13rem; }
+  }
+
+  /* --- Form Card Layout --- */
+  .custom-card {
+    background: #1f293d; /* Flat dark slate color matching your reference */
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-top: 4px solid #ff5e00; /* Top neon orange accent strip */
+    border-radius: 16px;
+    box-shadow: 0 25px 60px -12px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.02);
+    position: relative;
+    z-index: 2;
+  }
+
+  .login-logo {
+    width: 72px;
+    height: 72px;
+    display: block;
+    margin: 0 auto 0.75rem;
+    filter: drop-shadow(0 4px 10px rgba(255, 94, 0, 0.35));
+  }
+
+  .form-title {
+    color: #ffffff;
+    font-weight: 700;
+    font-size: 1.6rem;
+    letter-spacing: 0.5px;
+  }
+
+  .form-subtitle {
+    color: #9ca3af;
+    font-size: 0.85rem;
+    letter-spacing: 0.5px;
+  }
+
+  .form-label {
+    color: #9ca3af;
+    font-weight: 500;
+    font-size: 0.9rem;
+  }
+
+  /* Input Boxes */
+  .custom-input {
+    background-color: #111827 !important;
+    border: 1px solid #374151;
+    color: #ffffff !important;
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+  }
+
+  .custom-input:focus {
+    border-color: #ff5e00;
+    box-shadow: 0 0 0 3px rgba(255, 94, 0, 0.2);
+  }
+
+  /* High-Performance Action Button */
+  .btn-mechanic {
+    background: linear-gradient(135deg, #ff4500 0%, #ff2e00 100%);
+    border: none;
+    color: #ffffff;
+    font-weight: 700;
+    border-radius: 8px;
+    padding: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    box-shadow: 0 4px 15px rgba(255, 69, 0, 0.3);
+  }
+
+  .btn-mechanic:hover {
+    background: linear-gradient(135deg, #ff5714 0%, #ff411a 100%);
+    box-shadow: 0 6px 20px rgba(255, 69, 0, 0.4);
+    color: #fff;
+  }
+</style>
+
+<div class="login-container mt-4">
+
+  <!-- Scattered spare-parts watermark icons -->
+  <div class="bg-part bg-part-speed">{{ icon('speedometer2') }}</div>
+  <div class="bg-part bg-part-gear">{{ icon('gear') }}</div>
+  <div class="bg-part bg-part-wrench">{{ icon('wrench') }}</div>
+  <div class="bg-part bg-part-truck">{{ icon('truck') }}</div>
+  <div class="bg-part bg-part-box">{{ icon('box-seam') }}</div>
+
+  <!-- Login Card Form -->
+  <div class="col-12 col-sm-8 col-md-5 col-lg-4">
+    <div class="card custom-card p-4">
+      <div class="text-center mb-4">
+        <img src="{{ url_for('static', filename='img/logo.svg') }}" alt="Lokey Auto Spare Parts" class="login-logo">
+        <h3 class="form-title m-0">SHOP LOGIN</h3>
+        <div class="form-subtitle">Lokey Auto Spare Parts</div>
+      </div>
+
       <form method="post">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
         <div class="mb-3">
           <label class="form-label" for="f-username">Username</label>
-          <input type="text" id="f-username" name="username" class="form-control" autocomplete="username" required autofocus>
+          <input type="text" id="f-username" name="username" class="form-control custom-input" autocomplete="username" required autofocus>
         </div>
-        <div class="mb-3">
+
+        <div class="mb-4">
           <label class="form-label" for="f-password">Password</label>
-          <input type="password" id="f-password" name="password" class="form-control" autocomplete="current-password" required>
+          <input type="password" id="f-password" name="password" class="form-control custom-input" autocomplete="current-password" required>
         </div>
-        <button type="submit" class="btn btn-primary w-100">{{ icon('box-arrow-right') }}Log In</button>
+
+        <button type="submit" class="btn btn-mechanic w-100 d-flex align-items-center justify-content-center gap-2">
+          {{ icon('box-arrow-right') }} LOG IN
+        </button>
       </form>
     </div>
   </div>

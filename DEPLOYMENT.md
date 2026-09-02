@@ -54,17 +54,31 @@ without walking over to the PC.
    `127.0.0.1:5000`, or even testing the PC's own LAN IP from itself) still
    work fine, which makes it look like everything's configured correctly —
    but genuine incoming connections from another device (a phone, another
-   PC) get silently refused. This was the actual cause the one time this was
-   debugged end-to-end, after the firewall app-rule and router settings had
-   already checked out fine.
+   PC) get silently refused. Testing from the PC itself is never proof the
+   phone would succeed, for exactly this reason.
 5. If it still doesn't connect: confirm both devices show the *same* WiFi
    network name, and that the network is set to "Private" in Windows (not
-   "Public") — Windows blocks more by default on Public networks, which is
-   the usual reason a phone can't reach it even with the firewall rule
-   allowed. Also check the router isn't isolating WiFi clients from each
-   other ("AP Isolation"/"Client Isolation", sometimes labeled something
-   unexpected like "Block Relay") — usually under the router's WiFi/wireless
-   settings.
+   "Public") — Windows blocks more by default on Public networks. Also
+   check the router isn't isolating WiFi clients from each other ("AP
+   Isolation"/"Client Isolation", sometimes labeled something unexpected
+   like "Block Relay") — usually under the router's WiFi/wireless settings.
+6. **If Windows Firewall and router settings all check out fine and it
+   still won't connect** — the fastest remaining fix, found after a long
+   debugging session where every server/firewall/router setting checked out
+   correct yet the phone still couldn't connect: on the phone, **forget the
+   WiFi network and reconnect to it** (not just toggle WiFi off/on). This
+   clears a stale DHCP lease / cached network state that a normal reconnect
+   doesn't always refresh, particularly right after the router itself was
+   rebooted. This turned out to be the actual fix that one time, after
+   ruling out literally everything else — including disabling Windows
+   Firewall entirely as a test (still didn't work with it off, which is
+   what proved Windows wasn't the cause at all).
+7. As a clean diagnostic to tell "PC/Windows problem" from "network/phone
+   problem" apart: temporarily turn Windows Firewall **fully off** for the
+   Private network and retry from the phone immediately. If it still fails
+   with the firewall completely off, the cause isn't Windows at all — look
+   at the router or the phone's own network state instead (see 5 and 6).
+   Turn the firewall back on again right after this test either way.
 
 **Security note**: this makes the app reachable by anything on that WiFi
 network, not just your own devices — fine for a private shop WiFi or a

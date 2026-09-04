@@ -9,7 +9,7 @@
 </div>
 <div class="card p-3">
 <table class="table table-hover align-middle data-table">
-  <thead><tr><th>Name</th><th>Garage</th><th>Phone</th><th>Brand Discounts</th><th></th></tr></thead>
+  <thead><tr><th>Name</th><th>Garage</th><th>Phone</th><th>Brand Discounts</th><th>Brand + Category Adj.</th><th></th></tr></thead>
   <tbody>
     {% for m in mechanics %}
     <tr data-href="{{ url_for('mechanics.view_mechanic', mechanic_id=m.id) }}">
@@ -21,6 +21,11 @@
         {% for bd in m.brand_discounts %}{{ bd.brand_name }} {{ bd.discount_pct|int }}%{% if not loop.last %}, {% endif %}{% endfor %}
         {% else %}-{% endif %}
       </td>
+      <td>
+        {% if m.category_discounts %}
+        {% for cd in m.category_discounts %}{{ cd.brand_name }} {{ cd.category_name }} {{ '%+g'|format(cd.discount_pct) }}%{% if not loop.last %}, {% endif %}{% endfor %}
+        {% else %}-{% endif %}
+      </td>
       <td class="text-end">
         <a href="{{ url_for('mechanics.edit_mechanic', mechanic_id=m.id) }}" class="btn btn-sm btn-outline-secondary" title="Edit" aria-label="Edit">{{ icon('pencil') }}</a>
         <form method="post" action="{{ url_for('mechanics.delete_mechanic', mechanic_id=m.id) }}" class="d-inline" onsubmit="return confirm('Delete this mechanic?');">
@@ -30,7 +35,7 @@
       </td>
     </tr>
     {% else %}
-    <tr><td colspan="5" class="text-center text-muted">No mechanics yet.</td></tr>
+    <tr><td colspan="6" class="text-center text-muted">No mechanics yet.</td></tr>
     {% endfor %}
   </tbody>
 </table>

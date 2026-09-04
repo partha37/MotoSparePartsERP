@@ -11,14 +11,15 @@ from flask_login import login_required
 from extensions import db
 from excel_sync import sync_to_excel, excel_path, cloud_backup_status, build_ranged_workbook
 from models import (
-    ShopSettings, Product, Customer, CustomerBrandDiscount, Mechanic, MechanicBrandDiscount,
-    Supplier, Sale, Purchase, Payment, Brand, SaleReturn,
+    ShopSettings, Product, Customer, CustomerBrandDiscount, CustomerCategoryDiscount,
+    Mechanic, MechanicBrandDiscount, MechanicCategoryDiscount,
+    Supplier, Sale, Purchase, Payment, Brand, ProductCategory, SaleReturn,
 )
 
 settings_bp = Blueprint("settings", __name__, url_prefix="/settings")
 
 EXPORTABLE = {
-    "products": (Product, ["id", "part_no", "product_name", "brand_name", "category", "vehicle_name",
+    "products": (Product, ["id", "part_no", "product_name", "brand_name", "category_name", "vehicle_name",
                             "unit", "mrp", "actual_discount_pct", "actual_discounted_price",
                             "current_stock", "reorder_level"]),
     "customers": (Customer, ["id", "name", "phone", "address", "vehicle_model"]),
@@ -30,8 +31,11 @@ EXPORTABLE = {
     "payments": (Payment, ["id", "sale_id", "invoice_no", "date", "amount", "payment_mode", "note"]),
     "sale_returns": (SaleReturn, ["id", "sale_id", "invoice_no", "applied_to_sale_id", "return_no", "date", "note", "refund_amount"]),
     "brands": (Brand, ["id", "name"]),
+    "product_categories": (ProductCategory, ["id", "name"]),
     "customer_brand_discounts": (CustomerBrandDiscount, ["id", "customer_id", "customer_name", "brand_name", "discount_pct"]),
     "mechanic_brand_discounts": (MechanicBrandDiscount, ["id", "mechanic_id", "mechanic_name", "brand_name", "discount_pct"]),
+    "customer_category_discounts": (CustomerCategoryDiscount, ["id", "customer_id", "customer_name", "brand_name", "category_name", "discount_pct"]),
+    "mechanic_category_discounts": (MechanicCategoryDiscount, ["id", "mechanic_id", "mechanic_name", "brand_name", "category_name", "discount_pct"]),
 }
 
 

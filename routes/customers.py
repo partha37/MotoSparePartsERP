@@ -3,7 +3,7 @@ from flask_login import login_required
 
 from extensions import db
 from excel_sync import sync_to_excel
-from models import Customer, CustomerBrandDiscount, Sale, Brand
+from models import Customer, CustomerBrandDiscount, CustomerCategoryDiscount, Sale, Brand, ProductCategory
 
 customers_bp = Blueprint("customers", __name__, url_prefix="/customers")
 
@@ -25,8 +25,28 @@ def _sync_brand_discounts(customer, form):
             db.session.add(CustomerBrandDiscount(customer_id=customer.id, brand_id=int(brand_id), discount_pct=pct))
 
 
+def _sync_category_discounts(customer, form):
+    # The brand picker here is named category_brand_id[] rather than brand_id[],
+    # so its values don't get mixed into _sync_brand_discounts' own getlist.
+    CustomerCategoryDiscount.query.filter_by(customer_id=customer.id).delete()
+    brand_ids = form.getlist("category_brand_id[]")
+    category_ids = form.getlist("category_id[]")
+    pcts = form.getlist("category_discount_pct[]")
+    for brand_id, category_id, pct in zip(brand_ids, category_ids, pcts):
+        pct = float(pct) if pct else 0
+        if brand_id and category_id and pct:
+            db.session.add(CustomerCategoryDiscount(
+                customer_id=customer.id, brand_id=int(brand_id),
+                category_id=int(category_id), discount_pct=pct,
+            ))
+
+
 def _all_brands():
     return Brand.query.order_by(Brand.name.asc()).all()
+
+
+def _all_categories():
+    return ProductCategory.query.order_by(ProductCategory.name.asc()).all()
 
 
 @customers_bp.route("/")
@@ -45,11 +65,12 @@ def new_customer():
         db.session.add(customer)
         db.session.flush()
         _sync_brand_discounts(customer, request.form)
+        _sync_category_discounts(customer, request.form)
         db.session.commit()
         sync_to_excel()
         flash("Customer added.", "success")
         return redirect(url_for("customers.list_customers"))
-    return render_template("customers/form.html", customer=None, brands=_all_brands())
+    return render_template("customers/form.html", customer=None, brands=_all_brands(), categories=_all_categories())
 
 
 @customers_bp.route("/<int:customer_id>/edit", methods=["GET", "POST"])
@@ -59,11 +80,12 @@ def edit_customer(customer_id):
     if request.method == "POST":
         _apply_form(customer, request.form)
         _sync_brand_discounts(customer, request.form)
+        _sync_category_discounts(customer, request.form)
         db.session.commit()
         sync_to_excel()
         flash("Customer updated.", "success")
         return redirect(url_for("customers.list_customers"))
-    return render_template("customers/form.html", customer=customer, brands=_all_brands())
+    return render_template("customers/form.html", customer=customer, brands=_all_brands(), categories=_all_categories())
 
 
 @customers_bp.route("/<int:customer_id>")

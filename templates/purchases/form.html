@@ -149,7 +149,12 @@ var existingCharges = existingChargeLabels.map(function (label, i) {
           </div>
           <div class="col-md-6">
             <label class="form-label" for="qa-category">Category <span class="text-muted small">(optional)</span></label>
-            <input type="text" id="qa-category" class="form-control">
+            <select id="qa-category" class="form-select">
+              <option value="">-- None (Normal) --</option>
+              {% for c in categories %}
+              <option value="{{ c.id }}">{{ c.name }}</option>
+              {% endfor %}
+            </select>
           </div>
           <div class="col-md-6">
             <label class="form-label" for="qa-unit">Unit <span class="text-muted small">(optional)</span></label>
@@ -381,13 +386,14 @@ document.addEventListener('DOMContentLoaded', function () {
   const modal = new bootstrap.Modal(modalEl);
   const brandSelect = document.getElementById('qa-brand');
   const unitSelect = document.getElementById('qa-unit');
+  const categorySelect = document.getElementById('qa-category');
   SearchableSelect.enhance(brandSelect);
+  SearchableSelect.enhance(categorySelect);
   SearchableSelect.enhance(unitSelect);
 
   const partNoInput = document.getElementById('qa-part-no');
   const nameInput = document.getElementById('qa-product-name');
   const vehicleInput = document.getElementById('qa-vehicle');
-  const categoryInput = document.getElementById('qa-category');
   const errorBox = document.getElementById('quick-add-error');
   const saveBtn = document.getElementById('quick-add-save');
   const partNoFeedback = document.getElementById('qa-part-no-feedback');
@@ -469,7 +475,8 @@ document.addEventListener('DOMContentLoaded', function () {
     partNoInput.value = (activeSelect.dataset.searchQuery || '').trim();
     nameInput.value = '';
     vehicleInput.value = '';
-    categoryInput.value = '';
+    categorySelect.value = '';
+    if (categorySelect.refreshSearchable) categorySelect.refreshSearchable();
     brandSelect.value = '';
     if (brandSelect.refreshSearchable) brandSelect.refreshSearchable();
     unitSelect.value = 'pc';
@@ -491,7 +498,7 @@ document.addEventListener('DOMContentLoaded', function () {
     body.set('product_name', nameInput.value.trim());
     body.set('brand_id', brandSelect.value);
     body.set('vehicle_name', vehicleInput.value.trim());
-    body.set('category', categoryInput.value.trim());
+    body.set('category_id', categorySelect.value);
     body.set('unit', unitSelect.value);
     body.set('gst_rate', '18');
     body.set('reorder_level', '5');

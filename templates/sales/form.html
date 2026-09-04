@@ -13,19 +13,19 @@
     <div class="col-md-3">
       <label class="form-label" for="f-mechanic">Mechanic <span class="text-muted small">(choose this or Customer)</span></label>
       <select id="f-mechanic" name="mechanic_id" class="form-select">
-        <option value="" data-brand-discounts="{}">-- None --</option>
+        <option value="" data-brand-discounts="{}" data-category-discounts="{}">-- None --</option>
         {% for m in mechanics %}
-        <option value="{{ m.id }}" data-brand-discounts='{{ m.brand_discount_map|tojson }}' {{ 'selected' if sale and sale.mechanic_id == m.id else '' }}>{{ m.name }}{% if m.brand_discount_map %} (brand rates set){% endif %}</option>
+        <option value="{{ m.id }}" data-brand-discounts='{{ m.brand_discount_map|tojson }}' data-category-discounts='{{ m.category_discount_map|tojson }}' {{ 'selected' if sale and sale.mechanic_id == m.id else '' }}>{{ m.name }}{% if m.brand_discount_map %} (brand rates set){% endif %}</option>
         {% endfor %}
       </select>
     </div>
     <div class="col-md-3">
       <label class="form-label" for="customerSelect">Customer <span class="text-muted small">(choose this or Mechanic)</span></label>
       <select name="customer_id" id="customerSelect" class="form-select">
-        <option value="" data-brand-discounts="{}" {{ 'selected' if sale and not sale.customer_id and not sale.is_walkin else '' }}>-- None --</option>
-        <option value="walkin" data-brand-discounts="{}" {{ 'selected' if sale and not sale.customer_id and sale.is_walkin else '' }}>Walk-in</option>
+        <option value="" data-brand-discounts="{}" data-category-discounts="{}" {{ 'selected' if sale and not sale.customer_id and not sale.is_walkin else '' }}>-- None --</option>
+        <option value="walkin" data-brand-discounts="{}" data-category-discounts="{}" {{ 'selected' if sale and not sale.customer_id and sale.is_walkin else '' }}>Walk-in</option>
         {% for c in customers %}
-        <option value="{{ c.id }}" data-brand-discounts='{{ c.brand_discount_map|tojson }}' {{ 'selected' if sale and sale.customer_id == c.id else '' }}>{{ c.name }}{% if c.brand_discount_map %} (brand rates set){% endif %}</option>
+        <option value="{{ c.id }}" data-brand-discounts='{{ c.brand_discount_map|tojson }}' data-category-discounts='{{ c.category_discount_map|tojson }}' {{ 'selected' if sale and sale.customer_id == c.id else '' }}>{{ c.name }}{% if c.brand_discount_map %} (brand rates set){% endif %}</option>
         {% endfor %}
       </select>
     </div>
@@ -49,7 +49,7 @@
       <select name="product_filter[]" class="form-select product-select" aria-label="Product">
         <option value="">-- Select Product --</option>
         {% for p in products %}
-        <option value="{{ p.id }}" data-batches='{{ p.available_batches|tojson }}' data-brand-id="{{ p.brand_id or '' }}" {{ 'selected' if item and item.product_id == p.id else '' }}>
+        <option value="{{ p.id }}" data-batches='{{ p.available_batches|tojson }}' data-brand-id="{{ p.brand_id or '' }}" data-category-id="{{ p.category_id or '' }}" {{ 'selected' if item and item.product_id == p.id else '' }}>
           {{ p.part_no }} - {{ p.product_name }}
         </option>
         {% endfor %}
@@ -125,10 +125,29 @@ function brandDiscountsFromSelect(select) {
   }
 }
 
-function currentDiscountForBrand(brandId) {
+function categoryDiscountsFromSelect(select) {
+  const opt = select.options[select.selectedIndex];
+  if (!opt) return {};
+  try {
+    return JSON.parse(opt.dataset.categoryDiscounts || '{}');
+  } catch (e) {
+    return {};
+  }
+}
+
+// A brand+category rate is an adjustment *on top of* the brand rate, not a
+// replacement — Tvs 13% + Fiber -2% bills at 11%. A pair with no adjustment
+// set (including every product with no category) just uses the brand rate.
+// Rounded because 13 + -2.1 lands on 10.899999999999999 in binary floating point.
+function currentDiscountForProduct(brandId, categoryId) {
   if (!activeDiscountSelect || !brandId) return 0;
   const map = brandDiscountsFromSelect(activeDiscountSelect);
-  return map[brandId] !== undefined ? (parseFloat(map[brandId]) || 0) : 0;
+  const base = map[brandId] !== undefined ? (parseFloat(map[brandId]) || 0) : 0;
+  if (!categoryId) return base;
+  const pairMap = categoryDiscountsFromSelect(activeDiscountSelect);
+  const adjustment = pairMap[brandId + ':' + categoryId];
+  if (adjustment === undefined) return base;
+  return Math.round((base + (parseFloat(adjustment) || 0)) * 100) / 100;
 }
 
 function recalcAllRows() {
@@ -258,7 +277,8 @@ function wireRow(row) {
     const basePrice = parseFloat(bOpt.dataset.price) || 0;
     const productOpt = select.options[select.selectedIndex];
     const brandId = productOpt ? (productOpt.dataset.brandId || '') : '';
-    const discount = currentDiscountForBrand(brandId);
+    const categoryId = productOpt ? (productOpt.dataset.categoryId || '') : '';
+    const discount = currentDiscountForProduct(brandId, categoryId);
     discountInput.value = discount;
     priceInput.value = (basePrice * (1 - discount / 100)).toFixed(2);
     qtyInput.max = bOpt.dataset.stock;

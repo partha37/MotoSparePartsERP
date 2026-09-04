@@ -13,6 +13,12 @@
       {% for bd in customer.brand_discounts %}{{ bd.brand_name }} {{ bd.discount_pct|int }}%{% if not loop.last %}, {% endif %}{% endfor %}
       {% else %}-{% endif %}
     </div>
+    <div class="col-md-3">
+      <strong>Brand + Category Adj.:</strong>
+      {% if customer.category_discounts %}
+      {% for cd in customer.category_discounts %}{{ cd.brand_name }} {{ cd.category_name }} {{ '%+g'|format(cd.discount_pct) }}%{% if not loop.last %}, {% endif %}{% endfor %}
+      {% else %}-{% endif %}
+    </div>
   </div>
 </div>
 <h5>Purchase History</h5>

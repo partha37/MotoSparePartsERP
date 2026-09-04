@@ -20,9 +20,10 @@ from openpyxl import Workbook
 from openpyxl.utils import get_column_letter
 
 from models import (
-    Product, Supplier, Customer, CustomerBrandDiscount, Mechanic, MechanicBrandDiscount,
+    Product, Supplier, Customer, CustomerBrandDiscount, CustomerCategoryDiscount,
+    Mechanic, MechanicBrandDiscount, MechanicCategoryDiscount,
     Purchase, PurchaseItem, PurchaseCharge, Sale, SaleItem, StockMovement, ShopSettings, Payment, Brand,
-    SaleReturn, SaleReturnItem,
+    ProductCategory, SaleReturn, SaleReturnItem,
 )
 
 EXCEL_FILENAME = "erp_data.xlsx"
@@ -32,12 +33,13 @@ EXCEL_FILENAME = "erp_data.xlsx"
 # resolved by _cell_value below.
 SHEETS = {
     "Products": (Product, [
-        "id", "part_no", "product_name", "brand_name", "category", "vehicle_name", "unit", "hsn_code",
+        "id", "part_no", "product_name", "brand_name", "category_name", "vehicle_name", "unit", "hsn_code",
         "gst_rate", "mrp", "actual_discount_pct", "actual_discounted_price",
         "margin_per_unit", "current_stock", "reorder_level",
     ]),
     "Suppliers": (Supplier, ["id", "name", "brand_name", "phone", "address", "gstin"]),
     "Brands": (Brand, ["id", "name"]),
+    "ProductCategories": (ProductCategory, ["id", "name"]),
     "Customers": (Customer, ["id", "name", "phone", "address", "vehicle_model"]),
     "Mechanics": (Mechanic, ["id", "name", "phone", "garage_name"]),
     "Purchases": (Purchase, [
@@ -75,6 +77,12 @@ SHEETS = {
     ]),
     "MechanicBrandDiscounts": (MechanicBrandDiscount, [
         "id", "mechanic_id", "mechanic_name", "brand_name", "discount_pct",
+    ]),
+    "CustomerCategoryDiscounts": (CustomerCategoryDiscount, [
+        "id", "customer_id", "customer_name", "brand_name", "category_name", "discount_pct",
+    ]),
+    "MechanicCategoryDiscounts": (MechanicCategoryDiscount, [
+        "id", "mechanic_id", "mechanic_name", "brand_name", "category_name", "discount_pct",
     ]),
 }
 

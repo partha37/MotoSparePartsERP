@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit' if category else 'Add' }} Category - Lokey Auto Spare Parts{% endblock %}
+{% block content %}
+<h2 class="mb-4">{{ 'Edit' if category else 'Add' }} Category</h2>
+<form method="post" class="card p-4">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="row g-3">
+    <div class="col-md-6">
+      <label class="form-label required" for="f-name">Name</label>
+      <input type="text" id="f-name" name="name" class="form-control" autocomplete="off" required
+             placeholder="e.g. Fiber" value="{{ category.name if category else '' }}">
+      <div class="form-text">Used on the Product form and for Customer/Mechanic category-wise discounts, which adjust (not replace) the brand discount for products in this category.</div>
+    </div>
+  </div>
+  <div class="mt-4 d-flex gap-2">
+    <button type="submit" class="btn btn-primary">{{ icon('save') }}Save</button>
+    <a href="{{ url_for('product_categories.list_categories') }}" class="btn btn-outline-secondary">{{ icon('x-lg') }}Cancel</a>
+  </div>
+</form>
+{% endblock %}

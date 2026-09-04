@@ -39,11 +39,18 @@ def _attach_available_batches(products):
     return products
 
 
-def _attach_brand_discount_maps(owners):
-    """Attach `.brand_discount_map` ({brand_id: pct}) to each Customer/Mechanic, so
-    the sales form can look up the right rate per product line client-side."""
+def _attach_discount_maps(owners):
+    """Attach `.brand_discount_map` ({brand_id: pct}) and `.category_discount_map`
+    ({"brand_id:category_id": pct}) to each Customer/Mechanic, so the sales form can
+    look up the right rate per product line client-side. A line uses the second map
+    when the product's brand+category pair is in it, and the first map otherwise —
+    same precedence as Customer/Mechanic.discount_for_product(). The composite key
+    is a string because these maps cross into JS as JSON, where keys are strings."""
     for owner in owners:
         owner.brand_discount_map = {bd.brand_id: bd.discount_pct or 0 for bd in owner.brand_discounts}
+        owner.category_discount_map = {
+            f"{cd.brand_id}:{cd.category_id}": cd.discount_pct or 0 for cd in owner.category_discounts
+        }
     return owners
 
 
@@ -245,8 +252,8 @@ def list_sales():
 @login_required
 def new_sale():
     products = _attach_available_batches(Product.query.order_by(Product.product_name.asc()).all())
-    customers = _attach_brand_discount_maps(Customer.query.order_by(Customer.name.asc()).all())
-    mechanics = _attach_brand_discount_maps(Mechanic.query.order_by(Mechanic.name.asc()).all())
+    customers = _attach_discount_maps(Customer.query.order_by(Customer.name.asc()).all())
+    mechanics = _attach_discount_maps(Mechanic.query.order_by(Mechanic.name.asc()).all())
 
     if request.method == "POST":
         errors, parsed = _validate_sale_form(request.form)
@@ -328,8 +335,8 @@ def edit_sale(sale_id):
         return redirect(url_for("sales.view_sale", sale_id=sale.id))
 
     products = _attach_available_batches(Product.query.order_by(Product.product_name.asc()).all())
-    customers = _attach_brand_discount_maps(Customer.query.order_by(Customer.name.asc()).all())
-    mechanics = _attach_brand_discount_maps(Mechanic.query.order_by(Mechanic.name.asc()).all())
+    customers = _attach_discount_maps(Customer.query.order_by(Customer.name.asc()).all())
+    mechanics = _attach_discount_maps(Mechanic.query.order_by(Mechanic.name.asc()).all())
 
     if request.method == "POST":
         if not sale.is_editable:  # re-check in case something changed since the GET

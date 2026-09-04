@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Categories - Lokey Auto Spare Parts{% endblock %}
+{% block content %}
+<div class="page-toolbar">
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2>Categories</h2>
+  <a href="{{ url_for('product_categories.new_category') }}" class="btn btn-primary">{{ icon('plus-lg') }}Add Category</a>
+</div>
+</div>
+<div class="card p-3">
+<table class="table table-hover align-middle data-table">
+  <thead><tr><th>Name</th><th>Products</th><th></th></tr></thead>
+  <tbody>
+    {% for c in categories %}
+    <tr data-href="{{ url_for('product_categories.edit_category', category_id=c.id) }}">
+      <td>{{ c.name }}</td>
+      <td>{{ c.products|length }}</td>
+      <td class="text-end">
+        <a href="{{ url_for('product_categories.edit_category', category_id=c.id) }}" class="btn btn-sm btn-outline-secondary" title="Edit" aria-label="Edit">{{ icon('pencil') }}</a>
+        <form method="post" action="{{ url_for('product_categories.delete_category', category_id=c.id) }}" class="d-inline" onsubmit="return confirm('Delete this category?');">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete" aria-label="Delete">{{ icon('trash') }}</button>
+        </form>
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="3" class="text-center text-muted">No categories yet.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

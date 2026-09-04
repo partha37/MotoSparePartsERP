@@ -6,7 +6,7 @@ from sqlalchemy import func
 
 from extensions import db
 from excel_sync import sync_to_excel
-from models import Purchase, PurchaseItem, PurchaseCharge, Product, Supplier, StockMovement, Brand
+from models import Purchase, PurchaseItem, PurchaseCharge, Product, Supplier, StockMovement, Brand, ProductCategory
 from routes.server_table import ServerTable, date_filter_expr
 
 purchases_bp = Blueprint("purchases", __name__, url_prefix="/purchases")
@@ -170,6 +170,7 @@ def new_purchase():
     suppliers = Supplier.query.order_by(Supplier.name.asc()).all()
     products = Product.query.order_by(Product.product_name.asc()).all()
     brands = Brand.query.order_by(Brand.name.asc()).all()
+    categories = ProductCategory.query.order_by(ProductCategory.name.asc()).all()
 
     if not suppliers:
         flash("Add a supplier first before recording a purchase.", "warning")
@@ -181,7 +182,8 @@ def new_purchase():
             for e in errors:
                 flash(e, "danger")
             return render_template(
-                "purchases/form.html", suppliers=suppliers, products=products, brands=brands, today=date.today().isoformat()
+                "purchases/form.html", suppliers=suppliers, products=products, brands=brands,
+                categories=categories, today=date.today().isoformat()
             )
 
         purchase = Purchase(
@@ -249,7 +251,7 @@ def new_purchase():
         return redirect(url_for("purchases.list_purchases"))
 
     return render_template(
-        "purchases/form.html", suppliers=suppliers, products=products, brands=brands,
+        "purchases/form.html", suppliers=suppliers, products=products, brands=brands, categories=categories,
         prefill_products=_prefill_products_from_request(), today=date.today().isoformat()
     )
 
@@ -272,6 +274,7 @@ def edit_purchase(purchase_id):
     suppliers = Supplier.query.order_by(Supplier.name.asc()).all()
     products = Product.query.order_by(Product.product_name.asc()).all()
     brands = Brand.query.order_by(Brand.name.asc()).all()
+    categories = ProductCategory.query.order_by(ProductCategory.name.asc()).all()
 
     if request.method == "POST":
         if not purchase.is_editable:  # re-check in case something changed since the GET
@@ -284,7 +287,7 @@ def edit_purchase(purchase_id):
                 flash(e, "danger")
             return render_template(
                 "purchases/form.html", purchase=purchase, suppliers=suppliers, products=products,
-                brands=brands, today=purchase.date.isoformat()
+                brands=brands, categories=categories, today=purchase.date.isoformat()
             )
 
         # A product whose only line in this purchase is removed entirely
@@ -372,5 +375,5 @@ def edit_purchase(purchase_id):
 
     return render_template(
         "purchases/form.html", purchase=purchase, suppliers=suppliers, products=products,
-        brands=brands, today=purchase.date.isoformat()
+        brands=brands, categories=categories, today=purchase.date.isoformat()
     )

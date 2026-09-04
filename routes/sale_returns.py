@@ -9,7 +9,7 @@ from models import (
     Sale, SaleItem, SaleReturn, SaleReturnItem, Product, PurchaseItem,
     Customer, Mechanic, StockMovement,
 )
-from routes.sales import _attach_available_batches, _attach_brand_discount_maps, _next_invoice_no
+from routes.sales import _attach_available_batches, _attach_discount_maps, _next_invoice_no
 
 sale_returns_bp = Blueprint("sale_returns", __name__, url_prefix="/sales/<int:sale_id>/returns")
 
@@ -152,8 +152,8 @@ def view_return(sale_id, return_id):
 def new_exchange(sale_id):
     sale = Sale.query.get_or_404(sale_id)
     products = _attach_available_batches(Product.query.order_by(Product.product_name.asc()).all())
-    customers = _attach_brand_discount_maps(Customer.query.order_by(Customer.name.asc()).all())
-    mechanics = _attach_brand_discount_maps(Mechanic.query.order_by(Mechanic.name.asc()).all())
+    customers = _attach_discount_maps(Customer.query.order_by(Customer.name.asc()).all())
+    mechanics = _attach_discount_maps(Mechanic.query.order_by(Mechanic.name.asc()).all())
 
     def _rerender():
         return render_template(

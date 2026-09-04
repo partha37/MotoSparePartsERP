@@ -30,9 +30,14 @@
     </div>
 
     <div class="col-md-3">
-      <label class="form-label" for="f-category">Category</label>
-      <input type="text" id="f-category" name="category" class="form-control"
-             value="{{ d.category if d else '' }}">
+      <label class="form-label" for="f-category">Category <span class="text-muted small">(optional)</span></label>
+      <select id="f-category" name="category_id" class="form-select">
+        <option value="">-- None (Normal) --</option>
+        {% for c in categories %}
+        <option value="{{ c.id }}" {{ 'selected' if d and (d.category_id|string) == c.id|string else '' }}>{{ c.name }}</option>
+        {% endfor %}
+      </select>
+      <div class="form-text">Only needed if this part should use category-wise discount instead of brand discount at checkout. Manage the list from <a href="{{ url_for('product_categories.list_categories') }}">Catalog &raquo; Categories</a>.</div>
     </div>
     <div class="col-md-3">
       <label class="form-label" for="f-vehicle">Vehicle Name <span class="text-muted small">(optional)</span></label>
@@ -150,6 +155,7 @@
 <script>
 SearchableSelect.enhance(document.getElementById('f-unit'));
 SearchableSelect.enhance(document.getElementById('f-brand'));
+SearchableSelect.enhance(document.getElementById('f-category'));
 
 (function () {
   const input = document.getElementById('f-part-no');

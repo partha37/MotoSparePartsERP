@@ -32,12 +32,22 @@ class Brand(db.Model):
     name = db.Column(db.String(100), unique=True, nullable=False)
 
 
+class ProductCategory(db.Model):
+    """Shared master list of product categories (Electrical, Fiber, ...). A product
+    in one of these uses its Customer/Mechanic category rate instead of the brand
+    rate at checkout; a product with no category is "Normal" and uses the brand rate,
+    so "Normal" is deliberately not a row here."""
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), unique=True, nullable=False)
+
+
 class Product(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     product_name = db.Column(db.String(150), nullable=False)
     part_no = db.Column(db.String(80), unique=True, nullable=False, index=True)
     brand_id = db.Column(db.Integer, db.ForeignKey("brand.id"), nullable=True)
-    category = db.Column(db.String(80))
+    category_id = db.Column(db.Integer, db.ForeignKey("product_category.id"), nullable=True)
     vehicle_name = db.Column(db.String(150))  # vehicle model(s) this part fits, e.g. "Honda Activa"
     unit = db.Column(db.String(20), default="pc")
     hsn_code = db.Column(db.String(20))
@@ -54,6 +64,7 @@ class Product(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     brand = db.relationship("Brand", backref="products")
+    category = db.relationship("ProductCategory", backref="products")
 
     def recalc_prices(self):
         """Recomputes cost price only — selling price is decided per-sale at checkout, not stored here."""
@@ -88,6 +99,10 @@ class Product(db.Model):
     @property
     def brand_name(self):
         return self.brand.name if self.brand else ""
+
+    @property
+    def category_name(self):
+        return self.category.name if self.category else ""
 
     def __repr__(self):
         return f"<Product {self.part_no} {self.product_name}>"
@@ -127,6 +142,17 @@ class Customer(db.Model):
                 return bd.discount_pct or 0
         return 0
 
+    def discount_for_product(self, brand_id, category_id):
+        """The rate actually applied at checkout: this customer's brand rate, plus
+        the brand+category adjustment when one is set for the product's pair (e.g.
+        Tvs 13% + Fiber -2% = 11%). No pair set means no adjustment, so the plain
+        brand rate stands."""
+        base = self.discount_for_brand(brand_id)
+        for cd in self.category_discounts:
+            if cd.brand_id == brand_id and cd.category_id == category_id:
+                return round(base + (cd.discount_pct or 0), 2)
+        return base
+
 
 class CustomerBrandDiscount(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -149,6 +175,37 @@ class CustomerBrandDiscount(db.Model):
         return self.brand.name if self.brand else ""
 
 
+class CustomerCategoryDiscount(db.Model):
+    """One rate per customer + brand + category (e.g. "Honda Fiber 25%") — the
+    category rate is brand-specific, since the same category is worth a different
+    discount across brands."""
+
+    id = db.Column(db.Integer, primary_key=True)
+    customer_id = db.Column(db.Integer, db.ForeignKey("customer.id"), nullable=False)
+    brand_id = db.Column(db.Integer, db.ForeignKey("brand.id"), nullable=False)
+    category_id = db.Column(db.Integer, db.ForeignKey("product_category.id"), nullable=False)
+    discount_pct = db.Column(db.Float, default=0)
+
+    customer = db.relationship(
+        "Customer",
+        backref=db.backref("category_discounts", cascade="all, delete-orphan"),
+    )
+    brand = db.relationship("Brand")
+    category = db.relationship("ProductCategory")
+
+    @property
+    def customer_name(self):
+        return self.customer.name if self.customer else ""
+
+    @property
+    def brand_name(self):
+        return self.brand.name if self.brand else ""
+
+    @property
+    def category_name(self):
+        return self.category.name if self.category else ""
+
+
 class Mechanic(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(150), nullable=False)
@@ -165,6 +222,16 @@ class Mechanic(db.Model):
             if bd.brand_id == brand_id:
                 return bd.discount_pct or 0
         return 0
+
+    def discount_for_product(self, brand_id, category_id):
+        """The rate actually applied at checkout: this mechanic's brand rate, plus
+        the brand+category adjustment when one is set for the product's pair —
+        see Customer.discount_for_product."""
+        base = self.discount_for_brand(brand_id)
+        for cd in self.category_discounts:
+            if cd.brand_id == brand_id and cd.category_id == category_id:
+                return round(base + (cd.discount_pct or 0), 2)
+        return base
 
 
 class MechanicBrandDiscount(db.Model):
@@ -186,6 +253,35 @@ class MechanicBrandDiscount(db.Model):
     @property
     def brand_name(self):
         return self.brand.name if self.brand else ""
+
+
+class MechanicCategoryDiscount(db.Model):
+    """One rate per mechanic + brand + category — see CustomerCategoryDiscount."""
+
+    id = db.Column(db.Integer, primary_key=True)
+    mechanic_id = db.Column(db.Integer, db.ForeignKey("mechanic.id"), nullable=False)
+    brand_id = db.Column(db.Integer, db.ForeignKey("brand.id"), nullable=False)
+    category_id = db.Column(db.Integer, db.ForeignKey("product_category.id"), nullable=False)
+    discount_pct = db.Column(db.Float, default=0)
+
+    mechanic = db.relationship(
+        "Mechanic",
+        backref=db.backref("category_discounts", cascade="all, delete-orphan"),
+    )
+    brand = db.relationship("Brand")
+    category = db.relationship("ProductCategory")
+
+    @property
+    def mechanic_name(self):
+        return self.mechanic.name if self.mechanic else ""
+
+    @property
+    def brand_name(self):
+        return self.brand.name if self.brand else ""
+
+    @property
+    def category_name(self):
+        return self.category.name if self.category else ""
 
 
 class Purchase(db.Model):

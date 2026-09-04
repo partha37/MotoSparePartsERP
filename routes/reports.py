@@ -141,6 +141,11 @@ def _compute_daily_sales(date_from, date_to, group_by):
     product_rows.sort(key=lambda r: r["revenue"], reverse=True)
 
     total_profit = round(total_revenue - total_cost, 2)
+
+    purchases_in_range = Purchase.query.filter(Purchase.date >= date_from, Purchase.date <= date_to).all()
+    total_charges = round(sum(p.charges_total for p in purchases_in_range), 2)
+    net_profit = round(total_profit - total_charges, 2)
+
     summary = {
         "invoices": len(sales),
         "total_revenue": round(total_revenue, 2),
@@ -149,6 +154,9 @@ def _compute_daily_sales(date_from, date_to, group_by):
         "total_cost": round(total_cost, 2),
         "total_profit": total_profit,
         "profit_pct": round(total_profit / total_revenue * 100, 2) if total_revenue else 0,
+        "total_charges": total_charges,
+        "net_profit": net_profit,
+        "net_profit_pct": round(net_profit / total_revenue * 100, 2) if total_revenue else 0,
     }
     return summary, time_series, product_rows
 

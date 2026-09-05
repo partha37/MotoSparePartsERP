@@ -1,37 +1,95 @@
 {% extends "base.html" %}
 {% block title %}Login - Lokey Auto Spare Parts{% endblock %}
 {% block content %}
-<script>
-// This page has a fixed light design regardless of the app's own dark/light
-// toggle (there's no navbar here to switch it from anyway) — set it early,
-// without touching the saved preference, purely so the flash alert above
-// picks up Bootstrap's light-mode colors instead of the app-wide dark default.
-document.documentElement.setAttribute('data-bs-theme', 'light');
-</script>
 <style>
+  /* Light values here, dark overrides below — same shape as style.css's own
+     theme pairs. These live in the template rather than style.css because
+     nothing outside this page uses them. */
+  :root {
+    /* Stops sampled straight off the design mock (ui_layout.png) rather than
+       derived from --accent/--brand, so the orange-to-blue sweep matches it
+       exactly — the brand tints are far paler than what that design uses. */
+    --login-bg: linear-gradient(to right,
+      #ffac73 0%, #fddbc9 10%, #fcf0eb 20%, #fefaf7 30%,
+      #ffffff 45%, #f7f9fc 68%, #e4edf9 85%, #c4daf8 95%, #aecef8 100%);
+    --login-card-bg: #ffffff;
+    --login-card-border: transparent;
+    --login-card-shadow: 0 30px 70px -20px rgba(20, 33, 61, 0.28), 0 2px 10px rgba(20, 33, 61, 0.06);
+    --login-heading: #14213d;
+    --login-label: #1f2a44;
+    --login-muted: #8a93a6;
+    --login-remember: #4b5468;
+    --login-label-icon: var(--brand);
+    --login-input-bg: #fbfcfe;
+    --login-input-bg-focus: #ffffff;
+    --login-input-border: #dde2ea;
+    --login-input-border-focus: var(--brand);
+    --login-input-ring: rgba(var(--brand-rgb), 0.15);
+    --login-input-text: #1f2a44;
+    --login-placeholder: #9aa3b2;
+    --login-input-icon: #9aa3b2;
+    --login-rule: #e6e9ef;
+    --login-footer: #6b7280;
+    --login-footer-sep: #d7dbe3;
+    --login-logo-plate: transparent;
+    --login-part-warm: var(--accent);
+    --login-part-cool: var(--brand);
+    --login-part-warm-opacity: 0.24;
+    --login-part-cool-opacity: 0.30;
+    --login-dots-warm-opacity: 0.18;
+    --login-dots-cool-opacity: 0.14;
+  }
+
+  /* Same warm-left / cool-right sweep, but pulled down around the app's own
+     --page-bg (#16191d) so the page reads as part of the dark theme rather
+     than a separate design. The brand navy on the button stays put — that's
+     fixed across themes app-wide (see style.css). */
+  [data-bs-theme="dark"] {
+    --login-bg: linear-gradient(to right,
+      #43290f 0%, #2f2216 10%, #221c1a 20%, #191a1e 32%,
+      #16191d 45%, #161c26 62%, #172438 82%, #1b3157 95%, #1e3a68 100%);
+    --login-card-bg: #20242a;
+    --login-card-border: rgba(255, 255, 255, 0.07);
+    --login-card-shadow: 0 30px 70px -20px rgba(0, 0, 0, 0.7), 0 2px 10px rgba(0, 0, 0, 0.35);
+    --login-heading: #e9edf3;
+    --login-label: #dbe1ea;
+    --login-muted: #98a2b3;
+    --login-remember: #c3cbd9;
+    --login-label-icon: var(--link-color);
+    --login-input-bg: #171b21;
+    --login-input-bg-focus: #1b2027;
+    --login-input-border: #333b46;
+    --login-input-border-focus: var(--link-color);
+    --login-input-ring: rgba(110, 168, 254, 0.2);
+    --login-input-text: #e9edf3;
+    --login-placeholder: #7f8a9c;
+    --login-input-icon: #7f8a9c;
+    --login-rule: #2b313b;
+    --login-footer: #98a2b3;
+    --login-footer-sep: #3a424f;
+    /* The logo is built for light backgrounds — 61% of its pixels are dark,
+       and the "AUTO SPARE PARTS" tagline is near-black, so it needs its own
+       light plate here rather than sitting straight on the dark card. */
+    --login-logo-plate: #f4f7fb;
+    --login-part-warm: #ff9e57;
+    --login-part-cool: #6ea8fe;
+    --login-part-warm-opacity: 0.13;
+    --login-part-cool-opacity: 0.13;
+    --login-dots-warm-opacity: 0.11;
+    --login-dots-cool-opacity: 0.11;
+  }
+
   /* Negative margin bleeds past the container-fluid's own px-4 padding so
      the gradient reaches both edges; height comes from normal flow (not
      position:fixed) so it always matches the actual page height, including
      the login-required flash banner above the card, instead of clipping to
-     one viewport and showing the site's own dark background beneath it. */
+     one viewport and showing the site's own background beneath it. */
   .login-page {
     position: relative;
     margin: 0 -1.5rem;
     padding: 0 1.5rem;
     overflow: hidden;
-    /* Stops sampled straight off the design mock (ui_layout.png) rather than
-       derived from --accent/--brand, so the orange-to-blue sweep matches it
-       exactly — the brand tints are far paler than what that design uses. */
-    background: linear-gradient(to right,
-      #ffac73 0%,
-      #fddbc9 10%,
-      #fcf0eb 20%,
-      #fefaf7 30%,
-      #ffffff 45%,
-      #f7f9fc 68%,
-      #e4edf9 85%,
-      #c4daf8 95%,
-      #aecef8 100%);
+    background: var(--login-bg);
   }
 
   .bg-part {
@@ -43,10 +101,10 @@ document.documentElement.setAttribute('data-bs-theme', 'light');
 
   /* Sized in vw so they keep the design's proportion to the side margins on a
      1000px laptop as well as a wide monitor, instead of crowding the card. */
-  .bg-part-gear   { top: 4%;   left: 2%;   font-size: clamp(7rem, 13vw, 14rem); color: var(--accent); opacity: 0.24; transform: rotate(-8deg); }
-  .bg-part-box    { bottom: 4%; left: 4%;  font-size: clamp(5rem, 9vw, 10rem);  color: var(--accent); opacity: 0.22; transform: rotate(6deg); }
-  .bg-part-truck  { top: 6%;   right: 4%;  font-size: clamp(5rem, 9vw, 10rem);  color: var(--brand);  opacity: 0.30; transform: rotate(-4deg); }
-  .bg-part-wrench { bottom: 3%; right: 5%; font-size: clamp(7rem, 13vw, 15rem); color: var(--brand);  opacity: 0.30; transform: rotate(20deg); }
+  .bg-part-gear   { top: 4%;   left: 2%;   font-size: clamp(7rem, 13vw, 14rem); color: var(--login-part-warm); opacity: var(--login-part-warm-opacity); transform: rotate(-8deg); }
+  .bg-part-box    { bottom: 4%; left: 4%;  font-size: clamp(5rem, 9vw, 10rem);  color: var(--login-part-warm); opacity: var(--login-part-warm-opacity); transform: rotate(6deg); }
+  .bg-part-truck  { top: 6%;   right: 4%;  font-size: clamp(5rem, 9vw, 10rem);  color: var(--login-part-cool); opacity: var(--login-part-cool-opacity); transform: rotate(-4deg); }
+  .bg-part-wrench { bottom: 3%; right: 5%; font-size: clamp(7rem, 13vw, 15rem); color: var(--login-part-cool); opacity: var(--login-part-cool-opacity); transform: rotate(20deg); }
 
   .bg-dots {
     position: absolute;
@@ -56,8 +114,8 @@ document.documentElement.setAttribute('data-bs-theme', 'light');
     background-image: radial-gradient(currentColor 1.5px, transparent 1.5px);
     background-size: 18px 18px;
   }
-  .bg-dots-left  { top: 46%; left: 6%;  color: var(--accent); opacity: 0.18; }
-  .bg-dots-right { top: 28%; right: 8%; color: var(--brand);  opacity: 0.14; }
+  .bg-dots-left  { top: 46%; left: 6%;  color: var(--login-part-warm); opacity: var(--login-dots-warm-opacity); }
+  .bg-dots-right { top: 28%; right: 8%; color: var(--login-part-cool); opacity: var(--login-dots-cool-opacity); }
 
   /* Only drop the decoration once the card really does fill the width — a
      ~1000px laptop still has room for it on either side. */
@@ -80,9 +138,10 @@ document.documentElement.setAttribute('data-bs-theme', 'light');
     z-index: 2;
     width: 100%;
     max-width: 460px;
-    background: #ffffff;
+    background: var(--login-card-bg);
+    border: 1px solid var(--login-card-border);
     border-radius: 20px;
-    box-shadow: 0 30px 70px -20px rgba(20, 33, 61, 0.28), 0 2px 10px rgba(20, 33, 61, 0.06);
+    box-shadow: var(--login-card-shadow);
     padding: 2.25rem 2.5rem 2rem;
   }
 
@@ -93,10 +152,12 @@ document.documentElement.setAttribute('data-bs-theme', 'light');
     width: 100%;
     max-width: 360px;
     margin: 0 auto 0.5rem;
+    background: var(--login-logo-plate);
+    border-radius: 16px;
   }
 
   .login-welcome {
-    color: #14213d;
+    color: var(--login-heading);
     font-weight: 700;
     font-size: 1.6rem;
     text-align: center;
@@ -104,7 +165,7 @@ document.documentElement.setAttribute('data-bs-theme', 'light');
   }
 
   .login-subtitle {
-    color: #8a93a6;
+    color: var(--login-muted);
     font-size: 0.92rem;
     text-align: center;
     margin-bottom: 1.5rem;
@@ -114,28 +175,30 @@ document.documentElement.setAttribute('data-bs-theme', 'light');
     display: flex;
     align-items: center;
     gap: 0.4rem;
-    color: #1f2a44;
+    color: var(--login-label);
     font-weight: 600;
     font-size: 0.92rem;
     margin-bottom: 0.4rem;
   }
-  .login-field-label svg { color: var(--brand); width: 1rem; height: 1rem; }
+  .login-field-label svg { color: var(--login-label-icon); width: 1rem; height: 1rem; }
 
   .login-input-group { position: relative; margin-bottom: 1.1rem; }
 
   .login-input {
     width: 100%;
     padding: 0.7rem 2.6rem 0.7rem 1rem;
-    border: 1px solid #dde2ea;
+    border: 1px solid var(--login-input-border);
     border-radius: 10px;
-    background: #fbfcfe;
+    background: var(--login-input-bg);
+    color: var(--login-input-text);
     font-size: 0.95rem;
   }
+  .login-input::placeholder { color: var(--login-placeholder); }
   .login-input:focus {
     outline: none;
-    border-color: var(--brand);
-    box-shadow: 0 0 0 3px rgba(var(--brand-rgb), 0.15);
-    background: #fff;
+    border-color: var(--login-input-border-focus);
+    box-shadow: 0 0 0 3px var(--login-input-ring);
+    background: var(--login-input-bg-focus);
   }
 
   .login-input-icon {
@@ -143,7 +206,7 @@ document.documentElement.setAttribute('data-bs-theme', 'light');
     top: 50%;
     right: 0.9rem;
     transform: translateY(-50%);
-    color: #9aa3b2;
+    color: var(--login-input-icon);
     display: flex;
   }
   .login-input-icon svg { width: 1.05rem; height: 1.05rem; }
@@ -163,7 +226,7 @@ document.documentElement.setAttribute('data-bs-theme', 'light');
     font-size: 0.9rem;
   }
 
-  .login-remember { display: flex; align-items: center; gap: 0.45rem; color: #4b5468; }
+  .login-remember { display: flex; align-items: center; gap: 0.45rem; color: var(--login-remember); }
 
   .btn-login {
     width: 100%;
@@ -180,13 +243,13 @@ document.documentElement.setAttribute('data-bs-theme', 'light');
     gap: 0.5rem;
     box-shadow: 0 10px 22px -8px rgba(var(--brand-rgb), 0.55);
   }
-  .btn-login:hover { color: #fff; filter: brightness(1.05); }
+  .btn-login:hover { color: #fff; filter: brightness(1.12); }
 
   .login-divider {
     display: flex;
     align-items: center;
     gap: 0.75rem;
-    color: #a6adba;
+    color: var(--login-muted);
     font-size: 0.85rem;
     margin: 1.4rem 0 1rem;
   }
@@ -194,7 +257,7 @@ document.documentElement.setAttribute('data-bs-theme', 'light');
     content: "";
     flex: 1;
     height: 1px;
-    background: #e6e9ef;
+    background: var(--login-rule);
   }
 
   .login-footer-links {
@@ -203,11 +266,11 @@ document.documentElement.setAttribute('data-bs-theme', 'light');
     justify-content: center;
     gap: 0.9rem;
     font-size: 0.88rem;
-    color: #6b7280;
+    color: var(--login-footer);
   }
-  .login-footer-links .login-footer-sep { color: #d7dbe3; }
+  .login-footer-links .login-footer-sep { color: var(--login-footer-sep); }
   .login-footer-secure { display: inline-flex; align-items: center; gap: 0.35rem; }
-  .login-footer-secure svg { color: #8a93a6; }
+  .login-footer-secure svg { color: var(--login-input-icon); }
 </style>
 
 <div class="login-page">

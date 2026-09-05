@@ -10,14 +10,17 @@
       <input type="text" id="f-name" name="name" class="form-control" autocomplete="off" required value="{{ supplier.name if supplier else '' }}">
     </div>
     <div class="col-md-6">
-      <label class="form-label" for="f-brand">Brand</label>
-      <select id="f-brand" name="brand_id" class="form-select">
-        <option value="">-- None --</option>
+      <label class="form-label">Brands</label>
+      {% set supplier_brand_ids = supplier.brands|map(attribute='id')|list if supplier else [] %}
+      <div class="border rounded p-2">
         {% for b in brands %}
-        <option value="{{ b.id }}" {{ 'selected' if supplier and supplier.brand_id == b.id else '' }}>{{ b.name }}</option>
+        <div class="form-check">
+          <input type="checkbox" class="form-check-input" id="f-brand-{{ b.id }}" name="brand_id[]" value="{{ b.id }}" {{ 'checked' if b.id in supplier_brand_ids else '' }}>
+          <label class="form-check-label" for="f-brand-{{ b.id }}">{{ b.name }}</label>
+        </div>
         {% endfor %}
-      </select>
-      <div class="form-text">Manage the brand list from <a href="{{ url_for('brands.list_brands') }}">Catalog &raquo; Brands</a>.</div>
+      </div>
+      <div class="form-text">A supplier can carry more than one brand — check all that apply. Manage the brand list from <a href="{{ url_for('brands.list_brands') }}">Catalog &raquo; Brands</a>.</div>
     </div>
     <div class="col-md-6">
       <label class="form-label" for="f-phone">Phone</label>
@@ -37,8 +40,4 @@
     <a href="{{ url_for('suppliers.list_suppliers') }}" class="btn btn-outline-secondary">{{ icon('x-lg') }}Cancel</a>
   </div>
 </form>
-
-<script>
-SearchableSelect.enhance(document.getElementById('f-brand'));
-</script>
 {% endblock %}

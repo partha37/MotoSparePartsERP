@@ -9,12 +9,12 @@
 </div>
 <div class="card p-3">
 <table class="table table-hover align-middle data-table">
-  <thead><tr><th>Name</th><th>Brand</th><th>Phone</th><th>GSTIN</th><th></th></tr></thead>
+  <thead><tr><th>Name</th><th>Brands</th><th>Phone</th><th>GSTIN</th><th></th></tr></thead>
   <tbody>
     {% for s in suppliers %}
     <tr data-href="{{ url_for('suppliers.edit_supplier', supplier_id=s.id) }}">
       <td>{{ s.name }}</td>
-      <td>{{ s.brand.name if s.brand else '-' }}</td>
+      <td>{{ s.brand_names or '-' }}</td>
       <td>{{ s.phone }}</td>
       <td>{{ s.gstin }}</td>
       <td class="text-end">

@@ -24,7 +24,7 @@ EXPORTABLE = {
                             "current_stock", "reorder_level"]),
     "customers": (Customer, ["id", "name", "phone", "address", "vehicle_model"]),
     "mechanics": (Mechanic, ["id", "name", "phone", "garage_name"]),
-    "suppliers": (Supplier, ["id", "name", "brand_name", "phone", "address", "gstin"]),
+    "suppliers": (Supplier, ["id", "name", "brand_names", "phone", "address", "gstin"]),
     "sales": (Sale, ["id", "invoice_no", "date", "customer_id", "is_walkin", "mechanic_id",
                       "payment_mode", "amount_paid"]),
     "purchases": (Purchase, ["id", "supplier_id", "date", "invoice_no"]),

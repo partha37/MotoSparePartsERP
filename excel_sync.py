@@ -37,7 +37,7 @@ SHEETS = {
         "gst_rate", "mrp", "actual_discount_pct", "actual_discounted_price",
         "margin_per_unit", "current_stock", "reorder_level",
     ]),
-    "Suppliers": (Supplier, ["id", "name", "brand_name", "phone", "address", "gstin"]),
+    "Suppliers": (Supplier, ["id", "name", "brand_names", "phone", "address", "gstin"]),
     "Brands": (Brand, ["id", "name"]),
     "ProductCategories": (ProductCategory, ["id", "name"]),
     "Customers": (Customer, ["id", "name", "phone", "address", "vehicle_model"]),

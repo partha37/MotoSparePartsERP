@@ -108,20 +108,30 @@ class Product(db.Model):
         return f"<Product {self.part_no} {self.product_name}>"
 
 
+supplier_brand = db.Table(
+    "supplier_brand",
+    db.Column("supplier_id", db.Integer, db.ForeignKey("supplier.id"), primary_key=True),
+    db.Column("brand_id", db.Integer, db.ForeignKey("brand.id"), primary_key=True),
+)
+
+
 class Supplier(db.Model):
+    """A supplier can carry more than one brand (e.g. a distributor selling
+    both Honda and Bajaj parts), so brands is many-to-many rather than the
+    single brand_id every other brand-linked model uses."""
+
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(150), nullable=False)
-    brand_id = db.Column(db.Integer, db.ForeignKey("brand.id"), nullable=True)
     phone = db.Column(db.String(20))
     address = db.Column(db.String(255))
     gstin = db.Column(db.String(20))
 
     purchases = db.relationship("Purchase", backref="supplier", lazy=True)
-    brand = db.relationship("Brand", backref="suppliers")
+    brands = db.relationship("Brand", secondary=supplier_brand, backref="suppliers", order_by="Brand.name")
 
     @property
-    def brand_name(self):
-        return self.brand.name if self.brand else ""
+    def brand_names(self):
+        return ", ".join(b.name for b in self.brands)
 
 
 class Customer(db.Model):

@@ -10,7 +10,8 @@ suppliers_bp = Blueprint("suppliers", __name__, url_prefix="/suppliers")
 
 def _apply_form(supplier, form):
     supplier.name = form.get("name", "").strip()
-    supplier.brand_id = int(form.get("brand_id")) if form.get("brand_id") else None
+    brand_ids = [int(bid) for bid in form.getlist("brand_id[]")]
+    supplier.brands = Brand.query.filter(Brand.id.in_(brand_ids)).all() if brand_ids else []
     supplier.phone = form.get("phone", "").strip()
     supplier.address = form.get("address", "").strip()
     supplier.gstin = form.get("gstin", "").strip()

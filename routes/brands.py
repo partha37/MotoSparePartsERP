@@ -62,7 +62,7 @@ def delete_brand(brand_id):
     brand = Brand.query.get_or_404(brand_id)
     in_use = (
         Product.query.filter_by(brand_id=brand.id).first()
-        or Supplier.query.filter_by(brand_id=brand.id).first()
+        or brand.suppliers
         or CustomerBrandDiscount.query.filter_by(brand_id=brand.id).first()
         or MechanicBrandDiscount.query.filter_by(brand_id=brand.id).first()
     )

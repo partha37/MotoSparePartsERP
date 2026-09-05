@@ -1,155 +1,273 @@
 {% extends "base.html" %}
 {% block title %}Login - Lokey Auto Spare Parts{% endblock %}
 {% block content %}
+<script>
+// This page has a fixed light design regardless of the app's own dark/light
+// toggle (there's no navbar here to switch it from anyway) — set it early,
+// without touching the saved preference, purely so the flash alert above
+// picks up Bootstrap's light-mode colors instead of the app-wide dark default.
+document.documentElement.setAttribute('data-bs-theme', 'light');
+</script>
 <style>
-  /* Custom Unique Styles for Lokey Auto Spare Parts */
-  .login-container {
-    min-height: 85vh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    background:
-      radial-gradient(circle at 15% 15%, rgba(255, 94, 0, 0.30) 0%, rgba(255, 94, 0, 0) 45%),
-      radial-gradient(circle at 85% 20%, rgba(6, 182, 212, 0.25) 0%, rgba(6, 182, 212, 0) 45%),
-      radial-gradient(circle at 80% 90%, rgba(255, 176, 32, 0.22) 0%, rgba(255, 176, 32, 0) 50%),
-      radial-gradient(circle at 10% 85%, rgba(242, 13, 19, 0.20) 0%, rgba(242, 13, 19, 0) 50%),
-      linear-gradient(135deg, #0b1330 0%, #030712 60%, #1a0f2e 100%);
+  /* Negative margin bleeds past the container-fluid's own px-4 padding so
+     the gradient reaches both edges; height comes from normal flow (not
+     position:fixed) so it always matches the actual page height, including
+     the login-required flash banner above the card, instead of clipping to
+     one viewport and showing the site's own dark background beneath it. */
+  .login-page {
     position: relative;
+    margin: 0 -1.5rem;
+    padding: 0 1.5rem;
     overflow: hidden;
-    border-radius: 16px;
-    padding: 2rem;
+    /* Stops sampled straight off the design mock (ui_layout.png) rather than
+       derived from --accent/--brand, so the orange-to-blue sweep matches it
+       exactly — the brand tints are far paler than what that design uses. */
+    background: linear-gradient(to right,
+      #ffac73 0%,
+      #fddbc9 10%,
+      #fcf0eb 20%,
+      #fefaf7 30%,
+      #ffffff 45%,
+      #f7f9fc 68%,
+      #e4edf9 85%,
+      #c4daf8 95%,
+      #aecef8 100%);
   }
 
-  /* --- Scattered "spare parts" background icons --- */
   .bg-part {
     position: absolute;
-    line-height: 1;
-    user-select: none;
-    pointer-events: none;
     z-index: 1;
+    line-height: 1;
   }
   .bg-part svg { width: 1em; height: 1em; }
 
-  .bg-part-gear   { top: 6%;  left: 4%;  font-size: 11rem; color: rgba(255, 94, 0, 0.16);   transform: rotate(-12deg); }
-  .bg-part-wrench { bottom: 6%; right: 5%; font-size: 13rem; color: rgba(6, 182, 212, 0.14);  transform: rotate(22deg); }
-  .bg-part-truck  { top: 8%;  right: 8%; font-size: 6.5rem; color: rgba(255, 176, 32, 0.16); transform: rotate(-6deg); }
-  .bg-part-box    { bottom: 8%; left: 7%; font-size: 7rem;   color: rgba(242, 13, 19, 0.16);  transform: rotate(10deg); }
-  .bg-part-speed  { top: 42%; left: 50%; font-size: 20rem;  color: rgba(255, 255, 255, 0.03); transform: translate(-50%, -50%) rotate(-8deg); }
+  /* Sized in vw so they keep the design's proportion to the side margins on a
+     1000px laptop as well as a wide monitor, instead of crowding the card. */
+  .bg-part-gear   { top: 4%;   left: 2%;   font-size: clamp(7rem, 13vw, 14rem); color: var(--accent); opacity: 0.24; transform: rotate(-8deg); }
+  .bg-part-box    { bottom: 4%; left: 4%;  font-size: clamp(5rem, 9vw, 10rem);  color: var(--accent); opacity: 0.22; transform: rotate(6deg); }
+  .bg-part-truck  { top: 6%;   right: 4%;  font-size: clamp(5rem, 9vw, 10rem);  color: var(--brand);  opacity: 0.30; transform: rotate(-4deg); }
+  .bg-part-wrench { bottom: 3%; right: 5%; font-size: clamp(7rem, 13vw, 15rem); color: var(--brand);  opacity: 0.30; transform: rotate(20deg); }
 
-  @media (max-width: 992px) {
-    .bg-part-gear, .bg-part-wrench, .bg-part-truck, .bg-part-box { display: none; }
-    .bg-part-speed { font-size: 13rem; }
+  .bg-dots {
+    position: absolute;
+    z-index: 1;
+    width: 220px;
+    height: 220px;
+    background-image: radial-gradient(currentColor 1.5px, transparent 1.5px);
+    background-size: 18px 18px;
+  }
+  .bg-dots-left  { top: 46%; left: 6%;  color: var(--accent); opacity: 0.18; }
+  .bg-dots-right { top: 28%; right: 8%; color: var(--brand);  opacity: 0.14; }
+
+  /* Only drop the decoration once the card really does fill the width — a
+     ~1000px laptop still has room for it on either side. */
+  @media (max-width: 768px) {
+    .bg-part, .bg-dots { display: none; }
   }
 
-  /* --- Form Card Layout --- */
-  .custom-card {
-    background: #1f293d; /* Flat dark slate color matching your reference */
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    border-top: 4px solid #ff5e00; /* Top neon orange accent strip */
-    border-radius: 16px;
-    box-shadow: 0 25px 60px -12px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.02);
+  .login-wrap {
     position: relative;
     z-index: 2;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 0;
   }
 
+  .login-card {
+    position: relative;
+    z-index: 2;
+    width: 100%;
+    max-width: 460px;
+    background: #ffffff;
+    border-radius: 20px;
+    box-shadow: 0 30px 70px -20px rgba(20, 33, 61, 0.28), 0 2px 10px rgba(20, 33, 61, 0.06);
+    padding: 2.25rem 2.5rem 2rem;
+  }
+
+  /* The artwork carries ~17% transparent padding on each side, so the box is
+     wider than the logo looks — sized against the visible mark, not the file. */
   .login-logo {
-    width: 72px;
-    height: 72px;
     display: block;
-    margin: 0 auto 0.75rem;
-    filter: drop-shadow(0 4px 10px rgba(255, 94, 0, 0.35));
+    width: 100%;
+    max-width: 360px;
+    margin: 0 auto 0.5rem;
   }
 
-  .form-title {
-    color: #ffffff;
+  .login-welcome {
+    color: #14213d;
     font-weight: 700;
     font-size: 1.6rem;
-    letter-spacing: 0.5px;
+    text-align: center;
+    margin-bottom: 0.15rem;
   }
 
-  .form-subtitle {
-    color: #9ca3af;
-    font-size: 0.85rem;
-    letter-spacing: 0.5px;
+  .login-subtitle {
+    color: #8a93a6;
+    font-size: 0.92rem;
+    text-align: center;
+    margin-bottom: 1.5rem;
   }
 
-  .form-label {
-    color: #9ca3af;
-    font-weight: 500;
+  .login-field-label {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: #1f2a44;
+    font-weight: 600;
+    font-size: 0.92rem;
+    margin-bottom: 0.4rem;
+  }
+  .login-field-label svg { color: var(--brand); width: 1rem; height: 1rem; }
+
+  .login-input-group { position: relative; margin-bottom: 1.1rem; }
+
+  .login-input {
+    width: 100%;
+    padding: 0.7rem 2.6rem 0.7rem 1rem;
+    border: 1px solid #dde2ea;
+    border-radius: 10px;
+    background: #fbfcfe;
+    font-size: 0.95rem;
+  }
+  .login-input:focus {
+    outline: none;
+    border-color: var(--brand);
+    box-shadow: 0 0 0 3px rgba(var(--brand-rgb), 0.15);
+    background: #fff;
+  }
+
+  .login-input-icon {
+    position: absolute;
+    top: 50%;
+    right: 0.9rem;
+    transform: translateY(-50%);
+    color: #9aa3b2;
+    display: flex;
+  }
+  .login-input-icon svg { width: 1.05rem; height: 1.05rem; }
+
+  button.login-input-icon {
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+  }
+
+  .login-row-between {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.25rem;
     font-size: 0.9rem;
   }
 
-  /* Input Boxes */
-  .custom-input {
-    background-color: #111827 !important;
-    border: 1px solid #374151;
-    color: #ffffff !important;
-    border-radius: 8px;
-    padding: 0.75rem 1rem;
-  }
+  .login-remember { display: flex; align-items: center; gap: 0.45rem; color: #4b5468; }
 
-  .custom-input:focus {
-    border-color: #ff5e00;
-    box-shadow: 0 0 0 3px rgba(255, 94, 0, 0.2);
-  }
-
-  /* High-Performance Action Button */
-  .btn-mechanic {
-    background: linear-gradient(135deg, #ff4500 0%, #ff2e00 100%);
+  .btn-login {
+    width: 100%;
+    background: linear-gradient(135deg, var(--brand) 0%, var(--brand-dark) 100%);
     border: none;
-    color: #ffffff;
+    color: #fff;
     font-weight: 700;
-    border-radius: 8px;
+    letter-spacing: 0.5px;
+    border-radius: 10px;
     padding: 0.8rem;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    box-shadow: 0 4px 15px rgba(255, 69, 0, 0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    box-shadow: 0 10px 22px -8px rgba(var(--brand-rgb), 0.55);
+  }
+  .btn-login:hover { color: #fff; filter: brightness(1.05); }
+
+  .login-divider {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    color: #a6adba;
+    font-size: 0.85rem;
+    margin: 1.4rem 0 1rem;
+  }
+  .login-divider::before, .login-divider::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: #e6e9ef;
   }
 
-  .btn-mechanic:hover {
-    background: linear-gradient(135deg, #ff5714 0%, #ff411a 100%);
-    box-shadow: 0 6px 20px rgba(255, 69, 0, 0.4);
-    color: #fff;
+  .login-footer-links {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.9rem;
+    font-size: 0.88rem;
+    color: #6b7280;
   }
+  .login-footer-links .login-footer-sep { color: #d7dbe3; }
+  .login-footer-secure { display: inline-flex; align-items: center; gap: 0.35rem; }
+  .login-footer-secure svg { color: #8a93a6; }
 </style>
 
-<div class="login-container mt-4">
-
-  <!-- Scattered spare-parts watermark icons -->
-  <div class="bg-part bg-part-speed">{{ icon('speedometer2') }}</div>
+<div class="login-page">
   <div class="bg-part bg-part-gear">{{ icon('gear') }}</div>
-  <div class="bg-part bg-part-wrench">{{ icon('wrench') }}</div>
-  <div class="bg-part bg-part-truck">{{ icon('truck') }}</div>
   <div class="bg-part bg-part-box">{{ icon('box-seam') }}</div>
+  <div class="bg-part bg-part-truck">{{ icon('truck') }}</div>
+  <div class="bg-part bg-part-wrench">{{ icon('wrench') }}</div>
+  <div class="bg-dots bg-dots-left"></div>
+  <div class="bg-dots bg-dots-right"></div>
 
-  <!-- Login Card Form -->
-  <div class="col-12 col-sm-8 col-md-5 col-lg-4">
-    <div class="card custom-card p-4">
-      <div class="text-center mb-4">
-        <img src="{{ url_for('static', filename='img/logo.svg') }}" alt="Lokey Auto Spare Parts" class="login-logo">
-        <h3 class="form-title m-0">SHOP LOGIN</h3>
-        <div class="form-subtitle">Lokey Auto Spare Parts</div>
+<div class="login-wrap">
+  <div class="login-card">
+    <img src="{{ url_for('static', filename='img/lokey-logo.png') }}" alt="Lokey Auto Spare Parts" class="login-logo">
+
+    <div class="login-welcome">Welcome Back!</div>
+    <div class="login-subtitle">Login to access your account</div>
+
+    <form method="post">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+      <label class="login-field-label" for="f-username">{{ icon('person-fill') }}Username</label>
+      <div class="login-input-group">
+        <input type="text" id="f-username" name="username" class="login-input" placeholder="Enter your username" autocomplete="username" required autofocus>
+        <span class="login-input-icon">{{ icon('person-fill') }}</span>
       </div>
 
-      <form method="post">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <label class="login-field-label" for="f-password">{{ icon('lock-fill') }}Password</label>
+      <div class="login-input-group">
+        <input type="password" id="f-password" name="password" class="login-input" placeholder="Enter your password" autocomplete="current-password" required>
+        <button type="button" class="login-input-icon" id="togglePasswordBtn" aria-label="Show password" title="Show password">{{ icon('eye') }}</button>
+      </div>
 
-        <div class="mb-3">
-          <label class="form-label" for="f-username">Username</label>
-          <input type="text" id="f-username" name="username" class="form-control custom-input" autocomplete="username" required autofocus>
-        </div>
+      <div class="login-row-between">
+        <label class="login-remember" for="f-remember">
+          <input type="checkbox" id="f-remember" name="remember" value="1">
+          Remember me
+        </label>
+      </div>
 
-        <div class="mb-4">
-          <label class="form-label" for="f-password">Password</label>
-          <input type="password" id="f-password" name="password" class="form-control custom-input" autocomplete="current-password" required>
-        </div>
+      <button type="submit" class="btn-login">{{ icon('box-arrow-right') }}LOG IN</button>
+    </form>
 
-        <button type="submit" class="btn btn-mechanic w-100 d-flex align-items-center justify-content-center gap-2">
-          {{ icon('box-arrow-right') }} LOG IN
-        </button>
-      </form>
+    <div class="login-divider">Need help?</div>
+    <div class="login-footer-links">
+      <span class="login-footer-secure">{{ icon('telephone') }}Contact Support</span>
+      <span class="login-footer-sep">|</span>
+      <span class="login-footer-secure">{{ icon('shield-check') }}Secure &amp; Trusted</span>
     </div>
   </div>
 </div>
+</div>
+
+<script>
+const togglePasswordBtn = document.getElementById('togglePasswordBtn');
+const passwordField = document.getElementById('f-password');
+togglePasswordBtn.addEventListener('click', function () {
+  const showing = passwordField.type === 'text';
+  passwordField.type = showing ? 'password' : 'text';
+  togglePasswordBtn.title = showing ? 'Show password' : 'Hide password';
+  togglePasswordBtn.setAttribute('aria-label', togglePasswordBtn.title);
+});
+</script>
 {% endblock %}

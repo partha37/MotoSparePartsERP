@@ -123,6 +123,18 @@ def _validate_purchase_form(form):
     if errors:
         return errors, None
 
+    # "Prices include GST" means the owner typed the invoice's GST-inclusive
+    # figure into the price column instead of the pre-tax one, so back the
+    # pre-GST price out of it here — callers then recompute purchase_price
+    # from that exactly as they always have. Kept at 4dp rather than 2 so
+    # that recomputation lands back on the amount actually typed instead of
+    # drifting a paisa (100.00 incl @18% -> 84.7458 -> 100.00, not 100.01).
+    if form.get("prices_include_gst"):
+        rows = [
+            (pid, qty, round(float(price) / (1 + (float(gst) if gst else 18.0) / 100), 4), mrp, gst)
+            for pid, qty, price, mrp, gst in rows
+        ]
+
     delivery_charge_raw = form.get("delivery_charge", "").strip()
     delivery_charge = float(delivery_charge_raw) if delivery_charge_raw else 0.0
 

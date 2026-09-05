@@ -26,8 +26,14 @@
     </div>
   </div>
 
-  <h5 class="d-flex align-items-center">{{ icon('box-seam', 'me-1') }}Items</h5>
-  <p class="text-muted small">This purchase's price and MRP become the product's new current cost/MRP — enter both fresh for this batch. "Price before GST" is what the supplier quoted, before tax — GST defaults to 18% but is editable per line; the Actual Price (what this batch really cost) and Discount % (against MRP) are computed from that automatically.</p>
+  <div class="d-flex justify-content-between align-items-center">
+    <h5 class="d-flex align-items-center mb-0">{{ icon('box-seam', 'me-1') }}Items</h5>
+    <div class="form-check mb-0">
+      <input class="form-check-input" type="checkbox" id="f-prices-include-gst" name="prices_include_gst" value="1">
+      <label class="form-check-label" for="f-prices-include-gst">Prices on this invoice include GST</label>
+    </div>
+  </div>
+  <p class="text-muted small">This purchase's price and MRP become the product's new current cost/MRP — enter both fresh for this batch. "Price before GST" is what the supplier quoted, before tax — GST defaults to 18% but is editable per line; the Actual Price (what this batch really cost) and Discount % (against MRP) are computed from that automatically. If this supplier's invoice quotes prices with GST already added, tick the box above and type those figures instead — the pre-tax price is worked out for you.</p>
   <p class="text-muted small">Fill in a line completely and a new blank line appears below it automatically. The first line is required; a line you've started filling in must be completed before saving; empty untouched lines are ignored.</p>
   {% if prefill_products %}
   <p class="text-muted small">Pre-filled from the Reorder report — Qty defaults to what's needed to reach reorder level, adjust as needed. Add more lines for anything else you want on this purchase.</p>
@@ -47,7 +53,7 @@
     </td>
     <td><input type="number" name="qty[]" class="form-control qty-input" min="1" aria-label="Quantity" value="{{ qty if qty else '' }}"></td>
     <td><input type="number" step="0.01" name="mrp[]" class="form-control mrp-input" aria-label="MRP" min="0.01" value="{{ mrp if mrp else '' }}"></td>
-    <td><input type="number" step="0.01" name="price_before_gst[]" class="form-control price-input" aria-label="Price before GST" value="{{ price_before_gst if price_before_gst else '' }}"></td>
+    <td><input type="number" step="any" name="price_before_gst[]" class="form-control price-input" aria-label="Price before GST" value="{{ price_before_gst if price_before_gst else '' }}"></td>
     <td><input type="number" step="0.01" name="gst_rate[]" class="form-control gst-input" aria-label="GST %" value="{{ gst_rate if gst_rate is not none else 18 }}"></td>
     <td><input type="text" class="form-control actual-price-input" aria-label="Actual price each (incl. GST)" disabled></td>
     <td><input type="number" step="0.01" class="form-control discount-input" aria-label="Discount %" readonly tabindex="-1"></td>
@@ -56,7 +62,7 @@
   </tr>
   {% endmacro %}
   <table class="table" id="itemsTable">
-    <thead><tr><th>Product</th><th style="width:100px">Qty</th><th style="width:140px">MRP</th><th style="width:140px">Price before GST</th><th style="width:90px">GST %</th><th style="width:140px">Actual Price (each)</th><th style="width:110px">Discount %</th><th style="width:120px">Line Total</th><th></th></tr></thead>
+    <thead><tr><th>Product</th><th style="width:100px">Qty</th><th style="width:140px">MRP</th><th style="width:140px" id="priceColumnHeader">Price before GST</th><th style="width:90px">GST %</th><th style="width:140px">Actual Price (each)</th><th style="width:110px">Discount %</th><th style="width:120px">Line Total</th><th></th></tr></thead>
     <tbody>
       {% if purchase %}
         {% for item in purchase.items %}
@@ -238,23 +244,33 @@ function maybeAutoAddRow(row) {
   }
 }
 
-// Actual Price (each) = Price before GST × (1 + GST% / 100) — the real
-// per-unit cost of this batch, what actually gets stored/compared. Discount
-// % is derived from MRP vs that actual (GST-inclusive) price, same formula
-// as Product.update_cost_from_purchase — not entered directly.
+// Some suppliers quote the pre-tax price on their invoice, others quote it
+// with GST already added. The checkbox only changes what the Price column
+// means as it's typed — what gets stored is the same either way, since
+// routes/purchases.py::_validate_purchase_form backs the pre-GST price out
+// of an inclusive entry before saving.
+const pricesIncludeGstInput = document.getElementById('f-prices-include-gst');
+
+function actualPriceFrom(enteredPrice, gstPct) {
+  return pricesIncludeGstInput.checked ? enteredPrice : enteredPrice * (1 + gstPct / 100);
+}
+
+// Actual Price (each) is the real GST-inclusive per-unit cost of this batch,
+// what actually gets stored/compared. Discount % is derived from MRP vs that
+// price, same formula as Product.update_cost_from_purchase — not entered directly.
 function recalcLine(row) {
   const qty = parseFloat(row.querySelector('.qty-input').value) || 0;
   const mrp = parseFloat(row.querySelector('.mrp-input').value) || 0;
-  const priceBeforeGst = parseFloat(row.querySelector('.price-input').value) || 0;
+  const enteredPrice = parseFloat(row.querySelector('.price-input').value) || 0;
   const gstPct = parseFloat(row.querySelector('.gst-input').value) || 0;
-  const actualPrice = priceBeforeGst * (1 + gstPct / 100);
+  const actualPrice = actualPriceFrom(enteredPrice, gstPct);
   const actualPriceInput = row.querySelector('.actual-price-input');
   const discountInput = row.querySelector('.discount-input');
   const lineTotalInput = row.querySelector('.line-total-input');
 
-  actualPriceInput.value = priceBeforeGst ? '₹' + actualPrice.toFixed(2) : '';
+  actualPriceInput.value = enteredPrice ? '₹' + actualPrice.toFixed(2) : '';
   discountInput.value = mrp > 0 ? (100 * (1 - actualPrice / mrp)).toFixed(2) : '';
-  lineTotalInput.value = (qty && priceBeforeGst) ? '₹' + (qty * actualPrice).toFixed(2) : '';
+  lineTotalInput.value = (qty && enteredPrice) ? '₹' + (qty * actualPrice).toFixed(2) : '';
 
   recalcGrandTotal();
 }
@@ -263,9 +279,9 @@ function recalcGrandTotal() {
   let total = 0;
   document.querySelectorAll('#itemsTable tbody tr').forEach(function (row) {
     const qty = parseFloat(row.querySelector('.qty-input').value) || 0;
-    const priceBeforeGst = parseFloat(row.querySelector('.price-input').value) || 0;
+    const enteredPrice = parseFloat(row.querySelector('.price-input').value) || 0;
     const gstPct = parseFloat(row.querySelector('.gst-input').value) || 0;
-    total += qty * priceBeforeGst * (1 + gstPct / 100);
+    total += qty * actualPriceFrom(enteredPrice, gstPct);
   });
   document.querySelectorAll('.charge-amount-input').forEach(function (input) {
     total += parseFloat(input.value) || 0;
@@ -340,6 +356,15 @@ function wireRow(row) {
   priceInput.addEventListener('input', function () { maybeAutoAddRow(row); recalcLine(row); });
   mrpInput.addEventListener('input', function () { maybeAutoAddRow(row); recalcLine(row); });
 }
+
+pricesIncludeGstInput.addEventListener('change', function () {
+  const label = pricesIncludeGstInput.checked ? 'Price (incl. GST)' : 'Price before GST';
+  document.getElementById('priceColumnHeader').textContent = label;
+  document.querySelectorAll('#itemsTable tbody tr .price-input').forEach(function (input) {
+    input.setAttribute('aria-label', label);
+  });
+  document.querySelectorAll('#itemsTable tbody tr').forEach(recalcLine);
+});
 
 document.querySelectorAll('#itemsTable tbody tr').forEach(wireRow);
 SearchableSelect.enhance(document.getElementById('f-supplier'));

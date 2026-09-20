@@ -1,4 +1,5 @@
-from datetime import date
+from datetime import date, datetime
+from urllib.parse import urlencode
 
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import login_required
@@ -418,6 +419,191 @@ def view_sale(sale_id):
     shop = ShopSettings.query.first() or ShopSettings()
     return render_template(
         "sales/view.html", sale=sale, shop=shop, today=date.today().isoformat()
+    )
+
+
+def bill_rounding(total):
+    """Whole-rupee grand total plus the rounding delta printed above it."""
+    rounded = round(total)
+    return rounded, round(rounded - total, 2)
+
+
+def gst_label(rate):
+    """The per-line tax column. Display only — nothing on the sales side adds
+    GST on top, since MRP already includes it (see CLAUDE.md)."""
+    return f"{int(round(rate))}%" if rate else "Exempt"
+
+
+def bill_size(args):
+    return "a4" if args.get("size") == "a4" else "80mm"
+
+
+@sales_bp.route("/<int:sale_id>/bill")
+@login_required
+def bill(sale_id):
+    """The printable customer bill. 80mm thermal roll is the counter default;
+    ?size=a4 renders the same figures as a full-width sheet instead."""
+    sale = Sale.query.get_or_404(sale_id)
+    shop = ShopSettings.query.first() or ShopSettings()
+    # Totalling MRP here rather than on the model: it's only ever the printed
+    # bill's "you saved this much" line, not something the rest of the app bills on.
+    mrp_total = round(sum(item.mrp_at_sale * item.qty for item in sale.items), 2)
+    rounded_total, round_off = bill_rounding(sale.total)
+
+    extra_rows = []
+    discount = round(mrp_total - sale.total, 2)
+    if discount > 0:
+        extra_rows.append(("Discount Amt", discount))
+    if sale.return_credit > 0:
+        extra_rows.append(("Less : Returns", sale.return_credit))
+    if sale.balance_due != 0:
+        extra_rows.append(("Amount Paid", sale.amount_paid))
+        extra_rows.append((
+            "Refund Due" if sale.balance_due < 0 else "Balance Due", abs(sale.balance_due),
+        ))
+
+    return render_template(
+        "sales/bill.html",
+        shop=shop,
+        size=bill_size(request.args),
+        bill={
+            "title": "TAX INVOICE",
+            "no_label": "Invoice No/Date",
+            "no": sale.invoice_no,
+            "date": sale.date,
+            "created_at": sale.created_at,
+            "customer_name": sale.customer_display,
+            "customer_mobile": sale.customer.phone if sale.customer else "",
+            "mechanic": sale.mechanic.name if sale.mechanic else "",
+            "payment_mode": sale.payment_mode,
+            "show_part_no": True,
+            "lines": [
+                {
+                    "name": item.product.product_name,
+                    "part_no": item.product.part_no,
+                    "gst": gst_label(item.product.gst_rate),
+                    "mrp": item.mrp_at_sale,
+                    "rate": item.selling_price,
+                    "qty": item.qty,
+                    "amount": item.line_total,
+                }
+                for item in sale.items
+            ],
+            "total_label": "Total",
+            "total": sale.total,
+            "round_off": round_off,
+            "rounded_total": rounded_total,
+            "grand_label": "TOTAL Rs.",
+            "extra_rows": extra_rows,
+            "thanks": "THANK YOU VISIT AGAIN",
+            "self_url": url_for("sales.bill", sale_id=sale.id),
+            "self_url_a4": url_for("sales.bill", sale_id=sale.id, size="a4"),
+            "back_url": url_for("sales.view_sale", sale_id=sale.id),
+            "back_label": "Back to Sale",
+        },
+    )
+
+
+def _num(raw, default=0.0):
+    try:
+        return float(raw)
+    except (TypeError, ValueError):
+        return default
+
+
+@sales_bp.route("/quick-bill")
+@login_required
+def quick_bill():
+    """Form for a one-off printed bill that isn't a Sale — for reprinting a
+    sample, or billing something outside the catalogue. Nothing here is
+    saved: no Sale row, no stock movement, no invoice number consumed."""
+    return render_template(
+        "sales/quick_bill.html",
+        today=date.today().isoformat(),
+        default_no="QB-" + date.today().strftime("%d%m%Y"),
+    )
+
+
+@sales_bp.route("/quick-bill/print")
+@login_required
+def quick_bill_print():
+    """Renders the typed-in lines through the same bill layout as a real sale.
+    Deliberately a GET off the query string — it reads nothing and writes
+    nothing, so reloading it or switching paper size just re-renders."""
+    shop = ShopSettings.query.first() or ShopSettings()
+
+    lines = []
+    fields = (
+        request.args.getlist("name[]"),
+        request.args.getlist("gst[]"),
+        request.args.getlist("mrp[]"),
+        request.args.getlist("rate[]"),
+        request.args.getlist("qty[]"),
+    )
+    for name, gst, mrp, rate, qty in zip(*fields):
+        if not name.strip():
+            continue
+        rate_val = _num(rate)
+        qty_val = int(_num(qty, 1)) or 1
+        lines.append({
+            "name": name.strip(),
+            "part_no": "",
+            # Blank GST means the line is untaxed, same as a product with no rate.
+            "gst": gst_label(_num(gst)),
+            "mrp": _num(mrp) or rate_val,
+            "rate": rate_val,
+            "qty": qty_val,
+            "amount": round(rate_val * qty_val, 2),
+        })
+
+    total = round(sum(line["amount"] for line in lines), 2)
+    mrp_total = round(sum(line["mrp"] * line["qty"] for line in lines), 2)
+    rounded_total, round_off = bill_rounding(total)
+
+    extra_rows = []
+    discount = round(mrp_total - total, 2)
+    if discount > 0:
+        extra_rows.append(("Discount Amt", discount))
+    paid_raw = request.args.get("amount_paid", "").strip()
+    if paid_raw:
+        paid = _num(paid_raw)
+        extra_rows.append(("Amount Paid", paid))
+        extra_rows.append(("Balance Due", round(rounded_total - paid, 2)))
+
+    # Keep every field except the ones the toolbar itself sets, so the paper-size
+    # links re-render the very same bill rather than an empty one.
+    carried = [(k, v) for k, v in request.args.items(multi=True) if k not in ("size", "auto")]
+    base = url_for("sales.quick_bill_print")
+
+    bill_date = request.args.get("date") or date.today().isoformat()
+    return render_template(
+        "sales/bill.html",
+        shop=shop,
+        size=bill_size(request.args),
+        bill={
+            "title": request.args.get("title", "").strip() or "TAX INVOICE",
+            "no_label": "Bill No/Date",
+            "no": request.args.get("bill_no", "").strip(),
+            "date": date.fromisoformat(bill_date),
+            "created_at": datetime.utcnow(),
+            "customer_name": request.args.get("customer_name", "").strip() or "-",
+            "customer_mobile": request.args.get("customer_mobile", "").strip(),
+            "mechanic": "",
+            "payment_mode": request.args.get("payment_mode", "").strip(),
+            "show_part_no": False,
+            "lines": lines,
+            "total_label": "Total",
+            "total": total,
+            "round_off": round_off,
+            "rounded_total": rounded_total,
+            "grand_label": "TOTAL Rs.",
+            "extra_rows": extra_rows,
+            "thanks": "THANK YOU VISIT AGAIN",
+            "self_url": base + "?" + urlencode(carried),
+            "self_url_a4": base + "?" + urlencode(carried + [("size", "a4")]),
+            "back_url": url_for("sales.quick_bill") + "?" + urlencode(carried),
+            "back_label": "Edit Bill",
+        },
     )
 
 

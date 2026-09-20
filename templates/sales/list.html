@@ -5,7 +5,10 @@
 <div class="page-toolbar">
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h2>Sales</h2>
-  <a href="{{ url_for('sales.new_sale') }}" class="btn btn-primary">{{ icon('plus-lg') }}New Sale</a>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('sales.quick_bill') }}" class="btn btn-outline-secondary">{{ icon('receipt') }}Quick Bill</a>
+    <a href="{{ url_for('sales.new_sale') }}" class="btn btn-primary">{{ icon('plus-lg') }}New Sale</a>
+  </div>
 </div>
 </div>
 <div class="card p-3">

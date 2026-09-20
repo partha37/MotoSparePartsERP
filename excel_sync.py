@@ -130,9 +130,9 @@ def _write_workbook(path):
 
     shop = ShopSettings.query.first()
     ws = wb.create_sheet(title="ShopSettings")
-    ws.append(["shop_name", "address", "phone", "gstin"])
+    ws.append(["shop_name", "address", "phone", "gstin", "bill_footer"])
     if shop:
-        ws.append([shop.shop_name, shop.address, shop.phone, shop.gstin])
+        ws.append([shop.shop_name, shop.address, shop.phone, shop.gstin, shop.bill_footer])
     _autofit(ws)
 
     tmp_path = path + ".tmp"
@@ -189,9 +189,9 @@ def build_ranged_workbook(date_from, date_to):
 
     shop = ShopSettings.query.first()
     ws = wb.create_sheet(title="ShopSettings")
-    ws.append(["shop_name", "address", "phone", "gstin"])
+    ws.append(["shop_name", "address", "phone", "gstin", "bill_footer"])
     if shop:
-        ws.append([shop.shop_name, shop.address, shop.phone, shop.gstin])
+        ws.append([shop.shop_name, shop.address, shop.phone, shop.gstin, shop.bill_footer])
     _autofit(ws)
 
     return wb

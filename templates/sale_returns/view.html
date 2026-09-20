@@ -1,10 +1,13 @@
 {% extends "base.html" %}
+{% from "_print_bill_button.html" import print_bill_button with context %}
 {% block title %}Return {{ sale_return.return_no }} - Lokey Auto Spare Parts{% endblock %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3 no-print">
   <h2>Return {{ sale_return.return_no }}</h2>
   <div>
-    <button onclick="window.print()" class="btn btn-primary">{{ icon('printer') }}Print / Save PDF</button>
+    {{ print_bill_button(url_for('sale_returns.return_bill', sale_id=sale.id, return_id=sale_return.id),
+                         url_for('sale_returns.return_bill', sale_id=sale.id, return_id=sale_return.id, size='a4'),
+                         label='Print Credit Note') }}
     <a href="{{ url_for('sales.view_sale', sale_id=sale.id) }}" class="btn btn-outline-secondary">{{ icon('arrow-left') }}Back</a>
   </div>
 </div>

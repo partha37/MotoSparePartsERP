@@ -24,6 +24,12 @@
         <label class="form-label" for="f-address">Address</label>
         <textarea id="f-address" name="address" class="form-control" autocomplete="off">{{ shop.address }}</textarea>
       </div>
+      <div class="col-md-12">
+        <label class="form-label" for="f-bill-footer">Bill Footer / Terms</label>
+        <textarea id="f-bill-footer" name="bill_footer" class="form-control" rows="4" autocomplete="off"
+                  placeholder="e.g. GOODS ONCE SOLD CANNOT BE TAKEN BACK&#10;1. Electrical items: no warranty, no return, no exchange&#10;2. Exchange or return within 2 days with original receipt">{{ shop.bill_footer }}</textarea>
+        <div class="form-text">Printed at the bottom of every bill, one line per line typed here. Leave blank to print no terms.</div>
+      </div>
     </div>
     <button type="submit" class="btn btn-primary mt-3">{{ icon('save') }}Save</button>
   </form>

@@ -9,7 +9,11 @@ from models import (
     Sale, SaleItem, SaleReturn, SaleReturnItem, Product, PurchaseItem,
     Customer, Mechanic, StockMovement,
 )
-from routes.sales import _attach_available_batches, _attach_discount_maps, _next_invoice_no
+from models import ShopSettings
+from routes.sales import (
+    _attach_available_batches, _attach_discount_maps, _next_invoice_no,
+    bill_rounding, bill_size, gst_label,
+)
 
 sale_returns_bp = Blueprint("sale_returns", __name__, url_prefix="/sales/<int:sale_id>/returns")
 
@@ -145,6 +149,82 @@ def view_return(sale_id, return_id):
         flash("Return not found for this sale.", "danger")
         return redirect(url_for("sales.view_sale", sale_id=sale_id))
     return render_template("sale_returns/view.html", sale_return=sale_return, sale=sale_return.sale)
+
+
+@sale_returns_bp.route("/<int:return_id>/bill")
+@login_required
+def return_bill(sale_id, return_id):
+    """Credit note for a return, in the same layout as the sale bill. An
+    exchange's *new* sale prints its own invoice from sales.bill — this is
+    only the returned-goods half, so it shows where the refund went."""
+    sale_return = SaleReturn.query.get_or_404(return_id)
+    if sale_return.sale_id != sale_id:
+        flash("Return not found for this sale.", "danger")
+        return redirect(url_for("sales.view_sale", sale_id=sale_id))
+
+    shop = ShopSettings.query.first() or ShopSettings()
+    rounded_total, round_off = bill_rounding(sale_return.refund_amount)
+
+    extra_rows = []
+    if sale_return.applied_to_sale:
+        # An exchange: the customer never sees this money, it came off the new bill.
+        extra_rows.append(("Adjusted On " + sale_return.applied_to_sale.invoice_no,
+                           sale_return.refund_amount))
+
+    lines = []
+    for item in sale_return.items:
+        product = item.product
+        lines.append({
+            # Defective goods don't go back into stock, so the reason is worth
+            # printing — it's what the customer is told at the counter.
+            "name": f"{product.product_name} ({item.condition.capitalize()})",
+            "part_no": product.part_no,
+            "gst": gst_label(product.gst_rate),
+            "mrp": item.sale_item.mrp_at_sale,
+            "rate": item.sale_item.selling_price,
+            "qty": item.qty,
+            "amount": item.refund_amount,
+        })
+
+    return render_template(
+        "sales/bill.html",
+        shop=shop,
+        size=bill_size(request.args),
+        bill={
+            "title": "RETURN / CREDIT NOTE",
+            "no_label": "Return No/Date",
+            "no": sale_return.return_no,
+            "date": sale_return.date,
+            "created_at": sale_return.created_at,
+            "ref_label": "Against Invoice",
+            "ref": sale_return.sale.invoice_no if sale_return.sale else "",
+            "customer_name": sale_return.sale.customer_display if sale_return.sale else "-",
+            "customer_mobile": (
+                sale_return.sale.customer.phone
+                if sale_return.sale and sale_return.sale.customer else ""
+            ),
+            "mechanic": (
+                sale_return.sale.mechanic.name
+                if sale_return.sale and sale_return.sale.mechanic else ""
+            ),
+            "payment_mode": "",
+            "show_part_no": True,
+            "lines": lines,
+            "total_label": "Refund Total",
+            "total": sale_return.refund_amount,
+            "round_off": round_off,
+            "rounded_total": rounded_total,
+            "grand_label": "REFUND Rs.",
+            "extra_rows": extra_rows,
+            "thanks": "THANK YOU VISIT AGAIN",
+            "self_url": url_for("sale_returns.return_bill", sale_id=sale_id, return_id=return_id),
+            "self_url_a4": url_for(
+                "sale_returns.return_bill", sale_id=sale_id, return_id=return_id, size="a4"
+            ),
+            "back_url": url_for("sale_returns.view_return", sale_id=sale_id, return_id=return_id),
+            "back_label": "Back to Return",
+        },
+    )
 
 
 @sale_returns_bp.route("/exchange", methods=["GET", "POST"])

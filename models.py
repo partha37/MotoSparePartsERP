@@ -21,6 +21,10 @@ class ShopSettings(db.Model):
     address = db.Column(db.String(255), default="")
     phone = db.Column(db.String(20), default="")
     gstin = db.Column(db.String(20), default="")
+    # Free text printed at the foot of every bill (return/warranty terms). Kept
+    # editable rather than hardcoded because it's shop policy, not layout, and
+    # blank simply prints nothing. Newlines are significant — one line each.
+    bill_footer = db.Column(db.Text, default="")
 
 
 class Brand(db.Model):

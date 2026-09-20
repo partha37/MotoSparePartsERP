@@ -14,6 +14,46 @@ from models import User
 # Windows by default) is needed to convert to it correctly.
 IST = timezone(timedelta(hours=5, minutes=30))
 
+_ONES = ("", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten",
+         "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen",
+         "Eighteen", "Nineteen")
+_TENS = ("", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety")
+
+
+def _under_hundred(n):
+    if n < 20:
+        return _ONES[n]
+    return (_TENS[n // 10] + " " + _ONES[n % 10]).strip()
+
+
+def _under_thousand(n):
+    if n < 100:
+        return _under_hundred(n)
+    rest = n % 100
+    return (_ONES[n // 100] + " Hundred" + (" " + _under_hundred(rest) if rest else "")).strip()
+
+
+def rupees_in_words(amount):
+    """Indian-system words for the amount line every printed bill carries
+    (1653 -> 'Rupees One Thousand Six Hundred Fifty Three Only'). Bills are
+    rounded to the whole rupee, so paise are deliberately not spelled out."""
+    rupees = int(round(amount or 0))
+    if rupees <= 0:
+        return "Rupees Zero Only"
+    crore, rupees = divmod(rupees, 10 ** 7)
+    lakh, rupees = divmod(rupees, 10 ** 5)
+    thousand, rest = divmod(rupees, 1000)
+    groups = []
+    if crore:
+        groups.append(_under_thousand(crore) + " Crore")
+    if lakh:
+        groups.append(_under_hundred(lakh) + " Lakh")
+    if thousand:
+        groups.append(_under_hundred(thousand) + " Thousand")
+    if rest:
+        groups.append(_under_thousand(rest))
+    return "Rupees " + " ".join(groups) + " Only"
+
 
 def create_app():
     app = Flask(__name__)
@@ -61,6 +101,10 @@ def create_app():
                 return ""
             return dt.replace(tzinfo=timezone.utc).astimezone(IST).strftime(fmt)
         return dict(ist=ist)
+
+    @app.context_processor
+    def inject_rupee_words_helper():
+        return dict(rupees_in_words=rupees_in_words)
 
     from routes.auth import auth_bp
     from routes.dashboard import dashboard_bp

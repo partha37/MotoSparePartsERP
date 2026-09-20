@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ bill.title|title }} {{ bill.no }} - {{ shop.shop_name or 'Lokey Auto Spare Parts' }}</title>
+  <style>
+    /* Deliberately a standalone document rather than a base.html page: a bill
+       is always black ink on white paper, so it must not pick up the app's
+       dark theme, navbar or side pane — what's on screen is what prints. */
+    :root { color-scheme: light; }
+    body {
+      margin: 0;
+      background: #6b7280;
+      color: #000;
+      font-family: "Courier New", Courier, monospace;
+    }
+
+    .toolbar {
+      position: sticky;
+      top: 0;
+      z-index: 5;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      align-items: center;
+      padding: 0.75rem 1rem;
+      background: #1f2937;
+      color: #fff;
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      font-size: 0.9rem;
+    }
+    .toolbar .spacer { flex: 1; }
+    .toolbar a, .toolbar button {
+      font: inherit;
+      padding: 0.4rem 0.85rem;
+      border-radius: 6px;
+      border: 1px solid #4b5563;
+      background: #374151;
+      color: #fff;
+      text-decoration: none;
+      cursor: pointer;
+    }
+    .toolbar .primary { background: #1e4b8c; border-color: #1e4b8c; font-weight: 600; }
+    .toolbar .current { background: #fff; color: #1f2937; border-color: #fff; font-weight: 600; }
+
+    .paper {
+      background: #fff;
+      margin: 1.5rem auto;
+      box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
+      /* border-box so the roll's 80mm is the outer width in both the on-screen
+         preview and the print — the height measured below only matches what
+         actually prints if the text wraps identically in both. */
+      box-sizing: border-box;
+    }
+    .paper-80mm { width: 80mm; padding: 4mm 3mm; font-size: 11.5px; line-height: 1.35; }
+    .paper-a4 {
+      width: 210mm;
+      padding: 14mm;
+      font-size: 13px;
+      line-height: 1.45;
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    }
+    .paper-a4 .items { font-variant-numeric: tabular-nums; }
+
+    .center { text-align: center; }
+    .shop-name { font-weight: 700; font-size: 1.15em; }
+    .doc-title { font-weight: 700; letter-spacing: 0.12em; margin: 0.35em 0; }
+    .rule-hard { border-top: 2px solid #000; margin: 0.4em 0; }
+    .rule { border-top: 1px dashed #000; margin: 0.4em 0; }
+
+    .meta { width: 100%; border-collapse: collapse; }
+    .meta td { padding: 0; vertical-align: top; }
+    .meta .label { white-space: nowrap; width: 1%; padding-right: 0.5em; }
+    /* A long bill number can push the line to wrap on 80mm; break before the
+       date rather than through the middle of it. */
+    .nw { white-space: nowrap; }
+
+    .items { width: 100%; border-collapse: collapse; }
+    .items th { text-align: left; font-weight: 700; padding: 0.15em 0; }
+    .items td { padding: 0.1em 0; vertical-align: top; }
+    .items .num { text-align: right; white-space: nowrap; }
+    .items .sl { width: 1%; padding-right: 0.4em; white-space: nowrap; }
+    /* Thermal: the product name gets a line of its own and the figures sit on
+       the next one, which is the only way the columns fit 80mm. */
+    .paper-80mm .items .name-row td { padding-top: 0.3em; font-weight: 700; }
+    .paper-80mm .items .fig-row td { padding-bottom: 0.2em; }
+    .paper-a4 .items th { border-bottom: 1px solid #000; padding: 0.35em 0.4em; }
+    .paper-a4 .items tbody td { border-bottom: 1px solid #ddd; padding: 0.35em 0.4em; }
+
+    .totals { width: 100%; border-collapse: collapse; }
+    .totals td { padding: 0.1em 0; }
+    .totals .num { text-align: right; white-space: nowrap; }
+    .grand td { font-weight: 700; font-size: 1.45em; padding: 0.15em 0; }
+    .words { margin-top: 0.3em; }
+    .footer-terms { margin-top: 0.5em; white-space: pre-line; font-weight: 700; }
+    .thanks { margin-top: 0.5em; font-weight: 700; }
+
+    @media print {
+      body { background: #fff; }
+      .no-print { display: none !important; }
+      .paper { margin: 0; box-shadow: none; }
+      /* A4 takes its whitespace from the @page margin instead. The 80mm roll
+         deliberately keeps its on-screen width and padding — see .paper above. */
+      .paper-a4 { width: auto; padding: 0; }
+    }
+  </style>
+  {# A roll has no fixed height, and CSS can't express one: `size: 80mm auto`
+     is invalid (a length can't be paired with `auto`) and Chrome drops the
+     whole declaration, which silently leaves the bill on the driver's default
+     page. So the height is measured and written in just before printing. #}
+  <style id="pageSize">
+    @page { size: {{ 'A4' if size == 'a4' else '80mm 150mm' }}; margin: {{ '12mm' if size == 'a4' else '0' }}; }
+  </style>
+</head>
+<body>
+
+<div class="toolbar no-print">
+  <button type="button" onclick="window.print()" class="primary">Print</button>
+  <a href="{{ bill.self_url }}" class="{{ 'current' if size != 'a4' }}">80mm Roll</a>
+  <a href="{{ bill.self_url_a4 }}" class="{{ 'current' if size == 'a4' }}">A4 Sheet</a>
+  <span class="spacer"></span>
+  {% if bill.back_url %}<a href="{{ bill.back_url }}">{{ bill.back_label or 'Back' }}</a>{% endif %}
+</div>
+
+<div class="paper paper-{{ 'a4' if size == 'a4' else '80mm' }}">
+
+  <div class="center">
+    <div class="shop-name">{{ shop.shop_name or 'Lokey Auto Spare Parts' }}</div>
+    {% for line in (shop.address or '').splitlines() %}
+      {% if line.strip() %}<div>{{ line.strip() }}</div>{% endif %}
+    {% endfor %}
+    {% if shop.phone %}<div>Phone : {{ shop.phone }}</div>{% endif %}
+    {% if shop.gstin %}<div><strong>GSTIN : {{ shop.gstin }}</strong></div>{% endif %}
+  </div>
+
+  <div class="rule-hard"></div>
+  <div class="center doc-title">{{ bill.title }}</div>
+  <div class="rule"></div>
+
+  <table class="meta">
+    <tr>
+      <td class="label">{{ bill.no_label }}</td>
+      <td>: {{ bill.no }} / <span class="nw">{{ bill.date.strftime('%d-%m-%Y') }}</span></td>
+    </tr>
+    {% if bill.ref %}
+    <tr><td class="label">{{ bill.ref_label }}</td><td>: {{ bill.ref }}</td></tr>
+    {% endif %}
+    <tr>
+      <td class="label">Customer Name</td>
+      <td>: {{ bill.customer_name }}</td>
+    </tr>
+    <tr>
+      <td class="label">Cust Mobile No</td>
+      <td>: {{ bill.customer_mobile }}</td>
+    </tr>
+    {% if bill.mechanic %}
+    <tr><td class="label">Mechanic</td><td>: {{ bill.mechanic }}</td></tr>
+    {% endif %}
+    {% if bill.payment_mode %}
+    <tr>
+      <td class="label">Payment Mode</td>
+      <td>: {{ bill.payment_mode|capitalize }} &nbsp; {{ ist(bill.created_at, '%I:%M %p') if bill.created_at else '' }}</td>
+    </tr>
+    {% endif %}
+  </table>
+
+  <div class="rule"></div>
+
+  <table class="items">
+    {% if size == 'a4' %}
+    <thead>
+      <tr>
+        <th class="sl">Sl</th>
+        {% if bill.show_part_no %}<th>Part No</th>{% endif %}
+        <th>Product</th>
+        <th>GST</th>
+        <th class="num">MRP</th>
+        <th class="num">RATE</th>
+        <th class="num">QTY</th>
+        <th class="num">Amt.</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for line in bill.lines %}
+      <tr>
+        <td class="sl">{{ loop.index }}</td>
+        {% if bill.show_part_no %}<td>{{ line.part_no }}</td>{% endif %}
+        <td>{{ line.name }}</td>
+        <td>{{ line.gst }}</td>
+        <td class="num">{{ "%.2f"|format(line.mrp) }}</td>
+        <td class="num">{{ "%.2f"|format(line.rate) }}</td>
+        <td class="num">{{ line.qty }}</td>
+        <td class="num">{{ "%.2f"|format(line.amount) }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+    {% else %}
+    <thead>
+      <tr>
+        <th class="sl">Sl</th>
+        <th>Product</th>
+        <th class="num">MRP</th>
+        <th class="num">RATE</th>
+        <th class="num">QTY</th>
+        <th class="num">Amt.</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for line in bill.lines %}
+      <tr class="name-row">
+        <td class="sl">{{ loop.index }}</td>
+        <td colspan="5">{{ line.name }}</td>
+      </tr>
+      <tr class="fig-row">
+        <td class="sl"></td>
+        <td>{{ line.gst }}</td>
+        <td class="num">{{ "%.2f"|format(line.mrp) }}</td>
+        <td class="num">{{ "%.2f"|format(line.rate) }}</td>
+        <td class="num">{{ line.qty }}</td>
+        <td class="num">{{ "%.2f"|format(line.amount) }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+    {% endif %}
+  </table>
+
+  <div class="rule-hard"></div>
+
+  <table class="totals">
+    <tr>
+      <td>{{ bill.total_label }}</td>
+      <td class="num">{{ "%.2f"|format(bill.total) }}</td>
+    </tr>
+    {% if bill.round_off %}
+    <tr>
+      <td>{{ 'Add : Rounded Off' if bill.round_off > 0 else 'Less : Rounded Off' }}</td>
+      <td class="num">{{ "%.2f"|format(bill.round_off|abs) }}</td>
+    </tr>
+    {% endif %}
+  </table>
+
+  <div class="rule-hard"></div>
+  <table class="totals grand">
+    <tr>
+      <td>{{ bill.grand_label }}</td>
+      <td class="num">{{ bill.rounded_total }}</td>
+    </tr>
+  </table>
+  <div class="rule-hard"></div>
+
+  {% if bill.extra_rows %}
+  <table class="totals">
+    {% for label, value in bill.extra_rows %}
+    <tr><td>{{ label }}</td><td class="num">{{ "%.2f"|format(value) }}</td></tr>
+    {% endfor %}
+  </table>
+  {% endif %}
+
+  <div class="words">{{ rupees_in_words(bill.rounded_total) }}</div>
+
+  <div class="rule-hard"></div>
+  {% if shop.bill_footer %}
+  <div class="center footer-terms">{{ shop.bill_footer }}</div>
+  {% endif %}
+  <div class="center thanks">{{ bill.thanks }}</div>
+
+</div>
+
+<script>
+const isRoll = {{ 'false' if size == 'a4' else 'true' }};
+
+// Sizes the printed page to the bill itself so a short bill doesn't feed a
+// fixed sheet's worth of blank roll. Runs on beforeprint too, so Ctrl+P and
+// the browser's own preview get the same treatment as the Print button.
+function syncPageSize() {
+  if (!isRoll) return;
+  const paper = document.querySelector('.paper');
+  const mm = Math.ceil(paper.getBoundingClientRect().height * 25.4 / 96) + 4;
+  document.getElementById('pageSize').textContent =
+    '@page { size: 80mm ' + mm + 'mm; margin: 0; }';
+}
+
+window.addEventListener('beforeprint', syncPageSize);
+
+if (new URLSearchParams(window.location.search).get('auto') === '1') {
+  syncPageSize();
+  window.print();
+}
+</script>
+</body>
+</html>

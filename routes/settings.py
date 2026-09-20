@@ -53,6 +53,7 @@ def index():
         shop.address = request.form.get("address", "").strip()
         shop.phone = request.form.get("phone", "").strip()
         shop.gstin = request.form.get("gstin", "").strip()
+        shop.bill_footer = request.form.get("bill_footer", "").strip()
         db.session.commit()
         sync_to_excel()
         flash("Shop settings saved.", "success")

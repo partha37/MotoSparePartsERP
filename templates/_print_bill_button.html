@@ -1,0 +1,33 @@
+{# Split button used on the Sale / Return / Purchase pages. The main half
+   prints the 80mm roll straight away (via the hidden iframe in
+   static/js/print-bill.js, so the record stays open behind the dialog); the
+   arrow opens the A4 option and a preview that does open the bill page. #}
+{% macro print_bill_button(url_80, url_a4, label='Print Bill') %}
+<div class="btn-group">
+  <button type="button" class="btn btn-primary" onclick="printBill('{{ url_80 }}')">
+    {{ icon('printer') }}{{ label }}
+  </button>
+  <button type="button" class="btn btn-primary dropdown-toggle dropdown-toggle-split"
+          data-bs-toggle="dropdown" aria-expanded="false">
+    <span class="visually-hidden">More print options</span>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li>
+      <button class="dropdown-item" type="button" onclick="printBill('{{ url_80 }}')">
+        {{ icon('printer', 'me-2') }}Print 80mm Roll
+      </button>
+    </li>
+    <li>
+      <button class="dropdown-item" type="button" onclick="printBill('{{ url_a4 }}')">
+        {{ icon('printer', 'me-2') }}Print A4 Sheet
+      </button>
+    </li>
+    <li><hr class="dropdown-divider"></li>
+    <li>
+      <a class="dropdown-item" href="{{ url_80 }}" target="_blank">
+        {{ icon('eye', 'me-2') }}Preview / Save PDF
+      </a>
+    </li>
+  </ul>
+</div>
+{% endmacro %}

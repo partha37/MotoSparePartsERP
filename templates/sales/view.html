@@ -1,10 +1,14 @@
 {% extends "base.html" %}
+{# "with context" is required — icon() comes from a context processor, and an
+   imported macro gets no context unless asked for it. #}
+{% from "_print_bill_button.html" import print_bill_button with context %}
 {% block title %}Invoice {{ sale.invoice_no }} - Lokey Auto Spare Parts{% endblock %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3 no-print">
   <h2>Invoice {{ sale.invoice_no }}</h2>
   <div>
-    <button onclick="window.print()" class="btn btn-primary">{{ icon('printer') }}Print / Save PDF</button>
+    {{ print_bill_button(url_for('sales.bill', sale_id=sale.id),
+                         url_for('sales.bill', sale_id=sale.id, size='a4')) }}
     {% if sale.is_editable %}
     <a href="{{ url_for('sales.edit_sale', sale_id=sale.id) }}" class="btn btn-outline-primary">{{ icon('pencil') }}Edit</a>
     {% endif %}

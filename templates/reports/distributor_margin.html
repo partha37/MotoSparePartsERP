@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+{% block title %}Distributor Margins - Lokey Auto Spare Parts{% endblock %}
+{% block content %}
+<div class="page-toolbar">
+<div class="d-flex justify-content-between align-items-center mb-2">
+  <h2 class="mb-0 d-flex align-items-center">{{ icon('wallet2', 'me-2') }}Distributor Margins</h2>
+  <a href="{{ url_for('reports.distributor_margin_export', date_from=date_from, date_to=date_to) }}" class="btn btn-outline-secondary btn-sm">{{ icon('download') }}Export to Excel</a>
+</div>
+<p class="text-muted small">
+  The two halves count different goods. The left is everything <strong>received</strong> between these
+  dates; the right is everything <strong>sold</strong> between them — usually not the same parts.
+  Comparing a distributor's discount % against its profit % is meaningful; adding the rupee
+  figures across the two halves is not.
+</p>
+<form method="get" class="row g-3 mb-3">
+  <div class="col-md-3"><label class="form-label" for="f-date-from">From</label><input type="date" id="f-date-from" name="date_from" class="form-control" value="{{ date_from }}"></div>
+  <div class="col-md-3"><label class="form-label" for="f-date-to">To</label><input type="date" id="f-date-to" name="date_to" class="form-control" value="{{ date_to }}"></div>
+  <div class="col-md-2 d-flex align-items-end"><button type="submit" class="btn btn-primary w-100">{{ icon('funnel') }}Filter</button></div>
+</form>
+</div>
+
+<div class="row g-3 mb-3">
+  <div class="col-md-3 col-6">
+    <div class="card p-3 stat-card">
+      <div class="stat-card-icon">{{ icon('cart-plus') }}</div>
+      <div><div class="text-muted small">Spend (bought)</div><div class="fs-5 fw-semibold">₹{{ "%.2f"|format(totals.spend) }}</div></div>
+    </div>
+  </div>
+  <div class="col-md-3 col-6">
+    <div class="card p-3 stat-card">
+      <div class="stat-card-icon accent">{{ icon('percent') }}</div>
+      <div><div class="text-muted small">Discount Received</div><div class="fs-5 fw-semibold">₹{{ "%.2f"|format(totals.discount_amount) }}</div><div class="text-muted small">avg {{ "%.2f"|format(totals.discount_pct) }}%</div></div>
+    </div>
+  </div>
+  <div class="col-md-3 col-6">
+    <div class="card p-3 stat-card">
+      <div class="stat-card-icon">{{ icon('currency-rupee') }}</div>
+      <div><div class="text-muted small">Revenue (sold)</div><div class="fs-5 fw-semibold">₹{{ "%.2f"|format(totals.revenue) }}</div></div>
+    </div>
+  </div>
+  <div class="col-md-3 col-6">
+    <div class="card p-3 stat-card">
+      <div class="stat-card-icon accent">{{ icon('cash-coin') }}</div>
+      <div><div class="text-muted small">Profit (sold)</div><div class="fs-5 fw-semibold">₹{{ "%.2f"|format(totals.profit) }}</div><div class="text-muted small">margin {{ "%.2f"|format(totals.profit_pct) }}%</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="card p-3 report-section" id="marginSection">
+  <div class="d-flex justify-content-end mb-2">
+    <div class="btn-group btn-group-sm view-toggle" role="group">
+      <button type="button" class="btn btn-outline-primary active" data-view="table">{{ icon('list-ul') }}Table</button>
+      <button type="button" class="btn btn-outline-primary" data-view="chart">{{ icon('bar-chart') }}Chart</button>
+    </div>
+  </div>
+  <div class="view-chart" style="display:none"><canvas id="marginChart" height="90"></canvas></div>
+  <div class="view-table">
+    {# Not a .data-table: its filter row is built against the first header row,
+       which here is the two-half grouping row, so it would misalign. #}
+    <table class="table table-sm">
+      <thead>
+        <tr>
+          <th rowspan="2">Distributor</th>
+          <th colspan="5" class="text-center border-start">Bought in this period</th>
+          <th colspan="5" class="text-center border-start">Sold in this period</th>
+        </tr>
+        <tr>
+          <th class="border-start">Qty</th><th>MRP Value</th><th>Spend</th><th>Discount</th><th>Discount %</th>
+          <th class="border-start">Qty</th><th>Revenue</th><th>Cost</th><th>Profit</th><th>Margin %</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for v in rows %}
+        <tr {% if v.id %}data-href="{{ url_for('reports.supplier_detail', supplier_id=v.id, date_from=date_from, date_to=date_to) }}"{% endif %}>
+          <td>{{ v.name }}{% if v.id %} {{ icon('chevron-right', 'text-muted small') }}{% endif %}</td>
+          <td class="border-start">{{ v.bought_qty }}</td>
+          <td>₹{{ "%.2f"|format(v.mrp_value) }}</td>
+          <td>₹{{ "%.2f"|format(v.spend) }}</td>
+          <td>₹{{ "%.2f"|format(v.discount_amount) }}</td>
+          <td>{{ "%.2f"|format(v.discount_pct) }}%</td>
+          <td class="border-start">{{ v.sold_qty }}</td>
+          <td>₹{{ "%.2f"|format(v.revenue) }}</td>
+          <td>₹{{ "%.2f"|format(v.cost) }}</td>
+          <td class="{{ 'text-danger' if v.profit < 0 }}">₹{{ "%.2f"|format(v.profit) }}</td>
+          <td>{{ "%.2f"|format(v.profit_pct) }}%</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="11" class="text-center text-muted">Nothing bought or sold in this range.</td></tr>
+        {% endfor %}
+      </tbody>
+      {% if rows %}
+      <tfoot>
+        <tr class="fw-bold">
+          <td>Total</td>
+          <td class="border-start">{{ totals.bought_qty }}</td>
+          <td>₹{{ "%.2f"|format(totals.mrp_value) }}</td>
+          <td>₹{{ "%.2f"|format(totals.spend) }}</td>
+          <td>₹{{ "%.2f"|format(totals.discount_amount) }}</td>
+          <td>{{ "%.2f"|format(totals.discount_pct) }}%</td>
+          <td class="border-start">{{ totals.sold_qty }}</td>
+          <td>₹{{ "%.2f"|format(totals.revenue) }}</td>
+          <td>₹{{ "%.2f"|format(totals.cost) }}</td>
+          <td>₹{{ "%.2f"|format(totals.profit) }}</td>
+          <td>{{ "%.2f"|format(totals.profit_pct) }}%</td>
+        </tr>
+      </tfoot>
+      {% endif %}
+    </table>
+  </div>
+</div>
+<a href="{{ url_for('reports.index') }}" class="btn btn-outline-secondary mt-3">{{ icon('arrow-left') }}Back to Reports</a>
+
+<script src="{{ url_for('static', filename='vendor/chartjs/chart.umd.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/chart-theme.js') }}"></script>
+<script src="{{ url_for('static', filename='js/report-toggle.js') }}"></script>
+<script>
+(function () {
+  const rows = {{ rows|tojson }};
+  // Percentages, not rupees: the two halves cover different goods, so their
+  // rupee totals aren't comparable but their rates are.
+  ReportToggle.wire(document.getElementById('marginSection'), function () {
+    return new Chart(document.getElementById('marginChart'), {
+      type: 'bar',
+      data: {
+        labels: rows.map(r => r.name),
+        datasets: [
+          { label: 'Discount Received %', data: rows.map(r => r.discount_pct), backgroundColor: '#1e4b8c' },
+          { label: 'Profit Margin %', data: rows.map(r => r.profit_pct), backgroundColor: '#e8720c' }
+        ]
+      },
+      options: {
+        responsive: true,
+        scales: { y: { beginAtZero: true, ticks: { callback: v => v + '%' } } }
+      }
+    });
+  });
+})();
+</script>
+{% endblock %}

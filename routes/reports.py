@@ -822,6 +822,137 @@ def supplier_summary_export():
     )
 
 
+def _compute_distributor_margin(date_from, date_to):
+    """Purchase-side discount received and realised sales profit per distributor,
+    side by side.
+
+    The two halves count DIFFERENT GOODS over the same dates and must never be
+    added together or netted against each other:
+
+      * bought — every PurchaseItem on a Purchase dated in range. Discount
+        received is effective_mrp vs purchase_price on gross qty, the same
+        formula _compute_supplier_detail uses.
+      * sold   — every SaleItem on a Sale dated in range, attributed to a
+        distributor by walking purchase_item -> purchase -> supplier_id.
+        Return-netted, and costed through _sale_unit_cost().
+
+    A distributor can show one side only — bought nothing this month but its
+    earlier stock sold, or vice versa. That's real, not a gap.
+
+    Attribution is deliberately through the batch, never Supplier.brands: one
+    distributor commonly carries several brands, so its brand list says nothing
+    about which goods actually came from it."""
+    by_supplier = defaultdict(lambda: {
+        "id": None, "name": "Unknown", "purchases": 0,
+        "bought_qty": 0, "spend": 0.0, "mrp_value": 0.0, "discount_amount": 0.0,
+        "sold_qty": 0, "revenue": 0.0, "cost": 0.0,
+    })
+
+    purchases = Purchase.query.filter(Purchase.date >= date_from, Purchase.date <= date_to).all()
+    for p in purchases:
+        key = p.supplier_id or 0
+        row = by_supplier[key]
+        row["id"] = p.supplier_id
+        row["name"] = p.supplier.name if p.supplier else "Unknown"
+        row["purchases"] += 1
+        for item in p.items:
+            mrp = item.effective_mrp or 0
+            row["bought_qty"] += item.qty
+            row["spend"] += item.total
+            row["mrp_value"] += mrp * item.qty
+            row["discount_amount"] += round((mrp - item.purchase_price) * item.qty, 2) if mrp else 0
+
+    sale_items = (
+        SaleItem.query.join(Sale)
+        .filter(Sale.date >= date_from, Sale.date <= date_to)
+        .all()
+    )
+    for item in sale_items:
+        purchase = item.purchase_item.purchase if item.purchase_item else None
+        key = purchase.supplier_id if purchase else 0
+        row = by_supplier[key]
+        if purchase:
+            row["id"] = purchase.supplier_id
+            row["name"] = purchase.supplier.name if purchase.supplier else "Unknown"
+        else:
+            # Pre-batch-tracking sale: there is no batch, so no distributor to
+            # credit. Bucketed rather than dropped so revenue still adds up.
+            row["name"] = "Unattributed"
+        row["sold_qty"] += item.net_qty
+        row["revenue"] += item.net_line_total
+        row["cost"] += item.net_qty * _sale_unit_cost(item)
+
+    rows = []
+    for row in by_supplier.values():
+        for key in ("spend", "mrp_value", "discount_amount", "revenue", "cost"):
+            row[key] = round(row[key], 2)
+        row["discount_pct"] = (
+            round(row["discount_amount"] / row["mrp_value"] * 100, 2) if row["mrp_value"] else 0
+        )
+        row["profit"] = round(row["revenue"] - row["cost"], 2)
+        row["profit_pct"] = round(row["profit"] / row["revenue"] * 100, 2) if row["revenue"] else 0
+        rows.append(row)
+    rows.sort(key=lambda v: v["profit"], reverse=True)
+
+    totals = _distributor_totals(rows)
+    return rows, totals
+
+
+def _distributor_totals(rows):
+    """Both ratios are recomputed from the summed components; there is
+    deliberately no field combining the two sides."""
+    spend = round(sum(r["spend"] for r in rows), 2)
+    mrp_value = round(sum(r["mrp_value"] for r in rows), 2)
+    discount = round(sum(r["discount_amount"] for r in rows), 2)
+    revenue = round(sum(r["revenue"] for r in rows), 2)
+    cost = round(sum(r["cost"] for r in rows), 2)
+    profit = round(revenue - cost, 2)
+    return {
+        "purchases": sum(r["purchases"] for r in rows),
+        "bought_qty": sum(r["bought_qty"] for r in rows),
+        "spend": spend,
+        "mrp_value": mrp_value,
+        "discount_amount": discount,
+        "discount_pct": round(discount / mrp_value * 100, 2) if mrp_value else 0,
+        "sold_qty": sum(r["sold_qty"] for r in rows),
+        "revenue": revenue,
+        "cost": cost,
+        "profit": profit,
+        "profit_pct": round(profit / revenue * 100, 2) if revenue else 0,
+    }
+
+
+@reports_bp.route("/distributor-margin")
+@login_required
+def distributor_margin():
+    date_from, date_to = _date_range_args()
+    rows, totals = _compute_distributor_margin(date_from, date_to)
+    return render_template(
+        "reports/distributor_margin.html", rows=rows, totals=totals,
+        date_from=date_from, date_to=date_to,
+    )
+
+
+@reports_bp.route("/distributor-margin/export")
+@login_required
+def distributor_margin_export():
+    date_from, date_to = _date_range_args()
+    rows, totals = _compute_distributor_margin(date_from, date_to)
+    headers = ["Distributor", "Purchases", "Bought Qty", "MRP Value", "Spend",
+               "Discount Received", "Discount %",
+               "Sold Qty", "Revenue", "Cost of Goods Sold", "Profit", "Profit %"]
+    out = [[r["name"], r["purchases"], r["bought_qty"], r["mrp_value"], r["spend"],
+            r["discount_amount"], r["discount_pct"],
+            r["sold_qty"], r["revenue"], r["cost"], r["profit"], r["profit_pct"]] for r in rows]
+    out.append(["Total", totals["purchases"], totals["bought_qty"], totals["mrp_value"], totals["spend"],
+                totals["discount_amount"], totals["discount_pct"],
+                totals["sold_qty"], totals["revenue"], totals["cost"], totals["profit"], totals["profit_pct"]])
+    return _send_excel(
+        [("Distributor Margin", headers, out)],
+        f"distributor-margin-{date_from}_to_{date_to}.xlsx",
+    )
+
+
 def _compute_supplier_detail(supplier_id, date_from, date_to, group_by):
     supplier = Supplier.query.get_or_404(supplier_id)
 

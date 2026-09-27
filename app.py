@@ -118,6 +118,7 @@ def create_app():
     from routes.sales import sales_bp
     from routes.sale_returns import sale_returns_bp
     from routes.stock import stock_bp
+    from routes.scratch import scratch_bp
     from routes.reports import reports_bp
     from routes.settings import settings_bp
 
@@ -133,6 +134,7 @@ def create_app():
     app.register_blueprint(sales_bp)
     app.register_blueprint(sale_returns_bp)
     app.register_blueprint(stock_bp)
+    app.register_blueprint(scratch_bp)
     app.register_blueprint(reports_bp)
     app.register_blueprint(settings_bp)
 

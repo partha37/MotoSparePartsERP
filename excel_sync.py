@@ -23,7 +23,7 @@ from models import (
     Product, Supplier, Customer, CustomerBrandDiscount, CustomerCategoryDiscount,
     Mechanic, MechanicBrandDiscount, MechanicCategoryDiscount,
     Purchase, PurchaseItem, PurchaseCharge, Sale, SaleItem, StockMovement, ShopSettings, Payment, Brand,
-    ProductCategory, SaleReturn, SaleReturnItem,
+    ProductCategory, SaleReturn, SaleReturnItem, ScratchSheet,
 )
 
 EXCEL_FILENAME = "erp_data.xlsx"
@@ -84,6 +84,10 @@ SHEETS = {
     "MechanicCategoryDiscounts": (MechanicCategoryDiscount, [
         "id", "mechanic_id", "mechanic_name", "brand_name", "category_name", "discount_pct",
     ]),
+    # Index only — the grid itself lives in a JSON blob that would be an
+    # unreadable wall of text in a workbook the owner actually browses. Each
+    # sheet has its own Download button for its contents.
+    "ScratchSheets": (ScratchSheet, ["id", "name", "note", "column_count", "row_count", "updated_at"]),
 }
 
 _DERIVED = {

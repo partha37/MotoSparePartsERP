@@ -1,3 +1,4 @@
+import json
 from datetime import datetime, date
 
 from flask_login import UserMixin
@@ -662,3 +663,77 @@ class StockMovement(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     product = db.relationship("Product")
+
+
+class ScratchSheet(db.Model):
+    """A free-form tabular scratchpad — deliberately NOT a view over any ERP
+    table and NOT tied to instance/erp_data.xlsx. Somewhere to keep the notes
+    that would otherwise live on loose paper or a stray Excel file: parts to
+    ask a distributor about, a phone order jotted down mid-call. Nothing in
+    the app reads it and nothing depends on it.
+
+    The grid lives in two JSON text columns rather than a cell-per-row table:
+    a save is one UPDATE instead of N deletes and inserts, inserting a row or
+    column is a list operation instead of a renumbering pass, and the Excel
+    mirror stays readable (one row per sheet, not thousands of cell rows in a
+    workbook the owner actually browses). Nothing needs to query a cell, so
+    neither thing a cell table would buy is worth it. Every cell is a plain
+    string — no formulas, no types, no formatting."""
+
+    MAX_COLUMNS = 20
+    MAX_ROWS = 200
+    MAX_CELL_LENGTH = 500
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(120), nullable=False)
+    note = db.Column(db.String(255))
+    columns_json = db.Column(db.Text, nullable=False, default="[]")
+    data_json = db.Column(db.Text, nullable=False, default="[]")
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    @staticmethod
+    def _loads(raw):
+        """Never lets a hand-edited or truncated value 500 the page — a corrupt
+        blob reads as an empty grid the owner can simply retype."""
+        try:
+            value = json.loads(raw or "[]")
+        except (ValueError, TypeError):
+            return []
+        return value if isinstance(value, list) else []
+
+    @property
+    def column_list(self):
+        return self._loads(self.columns_json)
+
+    @property
+    def row_list(self):
+        return [r for r in self._loads(self.data_json) if isinstance(r, list)]
+
+    @property
+    def column_count(self):
+        return len(self.column_list)
+
+    @property
+    def row_count(self):
+        return len(self.row_list)
+
+    def set_grid(self, columns, rows):
+        """The single normalisation point for every write: trims, caps sizes,
+        squares every row to the column count, and drops trailing blank rows so
+        the sheet doesn't grow forever just from the spare row the editor keeps
+        at the bottom."""
+        columns = [str(c).strip()[:self.MAX_CELL_LENGTH] for c in columns][:self.MAX_COLUMNS]
+        if not columns:
+            columns = ["Column 1"]
+
+        cleaned = []
+        for row in rows[:self.MAX_ROWS]:
+            cells = [str(c).strip()[:self.MAX_CELL_LENGTH] for c in row][:len(columns)]
+            cells += [""] * (len(columns) - len(cells))
+            cleaned.append(cells)
+        while cleaned and not any(cleaned[-1]):
+            cleaned.pop()
+
+        self.columns_json = json.dumps(columns)
+        self.data_json = json.dumps(cleaned)

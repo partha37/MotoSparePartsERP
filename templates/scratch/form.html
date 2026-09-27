@@ -1,0 +1,201 @@
+{% extends "base.html" %}
+{% block title %}{{ sheet.name if sheet else 'New Sheet' }} - Scratch Sheets{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2 class="mb-0 d-flex align-items-center">{{ icon('card-text', 'me-2') }}{{ sheet.name if sheet else 'New Sheet' }}</h2>
+  {% if sheet %}
+  <a href="{{ url_for('scratch.export_sheet', sheet_id=sheet.id) }}" class="btn btn-outline-secondary btn-sm">{{ icon('download') }}Download as Excel</a>
+  {% endif %}
+</div>
+
+<form method="post" class="card p-4">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="row g-3 mb-3">
+    <div class="col-md-4">
+      <label class="form-label required" for="f-name">Sheet Name</label>
+      <input type="text" id="f-name" name="name" class="form-control" autocomplete="off" required
+             placeholder="e.g. To order from Popular" value="{{ sheet.name if sheet else '' }}">
+    </div>
+    <div class="col-md-8">
+      <label class="form-label" for="f-note">Note <span class="text-muted small">(optional)</span></label>
+      <input type="text" id="f-note" name="note" class="form-control" autocomplete="off"
+             value="{{ sheet.note if sheet else '' }}">
+    </div>
+  </div>
+
+  {# Icons for JS-created cells come from these templates rather than inline SVG
+     strings, same as the purchase form's added rows. #}
+  <template id="tpl-remove-col">{{ icon('x-lg') }}</template>
+  <template id="tpl-remove-row">{{ icon('trash') }}</template>
+
+  {# data-plain-table: table-tools.js auto-enhances every table with a thead,
+     and column resize/hide handles on an editable grid are just confusing.
+     Never add .data-table here — data-table.js physically reorders <tr>s when
+     sorting, which would reorder the flat cell[] sequence this posts and
+     silently corrupt the sheet. #}
+  <div class="table-responsive">
+    <table class="table table-bordered table-sm align-middle" id="gridTable" data-plain-table>
+      <thead>
+        <tr>
+          <th style="width:42px"></th>
+          {% for c in columns %}
+          <th>
+            <div class="d-flex gap-1">
+              <input type="text" name="column[]" class="form-control form-control-sm" value="{{ c }}" aria-label="Column name">
+              <button type="button" class="btn btn-sm btn-outline-danger remove-col flex-shrink-0" title="Remove this column" aria-label="Remove this column">{{ icon('x-lg') }}</button>
+            </div>
+          </th>
+          {% endfor %}
+          <th style="width:52px"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+        <tr>
+          <td class="text-muted small row-number">{{ loop.index }}</td>
+          {% for cell in row %}
+          <td><input type="text" name="cell[]" class="form-control form-control-sm" value="{{ cell }}" aria-label="Cell"></td>
+          {% endfor %}
+          <td class="text-end">
+            <button type="button" class="btn btn-sm btn-outline-danger remove-row" title="Remove this row" aria-label="Remove this row">{{ icon('trash') }}</button>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="d-flex gap-2">
+    <button type="button" class="btn btn-outline-secondary btn-sm" id="addRow">{{ icon('plus-lg') }}Add Row</button>
+    <button type="button" class="btn btn-outline-secondary btn-sm" id="addColumn">{{ icon('plus-lg') }}Add Column</button>
+  </div>
+  <div class="form-text mt-2">
+    Up to {{ max_columns }} columns and {{ max_rows }} rows. Blank rows at the bottom are dropped when
+    you save. Pressing Enter moves to the next cell; in the very last cell it saves.
+  </div>
+
+  <div class="mt-4 d-flex gap-2">
+    <button type="submit" class="btn btn-primary">{{ icon('save') }}Save Sheet</button>
+    <a href="{{ url_for('scratch.list_sheets') }}" class="btn btn-outline-secondary">{{ icon('x-lg') }}Back</a>
+  </div>
+</form>
+
+<script>
+(function () {
+  const table = document.getElementById('gridTable');
+  const headRow = table.tHead.rows[0];
+  const body = table.tBodies[0];
+  const MAX_COLUMNS = {{ max_columns }};
+  const MAX_ROWS = {{ max_rows }};
+
+  function columnCount() {
+    // minus the row-number and actions columns at either end
+    return headRow.cells.length - 2;
+  }
+
+  function renumber() {
+    Array.from(body.rows).forEach(function (row, i) {
+      row.querySelector('.row-number').textContent = i + 1;
+    });
+  }
+
+  function iconFrom(id) {
+    return document.getElementById(id).content.cloneNode(true);
+  }
+
+  function cellTd() {
+    const td = document.createElement('td');
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.name = 'cell[]';
+    input.className = 'form-control form-control-sm';
+    input.setAttribute('aria-label', 'Cell');
+    td.appendChild(input);
+    return td;
+  }
+
+  function addRow() {
+    if (body.rows.length >= MAX_ROWS) return null;
+    const tr = document.createElement('tr');
+    const num = document.createElement('td');
+    num.className = 'text-muted small row-number';
+    tr.appendChild(num);
+    for (let i = 0; i < columnCount(); i++) tr.appendChild(cellTd());
+    const actions = document.createElement('td');
+    actions.className = 'text-end';
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'btn btn-sm btn-outline-danger remove-row';
+    btn.title = 'Remove this row';
+    btn.setAttribute('aria-label', 'Remove this row');
+    btn.appendChild(iconFrom('tpl-remove-row'));
+    actions.appendChild(btn);
+    tr.appendChild(actions);
+    body.appendChild(tr);
+    renumber();
+    return tr;
+  }
+
+  function addColumn() {
+    if (columnCount() >= MAX_COLUMNS) return;
+    const th = document.createElement('th');
+    const wrap = document.createElement('div');
+    wrap.className = 'd-flex gap-1';
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.name = 'column[]';
+    input.className = 'form-control form-control-sm';
+    input.setAttribute('aria-label', 'Column name');
+    input.value = 'Column ' + (columnCount() + 1);
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'btn btn-sm btn-outline-danger remove-col flex-shrink-0';
+    btn.title = 'Remove this column';
+    btn.setAttribute('aria-label', 'Remove this column');
+    btn.appendChild(iconFrom('tpl-remove-col'));
+    wrap.appendChild(input);
+    wrap.appendChild(btn);
+    th.appendChild(wrap);
+    headRow.insertBefore(th, headRow.cells[headRow.cells.length - 1]);
+    // Every row must keep exactly columnCount() cell[] inputs — the server
+    // reshapes one flat list using that count.
+    Array.from(body.rows).forEach(function (row) {
+      row.insertBefore(cellTd(), row.cells[row.cells.length - 1]);
+    });
+  }
+
+  headRow.addEventListener('click', function (e) {
+    const btn = e.target.closest('.remove-col');
+    if (!btn) return;
+    if (columnCount() <= 1) return;
+    const th = btn.closest('th');
+    const index = Array.from(headRow.cells).indexOf(th);
+    th.remove();
+    Array.from(body.rows).forEach(function (row) { row.cells[index].remove(); });
+  });
+
+  body.addEventListener('click', function (e) {
+    const btn = e.target.closest('.remove-row');
+    if (!btn) return;
+    if (body.rows.length > 1) {
+      btn.closest('tr').remove();
+    } else {
+      btn.closest('tr').querySelectorAll('input').forEach(function (i) { i.value = ''; });
+    }
+    renumber();
+  });
+
+  document.getElementById('addRow').addEventListener('click', addRow);
+  document.getElementById('addColumn').addEventListener('click', addColumn);
+
+  // Typing in the last row opens a fresh one below it, same feel as the
+  // purchase and quick-bill line grids.
+  body.addEventListener('input', function (e) {
+    const row = e.target.closest('tr');
+    if (row === body.rows[body.rows.length - 1] && e.target.value.trim()) addRow();
+  });
+
+  renumber();
+})();
+</script>
+{% endblock %}

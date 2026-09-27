@@ -13,7 +13,7 @@ from excel_sync import sync_to_excel, excel_path, cloud_backup_status, build_ran
 from models import (
     ShopSettings, Product, Customer, CustomerBrandDiscount, CustomerCategoryDiscount,
     Mechanic, MechanicBrandDiscount, MechanicCategoryDiscount,
-    Supplier, Sale, Purchase, Payment, Brand, ProductCategory, SaleReturn,
+    Supplier, Sale, Purchase, Payment, Brand, ProductCategory, SaleReturn, ScratchSheet,
 )
 
 settings_bp = Blueprint("settings", __name__, url_prefix="/settings")
@@ -36,6 +36,7 @@ EXPORTABLE = {
     "mechanic_brand_discounts": (MechanicBrandDiscount, ["id", "mechanic_id", "mechanic_name", "brand_name", "discount_pct"]),
     "customer_category_discounts": (CustomerCategoryDiscount, ["id", "customer_id", "customer_name", "brand_name", "category_name", "discount_pct"]),
     "mechanic_category_discounts": (MechanicCategoryDiscount, ["id", "mechanic_id", "mechanic_name", "brand_name", "category_name", "discount_pct"]),
+    "scratch_sheets": (ScratchSheet, ["id", "name", "note", "column_count", "row_count", "updated_at"]),
 }
 
 

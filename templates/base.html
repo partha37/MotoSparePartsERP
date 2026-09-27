@@ -73,6 +73,10 @@
     <a class="side-pane-link" href="{{ url_for('mechanics.list_mechanics') }}">
       {{ icon('person-gear', 'me-2') }}<span class="side-pane-label">Mechanics</span>
     </a>
+    <div class="side-pane-heading"><span class="side-pane-label">Tools</span></div>
+    <a class="side-pane-link" href="{{ url_for('scratch.list_sheets') }}">
+      {{ icon('card-text', 'me-2') }}<span class="side-pane-label">Scratch Sheets</span>
+    </a>
   </div>
   <div class="side-pane-bottom">
     <a class="side-pane-link" href="{{ url_for('settings.index') }}">

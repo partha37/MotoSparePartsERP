@@ -30,7 +30,7 @@ EXPORTABLE = {
     "purchases": (Purchase, ["id", "supplier_id", "date", "invoice_no"]),
     "payments": (Payment, ["id", "sale_id", "invoice_no", "date", "amount", "payment_mode", "note"]),
     "sale_returns": (SaleReturn, ["id", "sale_id", "invoice_no", "applied_to_sale_id", "return_no", "date", "note", "refund_amount"]),
-    "brands": (Brand, ["id", "name"]),
+    "brands": (Brand, ["id", "name", "brand_type"]),
     "product_categories": (ProductCategory, ["id", "name"]),
     "customer_brand_discounts": (CustomerBrandDiscount, ["id", "customer_id", "customer_name", "brand_name", "discount_pct"]),
     "mechanic_brand_discounts": (MechanicBrandDiscount, ["id", "mechanic_id", "mechanic_name", "brand_name", "discount_pct"]),

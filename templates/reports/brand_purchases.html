@@ -1,10 +1,10 @@
 {% extends "base.html" %}
-{% block title %}Brand-wise Sales - Lokey Auto Spare Parts{% endblock %}
+{% block title %}Brand-wise Purchases - Lokey Auto Spare Parts{% endblock %}
 {% block content %}
 <div class="page-toolbar">
 <div class="d-flex justify-content-between align-items-center mb-4">
-  <h2 class="mb-0 d-flex align-items-center">{{ icon('tags', 'me-2') }}Brand-wise Sales</h2>
-  <a href="{{ url_for('reports.brand_wise_export', date_from=date_from, date_to=date_to) }}" class="btn btn-outline-secondary btn-sm">{{ icon('download') }}Export to Excel</a>
+  <h2 class="mb-0 d-flex align-items-center">{{ icon('cart-plus', 'me-2') }}Brand-wise Purchases</h2>
+  <a href="{{ url_for('reports.brand_purchases_export', date_from=date_from, date_to=date_to) }}" class="btn btn-outline-secondary btn-sm">{{ icon('download') }}Export to Excel</a>
 </div>
 <form method="get" class="row g-3 mb-3">
   <div class="col-md-3"><label class="form-label" for="f-date-from">From</label><input type="date" id="f-date-from" name="date_from" class="form-control" value="{{ date_from }}"></div>
@@ -12,20 +12,20 @@
   <div class="col-md-2 d-flex align-items-end"><button type="submit" class="btn btn-primary w-100">{{ icon('funnel') }}Filter</button></div>
 </form>
 </div>
-<div class="card p-3 report-section" id="brandSection">
+<div class="card p-3 report-section" id="brandBuySection">
   <div class="d-flex justify-content-between align-items-center mb-2">
-    <span class="text-muted small">OEM brands and aftermarket vendor brands are subtotalled separately.</span>
+    <span class="text-muted small">What you spent per brand, OEM and aftermarket subtotalled separately.</span>
     <div class="btn-group btn-group-sm view-toggle" role="group">
       <button type="button" class="btn btn-outline-primary active" data-view="table">{{ icon('list-ul') }}Table</button>
       <button type="button" class="btn btn-outline-primary" data-view="chart">{{ icon('bar-chart') }}Chart</button>
     </div>
   </div>
-  <div class="view-chart" style="display:none"><canvas id="brandChart" height="90"></canvas></div>
+  <div class="view-chart" style="display:none"><canvas id="brandBuyChart" height="90"></canvas></div>
   <div class="view-table">
-    {# Not a .data-table: its client-side sort would scramble rows across the
-       group headings and subtotals this report is built around. #}
+    {# Not a .data-table — client-side sorting would scramble the group
+       headings and subtotals this report is built around. #}
     <table class="table">
-      <thead><tr><th>Brand</th><th>Qty Sold</th><th>Revenue</th><th>Cost</th><th>Profit</th><th>Profit %</th></tr></thead>
+      <thead><tr><th>Brand</th><th>Qty Bought</th><th>MRP Value</th><th>Spend</th><th>Discount Received</th><th>Discount %</th></tr></thead>
       <tbody>
         {% for group in groups %}
         <tr class="table-active">
@@ -35,22 +35,22 @@
         <tr {% if v.id %}data-href="{{ url_for('reports.brand_detail', brand_id=v.id) }}"{% endif %}>
           <td>{{ v.name }}{% if v.id %} {{ icon('chevron-right', 'text-muted small') }}{% endif %}</td>
           <td>{{ v.qty }}</td>
-          <td>₹{{ "%.2f"|format(v.revenue) }}</td>
-          <td>₹{{ "%.2f"|format(v.cost) }}</td>
-          <td>₹{{ "%.2f"|format(v.profit) }}</td>
-          <td>{{ "%.2f"|format(v.profit_pct) }}%</td>
+          <td>₹{{ "%.2f"|format(v.mrp_value) }}</td>
+          <td>₹{{ "%.2f"|format(v.spend) }}</td>
+          <td>₹{{ "%.2f"|format(v.discount_amount) }}</td>
+          <td>{{ "%.2f"|format(v.discount_pct) }}%</td>
         </tr>
         {% endfor %}
         <tr class="fw-semibold">
           <td>{{ group.label }} subtotal</td>
           <td>{{ group.subtotal.qty }}</td>
-          <td>₹{{ "%.2f"|format(group.subtotal.revenue) }}</td>
-          <td>₹{{ "%.2f"|format(group.subtotal.cost) }}</td>
-          <td>₹{{ "%.2f"|format(group.subtotal.profit) }}</td>
-          <td>{{ "%.2f"|format(group.subtotal.profit_pct) }}%</td>
+          <td>₹{{ "%.2f"|format(group.subtotal.mrp_value) }}</td>
+          <td>₹{{ "%.2f"|format(group.subtotal.spend) }}</td>
+          <td>₹{{ "%.2f"|format(group.subtotal.discount_amount) }}</td>
+          <td>{{ "%.2f"|format(group.subtotal.discount_pct) }}%</td>
         </tr>
         {% else %}
-        <tr><td colspan="6" class="text-center text-muted">No sales in this range.</td></tr>
+        <tr><td colspan="6" class="text-center text-muted">No purchases in this range.</td></tr>
         {% endfor %}
       </tbody>
       {% if groups %}
@@ -58,15 +58,22 @@
         <tr class="fw-bold">
           <td>Total</td>
           <td>{{ totals.qty }}</td>
-          <td>₹{{ "%.2f"|format(totals.revenue) }}</td>
-          <td>₹{{ "%.2f"|format(totals.cost) }}</td>
-          <td>₹{{ "%.2f"|format(totals.profit) }}</td>
-          <td>{{ "%.2f"|format(totals.profit_pct) }}%</td>
+          <td>₹{{ "%.2f"|format(totals.mrp_value) }}</td>
+          <td>₹{{ "%.2f"|format(totals.spend) }}</td>
+          <td>₹{{ "%.2f"|format(totals.discount_amount) }}</td>
+          <td>{{ "%.2f"|format(totals.discount_pct) }}%</td>
         </tr>
       </tfoot>
       {% endif %}
     </table>
   </div>
+  {% if excluded_charges %}
+  <div class="form-text mt-2">
+    Goods only — ₹{{ "%.2f"|format(excluded_charges) }} of delivery, round-off and other invoice
+    charges in this range isn't tied to any one brand, so it isn't counted above. That's why this
+    total is lower than the Supplier Purchase Summary for the same dates.
+  </div>
+  {% endif %}
 </div>
 <a href="{{ url_for('reports.index') }}" class="btn btn-outline-secondary mt-3">{{ icon('arrow-left') }}Back to Reports</a>
 
@@ -76,20 +83,17 @@
 <script>
 (function () {
   const rows = {{ rows|tojson }};
-  // Bar colour carries the OEM/aftermarket split the table shows as sections.
   const colourFor = t => t === 'aftermarket' ? '#e8720c' : (t === 'none' ? '#8a93a6' : '#1e4b8c');
-  ReportToggle.wire(document.getElementById('brandSection'), function () {
-    return new Chart(document.getElementById('brandChart'), {
+  ReportToggle.wire(document.getElementById('brandBuySection'), function () {
+    return new Chart(document.getElementById('brandBuyChart'), {
       type: 'bar',
       data: {
         labels: rows.map(r => r.name),
-        datasets: [
-          { label: 'Revenue (₹)', data: rows.map(r => r.revenue), backgroundColor: rows.map(r => colourFor(r.brand_type)) },
-          { label: 'Profit (₹)', data: rows.map(r => r.profit), backgroundColor: '#9dc4ff' }
-        ]
+        datasets: [{ label: 'Spend (₹)', data: rows.map(r => r.spend), backgroundColor: rows.map(r => colourFor(r.brand_type)) }]
       },
       options: {
         responsive: true,
+        plugins: { legend: { display: false } },
         scales: { y: { beginAtZero: true } }
       }
     });

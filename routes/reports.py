@@ -21,6 +21,16 @@ def _date_range_args():
     return date_from, date_to
 
 
+def _sale_unit_cost(item):
+    """Per-unit cost of a sold line: the actual batch's GST-inclusive purchase
+    price when the line is batch-tracked (accurate historical cost), falling
+    back to the product's *current* cost only for sales made before batch
+    tracking existed. Every profit figure in this file goes through here."""
+    if item.purchase_item:
+        return item.purchase_item.purchase_price
+    return item.product.actual_discounted_price or 0
+
+
 def _safe_filename(name):
     """Strips characters Windows won't allow in a filename (the platform
     this app runs on) so a contact/product/brand/supplier name with a slash,
@@ -105,10 +115,7 @@ def _compute_daily_sales(date_from, date_to, group_by):
 
         for item in s.items:
             mrp = item.mrp_at_sale or 0
-            unit_cost = (
-                item.purchase_item.purchase_price if item.purchase_item
-                else (item.product.actual_discounted_price or 0)
-            )
+            unit_cost = _sale_unit_cost(item)
             qty = item.net_qty
             line_revenue = item.net_line_total
             line_cost = round(qty * unit_cost, 2)
@@ -307,6 +314,10 @@ def _compute_contact_detail(kind, contact_id, date_from, date_to, group_by):
 
     by_period = defaultdict(lambda: {"count": 0, "total": 0.0})
     by_product = defaultdict(lambda: {"qty": 0, "revenue": 0.0, "cost": 0.0, "discount_amount": 0.0, "mrp_total": 0.0})
+    by_brand = defaultdict(lambda: {
+        "id": None, "name": "No brand", "brand_type": "none",
+        "qty": 0, "revenue": 0.0, "cost": 0.0,
+    })
     item_rows = []
     total_revenue = 0.0
     total_cost = 0.0
@@ -320,10 +331,7 @@ def _compute_contact_detail(kind, contact_id, date_from, date_to, group_by):
 
         for item in s.items:
             mrp = item.mrp_at_sale or 0
-            unit_cost = (
-                item.purchase_item.purchase_price if item.purchase_item
-                else (item.product.actual_discounted_price or 0)
-            )
+            unit_cost = _sale_unit_cost(item)
             qty = item.net_qty
             line_revenue = item.net_line_total
             line_cost = round(qty * unit_cost, 2)
@@ -343,6 +351,15 @@ def _compute_contact_detail(kind, contact_id, date_from, date_to, group_by):
             by_product[product_key]["discount_amount"] += line_discount
             by_product[product_key]["mrp_total"] += mrp * qty
 
+            brand = item.product.brand
+            brand_key = brand.id if brand else 0
+            by_brand[brand_key]["id"] = brand.id if brand else None
+            by_brand[brand_key]["name"] = brand.name if brand else "No brand"
+            by_brand[brand_key]["brand_type"] = brand.brand_type if brand else "none"
+            by_brand[brand_key]["qty"] += qty
+            by_brand[brand_key]["revenue"] += line_revenue
+            by_brand[brand_key]["cost"] += line_cost
+
             total_revenue += line_revenue
             total_cost += line_cost
             total_discount += line_discount
@@ -350,6 +367,16 @@ def _compute_contact_detail(kind, contact_id, date_from, date_to, group_by):
 
     time_series = [(_period_display(p), v) for p, v in sorted(by_period.items(), key=lambda kv: kv[0])]
     item_rows.sort(key=lambda r: (r["date"], r["sale_id"]), reverse=True)
+
+    brand_rows = []
+    for v in by_brand.values():
+        v["revenue"] = round(v["revenue"], 2)
+        v["cost"] = round(v["cost"], 2)
+        v["profit"] = round(v["revenue"] - v["cost"], 2)
+        v["profit_pct"] = round(v["profit"] / v["revenue"] * 100, 2) if v["revenue"] else 0
+        brand_rows.append(v)
+    brand_rows.sort(key=lambda r: r["revenue"], reverse=True)
+    brand_groups = _group_rows_by_brand_type(brand_rows, _sales_brand_totals)
 
     product_rows = []
     for name, v in by_product.items():
@@ -374,7 +401,7 @@ def _compute_contact_detail(kind, contact_id, date_from, date_to, group_by):
         "profit_pct": round(total_profit / total_revenue * 100, 2) if total_revenue else 0,
     }
 
-    return contact, summary, time_series, product_rows, item_rows
+    return contact, summary, time_series, product_rows, item_rows, brand_groups
 
 
 def _contact_detail(kind, contact_id):
@@ -383,7 +410,7 @@ def _contact_detail(kind, contact_id):
     if group_by not in ("day", "week"):
         group_by = "day"
 
-    contact, summary, time_series, product_rows, item_rows = _compute_contact_detail(
+    contact, summary, time_series, product_rows, item_rows, brand_groups = _compute_contact_detail(
         kind, contact_id, date_from, date_to, group_by
     )
 
@@ -391,6 +418,7 @@ def _contact_detail(kind, contact_id):
         "reports/contact_detail.html",
         kind=kind, contact=contact, summary=summary,
         time_series=time_series, product_rows=product_rows, item_rows=item_rows,
+        brand_groups=brand_groups,
         date_from=date_from, date_to=date_to, group_by=group_by,
     )
 
@@ -401,7 +429,7 @@ def _contact_detail_export(kind, contact_id):
     if group_by not in ("day", "week"):
         group_by = "day"
 
-    contact, summary, time_series, product_rows, item_rows = _compute_contact_detail(
+    contact, summary, time_series, product_rows, item_rows, brand_groups = _compute_contact_detail(
         kind, contact_id, date_from, date_to, group_by
     )
     period_header = "Date" if group_by == "day" else "Week"
@@ -412,6 +440,9 @@ def _contact_detail_export(kind, contact_id):
             ("By Product", ["Product", "Qty", "Revenue", "Discount Given", "Avg Discount %", "Cost", "Profit", "Profit %"],
              [[p["name"], p["qty"], p["revenue"], p["discount_amount"], p["avg_discount_pct"],
                p["cost"], p["profit"], p["profit_pct"]] for p in product_rows]),
+            ("By Brand", ["Group", "Brand", "Qty", "Revenue", "Cost", "Profit", "Profit %"],
+             [[g["label"], b["name"], b["qty"], b["revenue"], b["cost"], b["profit"], b["profit_pct"]]
+              for g in brand_groups for b in g["rows"]]),
             ("Line Items", ["Date", "Invoice", "Product", "Qty", "Returned", "MRP", "Discount %", "Price", "Total"],
              [[r["date"], r["invoice_no"], r["product_name"], r["qty"], r["returned_qty"],
                r["mrp"], r["discount_pct"], r["price"], r["line_total"]] for r in item_rows]),
@@ -513,10 +544,7 @@ def _compute_product_detail(product_id, date_from, date_to, group_by):
         by_period[period]["revenue"] += line_revenue
 
         mrp = item.mrp_at_sale or 0
-        unit_cost = (
-            item.purchase_item.purchase_price if item.purchase_item
-            else (item.product.actual_discounted_price or 0)
-        )
+        unit_cost = _sale_unit_cost(item)
         line_cost = round(qty * unit_cost, 2)
         line_discount = round((mrp - item.selling_price) * qty, 2) if mrp else 0
 
@@ -636,12 +664,7 @@ def _compute_profit_margin(date_from, date_to):
     by_product = defaultdict(lambda: {"qty": 0, "revenue": 0.0, "cost": 0.0})
     for item in items:
         key = f"{item.product.part_no} - {item.product.product_name}"
-        # Use the actual batch's purchase price when known (accurate historical cost);
-        # fall back to the product's current cost for sales made before batch tracking existed.
-        unit_cost = (
-            item.purchase_item.purchase_price if item.purchase_item
-            else (item.product.actual_discounted_price or 0)
-        )
+        unit_cost = _sale_unit_cost(item)
         by_product[key]["qty"] += item.net_qty
         by_product[key]["revenue"] += item.net_line_total
         by_product[key]["cost"] += item.net_qty * unit_cost
@@ -912,6 +935,40 @@ def supplier_detail_export(supplier_id):
     )
 
 
+# Section order for both brand reports. "none" is the products-with-no-brand
+# bucket — kept as its own visible section so unclassified stock can't quietly
+# disappear from a subtotal.
+BRAND_GROUPS = (("oem", "OEM"), ("aftermarket", "Aftermarket"), ("none", "No brand"))
+
+
+def _group_rows_by_brand_type(rows, subtotal_fn):
+    """Splits brand rows into OEM / Aftermarket / No brand sections, each with
+    its own subtotal, so the sales and purchase brand reports render the same
+    shape. Empty sections are dropped rather than printing a bare heading."""
+    groups = []
+    for key, label in BRAND_GROUPS:
+        section = [r for r in rows if r["brand_type"] == key]
+        if section:
+            groups.append({"key": key, "label": label, "rows": section, "subtotal": subtotal_fn(section)})
+    return groups
+
+
+def _sales_brand_totals(rows):
+    """Profit % is recomputed from the summed revenue/cost, never averaged from
+    the per-brand percentages — averaging percentages weights a tiny brand the
+    same as a large one."""
+    revenue = round(sum(r["revenue"] for r in rows), 2)
+    cost = round(sum(r["cost"] for r in rows), 2)
+    profit = round(revenue - cost, 2)
+    return {
+        "qty": sum(r["qty"] for r in rows),
+        "revenue": revenue,
+        "cost": cost,
+        "profit": profit,
+        "profit_pct": round(profit / revenue * 100, 2) if revenue else 0,
+    }
+
+
 def _compute_brand_wise(date_from, date_to):
     items = (
         SaleItem.query.join(Sale)
@@ -919,25 +976,41 @@ def _compute_brand_wise(date_from, date_to):
         .all()
     )
 
-    by_brand = defaultdict(lambda: {"id": None, "name": "No brand", "qty": 0, "revenue": 0.0})
+    by_brand = defaultdict(lambda: {
+        "id": None, "name": "No brand", "brand_type": "none",
+        "qty": 0, "revenue": 0.0, "cost": 0.0,
+    })
     for item in items:
         brand = item.product.brand
         key = brand.id if brand else 0
+        unit_cost = _sale_unit_cost(item)
         by_brand[key]["id"] = brand.id if brand else None
         by_brand[key]["name"] = brand.name if brand else "No brand"
+        by_brand[key]["brand_type"] = brand.brand_type if brand else "none"
         by_brand[key]["qty"] += item.net_qty
         by_brand[key]["revenue"] += item.net_line_total
+        by_brand[key]["cost"] += item.net_qty * unit_cost
 
-    return sorted(by_brand.values(), key=lambda v: v["revenue"], reverse=True)
+    rows = []
+    for row in by_brand.values():
+        row["revenue"] = round(row["revenue"], 2)
+        row["cost"] = round(row["cost"], 2)
+        row["profit"] = round(row["revenue"] - row["cost"], 2)
+        row["profit_pct"] = round(row["profit"] / row["revenue"] * 100, 2) if row["revenue"] else 0
+        rows.append(row)
+    rows.sort(key=lambda v: v["revenue"], reverse=True)
+
+    return _group_rows_by_brand_type(rows, _sales_brand_totals), _sales_brand_totals(rows), rows
 
 
 @reports_bp.route("/brand-wise")
 @login_required
 def brand_wise():
     date_from, date_to = _date_range_args()
-    rows = _compute_brand_wise(date_from, date_to)
+    groups, totals, rows = _compute_brand_wise(date_from, date_to)
     return render_template(
-        "reports/brand_wise.html", rows=rows, date_from=date_from, date_to=date_to
+        "reports/brand_wise.html", groups=groups, totals=totals, rows=rows,
+        date_from=date_from, date_to=date_to,
     )
 
 
@@ -945,11 +1018,121 @@ def brand_wise():
 @login_required
 def brand_wise_export():
     date_from, date_to = _date_range_args()
-    rows = _compute_brand_wise(date_from, date_to)
+    groups, totals, _rows = _compute_brand_wise(date_from, date_to)
+    out = []
+    for group in groups:
+        for r in group["rows"]:
+            out.append([group["label"], r["name"], r["qty"], r["revenue"], r["cost"], r["profit"], r["profit_pct"]])
+        sub = group["subtotal"]
+        out.append([group["label"] + " subtotal", "", sub["qty"], sub["revenue"], sub["cost"], sub["profit"], sub["profit_pct"]])
+    out.append(["Total", "", totals["qty"], totals["revenue"], totals["cost"], totals["profit"], totals["profit_pct"]])
     return _send_excel(
-        [("Brand-wise Sales", ["Brand", "Qty Sold", "Revenue"],
-          [[r["name"], r["qty"], r["revenue"]] for r in rows])],
+        [("Brand-wise Sales",
+          ["Group", "Brand", "Qty Sold", "Revenue", "Cost", "Profit", "Profit %"], out)],
         f"brand-wise-{date_from}_to_{date_to}.xlsx",
+    )
+
+
+def _purchase_brand_totals(rows):
+    """Avg discount % is recomputed from the summed MRP value and discount,
+    not averaged across brands, for the same reason as the sales side."""
+    spend = round(sum(r["spend"] for r in rows), 2)
+    mrp_value = round(sum(r["mrp_value"] for r in rows), 2)
+    discount = round(sum(r["discount_amount"] for r in rows), 2)
+    return {
+        "qty": sum(r["qty"] for r in rows),
+        "spend": spend,
+        "mrp_value": mrp_value,
+        "discount_amount": discount,
+        "discount_pct": round(discount / mrp_value * 100, 2) if mrp_value else 0,
+    }
+
+
+def _compute_brand_purchases(date_from, date_to):
+    """Purchase spend per brand. Purchases have no return-netting analogue, so
+    this uses gross item.qty throughout — unlike the sales-side brand report.
+
+    Spend here is goods-only (the sum of PurchaseItem.total). Invoice-level
+    charges — delivery, round off, incidental — belong to the invoice, not to
+    any one brand on it, so they're excluded and returned separately. That is
+    why this report's total is lower than the Supplier Purchase Summary's for
+    the same dates; the template says so rather than leaving it to be
+    rediscovered as a bug."""
+    items = (
+        PurchaseItem.query.join(Purchase).join(Product, PurchaseItem.product_id == Product.id)
+        .filter(Purchase.date >= date_from, Purchase.date <= date_to)
+        .all()
+    )
+
+    by_brand = defaultdict(lambda: {
+        "id": None, "name": "No brand", "brand_type": "none",
+        "qty": 0, "spend": 0.0, "mrp_value": 0.0, "discount_amount": 0.0,
+    })
+    for item in items:
+        brand = item.product.brand
+        key = brand.id if brand else 0
+        mrp = item.effective_mrp or 0
+        by_brand[key]["id"] = brand.id if brand else None
+        by_brand[key]["name"] = brand.name if brand else "No brand"
+        by_brand[key]["brand_type"] = brand.brand_type if brand else "none"
+        by_brand[key]["qty"] += item.qty
+        by_brand[key]["spend"] += item.total
+        by_brand[key]["mrp_value"] += mrp * item.qty
+        by_brand[key]["discount_amount"] += round((mrp - item.purchase_price) * item.qty, 2) if mrp else 0
+
+    rows = []
+    for row in by_brand.values():
+        row["spend"] = round(row["spend"], 2)
+        row["mrp_value"] = round(row["mrp_value"], 2)
+        row["discount_amount"] = round(row["discount_amount"], 2)
+        row["discount_pct"] = (
+            round(row["discount_amount"] / row["mrp_value"] * 100, 2) if row["mrp_value"] else 0
+        )
+        rows.append(row)
+    rows.sort(key=lambda v: v["spend"], reverse=True)
+
+    purchases = Purchase.query.filter(Purchase.date >= date_from, Purchase.date <= date_to).all()
+    excluded_charges = round(sum(p.charges_total for p in purchases), 2)
+
+    return (
+        _group_rows_by_brand_type(rows, _purchase_brand_totals),
+        _purchase_brand_totals(rows),
+        rows,
+        excluded_charges,
+    )
+
+
+@reports_bp.route("/brand-purchases")
+@login_required
+def brand_purchases():
+    date_from, date_to = _date_range_args()
+    groups, totals, rows, excluded_charges = _compute_brand_purchases(date_from, date_to)
+    return render_template(
+        "reports/brand_purchases.html", groups=groups, totals=totals, rows=rows,
+        excluded_charges=excluded_charges, date_from=date_from, date_to=date_to,
+    )
+
+
+@reports_bp.route("/brand-purchases/export")
+@login_required
+def brand_purchases_export():
+    date_from, date_to = _date_range_args()
+    groups, totals, _rows, excluded_charges = _compute_brand_purchases(date_from, date_to)
+    out = []
+    for group in groups:
+        for r in group["rows"]:
+            out.append([group["label"], r["name"], r["qty"], r["mrp_value"], r["spend"],
+                        r["discount_amount"], r["discount_pct"]])
+        sub = group["subtotal"]
+        out.append([group["label"] + " subtotal", "", sub["qty"], sub["mrp_value"], sub["spend"],
+                    sub["discount_amount"], sub["discount_pct"]])
+    out.append(["Total", "", totals["qty"], totals["mrp_value"], totals["spend"],
+                totals["discount_amount"], totals["discount_pct"]])
+    out.append(["Invoice charges (not brand-attributable)", "", "", "", excluded_charges, "", ""])
+    return _send_excel(
+        [("Brand-wise Purchases",
+          ["Group", "Brand", "Qty Bought", "MRP Value", "Spend", "Discount Received", "Discount %"], out)],
+        f"brand-purchases-{date_from}_to_{date_to}.xlsx",
     )
 
 
@@ -981,10 +1164,7 @@ def _compute_brand_detail(brand_id, date_from, date_to, group_by):
         by_period[period]["revenue"] += line_revenue
 
         mrp = item.mrp_at_sale or 0
-        unit_cost = (
-            item.purchase_item.purchase_price if item.purchase_item
-            else (item.product.actual_discounted_price or 0)
-        )
+        unit_cost = _sale_unit_cost(item)
         line_cost = round(qty * unit_cost, 2)
         line_discount = round((mrp - item.selling_price) * qty, 2) if mrp else 0
         product_key = f"{item.product.part_no} - {item.product.product_name}"

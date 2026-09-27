@@ -38,7 +38,7 @@ SHEETS = {
         "margin_per_unit", "current_stock", "reorder_level",
     ]),
     "Suppliers": (Supplier, ["id", "name", "brand_names", "phone", "address", "gstin"]),
-    "Brands": (Brand, ["id", "name"]),
+    "Brands": (Brand, ["id", "name", "brand_type"]),
     "ProductCategories": (ProductCategory, ["id", "name"]),
     "Customers": (Customer, ["id", "name", "phone", "address", "vehicle_model"]),
     "Mechanics": (Mechanic, ["id", "name", "phone", "garage_name"]),

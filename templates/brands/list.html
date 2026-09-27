@@ -9,11 +9,12 @@
 </div>
 <div class="card p-3">
 <table class="table table-hover align-middle data-table">
-  <thead><tr><th>Name</th><th>Products</th><th>Suppliers</th><th></th></tr></thead>
+  <thead><tr><th>Name</th><th>Type</th><th>Products</th><th>Suppliers</th><th></th></tr></thead>
   <tbody>
     {% for b in brands %}
     <tr data-href="{{ url_for('brands.edit_brand', brand_id=b.id) }}">
       <td>{{ b.name }}</td>
+      <td>{{ b.brand_type_label }}</td>
       <td>{{ b.products|length }}</td>
       <td>{{ b.suppliers|length }}</td>
       <td class="text-end">
@@ -25,7 +26,7 @@
       </td>
     </tr>
     {% else %}
-    <tr><td colspan="4" class="text-center text-muted">No brands yet.</td></tr>
+    <tr><td colspan="5" class="text-center text-muted">No brands yet.</td></tr>
     {% endfor %}
   </tbody>
 </table>

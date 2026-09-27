@@ -11,10 +11,22 @@
              placeholder="e.g. Honda" value="{{ brand.name if brand else '' }}">
       <div class="form-text">Used consistently across Products, Suppliers, and Customer/Mechanic brand-wise discounts.</div>
     </div>
+    <div class="col-md-6">
+      <label class="form-label" for="f-brand-type">Brand Type</label>
+      <select id="f-brand-type" name="brand_type" class="form-select">
+        <option value="oem" {{ 'selected' if not brand or brand.brand_type != 'aftermarket' }}>OEM (vehicle maker)</option>
+        <option value="aftermarket" {{ 'selected' if brand and brand.brand_type == 'aftermarket' }}>Aftermarket (vendor)</option>
+      </select>
+      <div class="form-text">Groups this brand in the brand-wise sales and purchase reports. e.g. Honda/Bajaj/Tvs are OEM, NGK is aftermarket.</div>
+    </div>
   </div>
   <div class="mt-4 d-flex gap-2">
     <button type="submit" class="btn btn-primary">{{ icon('save') }}Save</button>
     <a href="{{ url_for('brands.list_brands') }}" class="btn btn-outline-secondary">{{ icon('x-lg') }}Cancel</a>
   </div>
 </form>
+
+<script>
+SearchableSelect.enhance(document.getElementById('f-brand-type'));
+</script>
 {% endblock %}

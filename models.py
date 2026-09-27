@@ -27,6 +27,9 @@ class ShopSettings(db.Model):
     bill_footer = db.Column(db.Text, default="")
 
 
+BRAND_TYPES = ("oem", "aftermarket")
+
+
 class Brand(db.Model):
     """Shared master list of brands (Honda, TVS, Bajaj, Universal, ...) used
     consistently across Products, Suppliers, and Customer/Mechanic brand-wise
@@ -34,6 +37,15 @@ class Brand(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), unique=True, nullable=False)
+    # Which side of the business a brand sits on: vehicle-maker parts bought
+    # from a franchise distributor (Honda, Bajaj, Tvs) vs aftermarket vendor
+    # stock (NGK). Reports group by this; it has no effect on pricing or
+    # discounts. Not derivable from the data — the owner sets it per brand.
+    brand_type = db.Column(db.String(20), nullable=False, default="oem", server_default="oem")
+
+    @property
+    def brand_type_label(self):
+        return "Aftermarket" if self.brand_type == "aftermarket" else "OEM"
 
 
 class ProductCategory(db.Model):

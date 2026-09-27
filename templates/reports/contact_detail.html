@@ -138,6 +138,49 @@
   </div>
 </div>
 
+<div class="card p-3 mb-4 report-section" id="brandSection">
+  <div class="d-flex justify-content-between align-items-center mb-2">
+    <h5 class="mb-0 d-flex align-items-center">{{ icon('tags', 'me-2') }}By Brand</h5>
+    <div class="btn-group btn-group-sm view-toggle" role="group">
+      <button type="button" class="btn btn-outline-primary active" data-view="table">{{ icon('list-ul') }}Table</button>
+      <button type="button" class="btn btn-outline-primary" data-view="chart">{{ icon('bar-chart') }}Chart</button>
+    </div>
+  </div>
+  <div class="view-chart" style="display:none"><canvas id="brandChart" height="90"></canvas></div>
+  <div class="view-table">
+    {# Not a .data-table: sorting would scramble rows across the group headings
+       and subtotals. #}
+    <table class="table table-sm">
+      <thead><tr><th>Brand</th><th>Qty</th><th>Revenue</th><th>Cost</th><th>Profit</th><th>Profit %</th></tr></thead>
+      <tbody>
+        {% for group in brand_groups %}
+        <tr class="table-active"><th colspan="6" class="small text-uppercase">{{ group.label }}</th></tr>
+        {% for b in group.rows %}
+        <tr>
+          <td>{{ b.name }}</td>
+          <td>{{ b.qty }}</td>
+          <td>₹{{ "%.2f"|format(b.revenue) }}</td>
+          <td>₹{{ "%.2f"|format(b.cost) }}</td>
+          <td class="{{ 'text-danger' if b.profit < 0 }}">₹{{ "%.2f"|format(b.profit) }}</td>
+          <td>{{ "%.2f"|format(b.profit_pct) }}%</td>
+        </tr>
+        {% endfor %}
+        <tr class="fw-semibold">
+          <td>{{ group.label }} subtotal</td>
+          <td>{{ group.subtotal.qty }}</td>
+          <td>₹{{ "%.2f"|format(group.subtotal.revenue) }}</td>
+          <td>₹{{ "%.2f"|format(group.subtotal.cost) }}</td>
+          <td>₹{{ "%.2f"|format(group.subtotal.profit) }}</td>
+          <td>{{ "%.2f"|format(group.subtotal.profit_pct) }}%</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6" class="text-center text-muted">No sales in this range.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
 <div class="card p-3 mb-4">
   <h5 class="mb-3 d-flex align-items-center">{{ icon('clock-history', 'me-2') }}All Line Items</h5>
   <table class="table table-sm data-table">
@@ -191,6 +234,23 @@
         datasets: [
           { label: 'Revenue (₹)', data: productRows.map(r => r.revenue), backgroundColor: '#1e4b8c' },
           { label: 'Discount Given (₹)', data: productRows.map(r => r.discount_amount), backgroundColor: '#e8720c' }
+        ]
+      },
+      options: { responsive: true, scales: { y: { beginAtZero: true } } }
+    });
+  });
+
+  // Flattened out of the grouped rows; bar colour carries the OEM/aftermarket split.
+  const brandRows = [].concat(...{{ brand_groups|tojson }}.map(g => g.rows));
+  const brandColour = t => t === 'aftermarket' ? '#e8720c' : (t === 'none' ? '#8a93a6' : '#1e4b8c');
+  ReportToggle.wire(document.getElementById('brandSection'), function () {
+    return new Chart(document.getElementById('brandChart'), {
+      type: 'bar',
+      data: {
+        labels: brandRows.map(r => r.name),
+        datasets: [
+          { label: 'Revenue (₹)', data: brandRows.map(r => r.revenue), backgroundColor: brandRows.map(r => brandColour(r.brand_type)) },
+          { label: 'Profit (₹)', data: brandRows.map(r => r.profit), backgroundColor: '#9dc4ff' }
         ]
       },
       options: { responsive: true, scales: { y: { beginAtZero: true } } }

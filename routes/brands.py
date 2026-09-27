@@ -3,9 +3,16 @@ from flask_login import login_required
 
 from extensions import db
 from excel_sync import sync_to_excel
-from models import Brand, Product, Supplier, CustomerBrandDiscount, MechanicBrandDiscount
+from models import BRAND_TYPES, Brand, Product, Supplier, CustomerBrandDiscount, MechanicBrandDiscount
 
 brands_bp = Blueprint("brands", __name__, url_prefix="/brands")
+
+
+def _brand_type_from(form):
+    """OEM unless the form explicitly says aftermarket — an unrecognised value
+    means a tampered/stale form, and OEM is the safe majority default."""
+    value = form.get("brand_type", "").strip().lower()
+    return value if value in BRAND_TYPES else "oem"
 
 
 @brands_bp.route("/")
@@ -26,7 +33,7 @@ def new_brand():
         if Brand.query.filter(db.func.lower(Brand.name) == name.lower()).first():
             flash("A brand with this name already exists.", "danger")
             return render_template("brands/form.html", brand=None)
-        brand = Brand(name=name)
+        brand = Brand(name=name, brand_type=_brand_type_from(request.form))
         db.session.add(brand)
         db.session.commit()
         sync_to_excel()
@@ -49,6 +56,7 @@ def edit_brand(brand_id):
             flash("Another brand already uses this name.", "danger")
             return render_template("brands/form.html", brand=brand)
         brand.name = name
+        brand.brand_type = _brand_type_from(request.form)
         db.session.commit()
         sync_to_excel()
         flash("Brand updated.", "success")

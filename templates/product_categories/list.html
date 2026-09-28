@@ -14,7 +14,11 @@
     {% for c in categories %}
     <tr data-href="{{ url_for('product_categories.edit_category', category_id=c.id) }}">
       <td>{{ c.name }}</td>
-      <td>{{ c.products|length }}</td>
+      <td>
+        {% if c.products %}
+        <a href="{{ url_for('products.list_products', category_id=c.id) }}">{{ c.products|length }}</a>
+        {% else %}0{% endif %}
+      </td>
       <td class="text-end">
         <a href="{{ url_for('product_categories.edit_category', category_id=c.id) }}" class="btn btn-sm btn-outline-secondary" title="Edit" aria-label="Edit">{{ icon('pencil') }}</a>
         <form method="post" action="{{ url_for('product_categories.delete_category', category_id=c.id) }}" class="d-inline" onsubmit="return confirm('Delete this category?');">

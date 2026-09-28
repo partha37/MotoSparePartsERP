@@ -6,6 +6,13 @@
   <h2>Products</h2>
   <a href="{{ url_for('products.new_product') }}" class="btn btn-primary">{{ icon('plus-lg') }}Add Product</a>
 </div>
+{% if filter_category %}
+<div class="d-flex align-items-center gap-2 mb-3">
+  <span class="text-muted">Showing products in category</span>
+  <span class="badge text-bg-secondary">{{ filter_category.name }}</span>
+  <a href="{{ url_for('products.list_products') }}" class="btn btn-sm btn-outline-secondary">{{ icon('x-lg') }}Clear filter</a>
+</div>
+{% endif %}
 </div>
 
 <div class="card p-3">

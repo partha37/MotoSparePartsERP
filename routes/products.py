@@ -26,8 +26,21 @@ def _apply_form_to_product(product, form):
 @products_bp.route("/")
 @login_required
 def list_products():
-    products = Product.query.order_by(Product.product_name.asc()).all()
-    return render_template("products/list.html", products=products)
+    """?category_id= narrows the list to one category — what the Products count
+    on the Categories page links to. An unknown or non-numeric id just shows
+    everything rather than erroring, since it only ever arrives from a link."""
+    query = Product.query
+    filter_category = None
+    raw_category_id = request.args.get("category_id", "")
+    if raw_category_id.isdigit():
+        filter_category = ProductCategory.query.get(int(raw_category_id))
+        if filter_category:
+            query = query.filter(Product.category_id == filter_category.id)
+
+    products = query.order_by(Product.product_name.asc()).all()
+    return render_template(
+        "products/list.html", products=products, filter_category=filter_category
+    )
 
 
 def _all_brands():

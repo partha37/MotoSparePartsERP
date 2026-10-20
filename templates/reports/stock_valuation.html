@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Stock Valuation - Lokey Auto Spare Parts{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2 class="mb-0 d-flex align-items-center">{{ icon('currency-rupee', 'me-2') }}Stock Valuation</h2>
+  <a href="{{ url_for('reports.index') }}" class="btn btn-outline-secondary">{{ icon('arrow-left') }}Back to Reports</a>
+</div>
+<p class="text-muted">Values use each remaining purchase batch's GST-inclusive cost, matching the stock value shown on the dashboard.</p>
+
+<div class="row g-3 mb-3">
+  <div class="col-md-4">
+    <div class="card p-3 stat-card">
+      <div class="stat-card-icon">{{ icon('currency-rupee') }}</div>
+      <div>
+        <div class="text-muted small">Total Stock Value (cost)</div>
+        <div class="fs-4 fw-bold">₹{{ "%.2f"|format(total_stock_value) }}</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card p-3">
+  <table class="table table-hover align-middle data-table">
+    <thead>
+      <tr><th>Part No</th><th>Product</th><th>Brand</th><th>Stock Qty</th><th>Stock Value (cost)</th></tr>
+    </thead>
+    <tbody>
+      {% for product, batch_qty, stock_value in stock_rows %}
+      <tr>
+        <td>{{ product.part_no }}</td>
+        <td>{{ product.product_name }}</td>
+        <td>{{ product.brand.name if product.brand else '-' }}</td>
+        <td>{{ batch_qty or 0 }} {{ product.unit }}</td>
+        <td>₹{{ "%.2f"|format(stock_value or 0) }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5" class="text-center text-muted">No products found.</td></tr>
+      {% endfor %}
+    </tbody>
+    <tfoot>
+      <tr class="fw-bold"><td colspan="4">Total</td><td>₹{{ "%.2f"|format(total_stock_value) }}</td></tr>
+    </tfoot>
+  </table>
+</div>
+{% endblock %}

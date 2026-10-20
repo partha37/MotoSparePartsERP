@@ -58,4 +58,9 @@
 </form>
 {{ pagination(table) }}
 </div>
+<script>
+document.querySelectorAll(".server-table-filter-select").forEach(function (select) {
+  SearchableSelect.enhance(select);
+});
+</script>
 {% endblock %}

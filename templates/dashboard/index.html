@@ -40,41 +40,45 @@
 
 <div class="row g-3 mb-4">
   <div class="col-md-3">
-    <div class="card p-3 stat-card">
+    <a href="{{ url_for('sales.list_sales', f_date=today.isoformat()) }}" class="card p-3 stat-card stat-card-link text-decoration-none text-reset h-100">
       <div class="stat-card-icon">{{ icon('receipt') }}</div>
       <div>
         <div class="text-muted small">Today's Sales</div>
         <div class="fs-3 fw-bold">₹{{ "%.2f"|format(todays_total) }}</div>
         <div class="text-muted small">{{ todays_count }} invoice(s)</div>
+        <div class="text-primary small mt-1">{{ icon('chevron-right', 'me-1') }}View details</div>
       </div>
-    </div>
+    </a>
   </div>
   <div class="col-md-3">
-    <div class="card p-3 stat-card">
+    <a href="{{ url_for('products.list_products') }}" class="card p-3 stat-card stat-card-link text-decoration-none text-reset h-100">
       <div class="stat-card-icon">{{ icon('box-seam') }}</div>
       <div>
         <div class="text-muted small">Total Products</div>
         <div class="fs-3 fw-bold">{{ total_products }}</div>
+        <div class="text-primary small mt-1">{{ icon('chevron-right', 'me-1') }}View details</div>
       </div>
-    </div>
+    </a>
   </div>
   <div class="col-md-3">
-    <div class="card p-3 stat-card">
+    <a href="{{ url_for('reports.stock_valuation') }}" class="card p-3 stat-card stat-card-link text-decoration-none text-reset h-100">
       <div class="stat-card-icon">{{ icon('currency-rupee') }}</div>
       <div>
         <div class="text-muted small">Stock Value (cost)</div>
         <div class="fs-3 fw-bold">₹{{ "%.2f"|format(total_stock_value) }}</div>
+        <div class="text-primary small mt-1">{{ icon('chevron-right', 'me-1') }}View details</div>
       </div>
-    </div>
+    </a>
   </div>
   <div class="col-md-3">
-    <div class="card p-3 stat-card">
+    <a href="{{ url_for('reports.low_stock', status='needs_reorder') }}" class="card p-3 stat-card stat-card-link text-decoration-none text-reset h-100">
       <div class="stat-card-icon {{ 'accent' if low_stock_products else '' }}">{{ icon('exclamation-triangle') }}</div>
       <div>
         <div class="text-muted small">Low Stock Items</div>
         <div class="fs-3 fw-bold {{ 'text-danger' if low_stock_products else '' }}">{{ low_stock_products|length }}</div>
+        <div class="text-primary small mt-1">{{ icon('chevron-right', 'me-1') }}View details</div>
       </div>
-    </div>
+    </a>
   </div>
 </div>
 

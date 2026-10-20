@@ -3,7 +3,7 @@ from urllib.parse import urlencode
 
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import login_required
-from sqlalchemy import func
+from sqlalchemy import case, func
 
 from extensions import db
 from excel_sync import sync_to_excel
@@ -233,18 +233,35 @@ def list_sales():
         .outerjoin(Mechanic, Sale.mechanic_id == Mechanic.id)
     )
 
+    customer_display_expr = func.coalesce(
+        Customer.name,
+        case((Sale.is_walkin.is_(True), "Walk-in"), else_="-"),
+    )
+    mechanic_display_expr = func.coalesce(Mechanic.name, "-")
     columns = {
         "date": ("Date", Sale.date, date_filter_expr(Sale.date)),
         "invoice": ("Invoice", Sale.invoice_no),
-        "customer": ("Customer", Customer.name),
-        "mechanic": ("Mechanic", Mechanic.name),
+        "customer": ("Customer", customer_display_expr),
+        "mechanic": ("Mechanic", mechanic_display_expr),
         "total": ("Total", total_expr),
         "balance": ("Balance Due", balance_expr),
     }
+    customer_options = sorted(
+        {"-", "Walk-in", *(name for (name,) in db.session.query(Customer.name).order_by(Customer.name.asc()).all())}
+    )
+    mechanic_options = sorted(
+        {"-", *(name for (name,) in db.session.query(Mechanic.name).order_by(Mechanic.name.asc()).all())}
+    )
     table = ServerTable(
         query, columns,
         search_keys=["date", "invoice", "customer", "mechanic", "total", "balance"],
         default_sort="date", default_dir="desc",
+        filter_types={"date": "date", "customer": "select", "mechanic": "select"},
+        filter_options={"customer": customer_options, "mechanic": mechanic_options},
+        total_columns={
+            "Sales Total": (total_expr, "money"),
+            "Balance Due": (balance_expr, "money"),
+        },
     )
     return render_template("sales/list.html", table=table)
 

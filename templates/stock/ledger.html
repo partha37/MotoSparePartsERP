@@ -75,5 +75,8 @@
 
 <script>
 SearchableSelect.enhance(document.getElementById('f-product'));
+document.querySelectorAll(".server-table-filter-select").forEach(function (select) {
+  SearchableSelect.enhance(select);
+});
 </script>
 {% endblock %}

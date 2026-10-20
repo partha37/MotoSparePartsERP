@@ -46,17 +46,27 @@ def list_purchases():
         .outerjoin(Supplier, Purchase.supplier_id == Supplier.id)
     )
 
+    supplier_display_expr = func.coalesce(Supplier.name, "-")
     columns = {
         "date": ("Date", Purchase.date, date_filter_expr(Purchase.date)),
-        "supplier": ("Supplier", Supplier.name),
+        "supplier": ("Supplier", supplier_display_expr),
         "invoice": ("Invoice No", Purchase.invoice_no),
         "items": ("Items", items_expr),
         "total": ("Total", total_expr),
     }
+    supplier_options = sorted(
+        {"-", *(name for (name,) in db.session.query(Supplier.name).order_by(Supplier.name.asc()).all())}
+    )
     table = ServerTable(
         query, columns,
         search_keys=["date", "supplier", "invoice", "items", "total"],
         default_sort="date", default_dir="desc",
+        filter_types={"date": "date", "supplier": "select"},
+        filter_options={"supplier": supplier_options},
+        total_columns={
+            "Purchase Total": (total_expr, "money"),
+            "Items": (items_expr, "integer"),
+        },
     )
     return render_template("purchases/list.html", table=table)
 

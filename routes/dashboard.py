@@ -44,6 +44,7 @@ def index():
         low_stock_products=low_stock_products,
         total_products=total_products,
         total_stock_value=round(total_stock_value, 2),
+        today=today,
         in_stock_products=in_stock_products,
         cloud_status=cloud_backup_status(),
     )

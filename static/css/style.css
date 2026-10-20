@@ -221,6 +221,30 @@ label.required::after {
   align-items: center;
   gap: 1rem;
 }
+.stat-card-link {
+  color: inherit;
+  text-decoration: none;
+  transition: box-shadow 0.15s ease;
+}
+.stat-card-link:hover {
+  color: inherit;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.16);
+}
+.stat-card-link:focus-visible {
+  outline: 2px solid var(--link-color);
+  outline-offset: 2px;
+}
+.data-table-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 1rem;
+  min-height: 1.5rem;
+  font-size: 0.875rem;
+}
+.data-table-summary-total {
+  font-weight: 600;
+}
 /* The label+value block is a flex item that defaults to min-width: auto,
    so it refused to shrink below its content's natural width — a wide
    currency value like "₹13476.95" was overflowing past the card's own

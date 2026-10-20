@@ -42,6 +42,16 @@ def ledger():
         search_keys=["date", "product", "type", "qty", "note"],
         default_sort="date", default_dir="desc",
         extra_args=extra_args,
+        filter_types={"date": "date", "type": "select"},
+        filter_options={
+            "type": [
+                ("purchase_in", "Purchase In"),
+                ("sale_out", "Sale Out"),
+                ("adjustment", "Adjustment"),
+                ("return", "Return"),
+            ],
+        },
+        total_columns={"Net Qty Change": (StockMovement.qty, "integer")},
     )
 
     products = Product.query.order_by(Product.product_name.asc()).all()

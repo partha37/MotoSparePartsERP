@@ -6,6 +6,7 @@ from datetime import date, timedelta
 from flask import Blueprint, render_template, request, send_file
 from flask_login import login_required
 from openpyxl import Workbook
+from sqlalchemy import func
 
 from excel_sync import _autofit
 from models import Sale, SaleItem, SaleReturn, Purchase, PurchaseItem, Product, Customer, Mechanic, Supplier, Brand
@@ -1546,13 +1547,47 @@ def low_stock():
     this lists the whole product catalog, not just low-stock items, so the
     shop owner can pick any product to reorder, not only what's flagged.
     Low/out-of-stock rows sort first and are pre-checked by default."""
-    products = (
+    filter_status = request.args.get("status", "")
+    if filter_status != "needs_reorder":
+        filter_status = ""
+    query = Product.query
+    if filter_status == "needs_reorder":
+        query = query.filter(Product.current_stock <= Product.reorder_level)
+
+    products = query.order_by(Product.current_stock.asc(), Product.product_name.asc()).all()
+    _attach_stock_status(products)
+    return render_template(
+        "reports/low_stock.html", products=products, filter_status=filter_status
+    )
+
+
+@reports_bp.route("/stock-valuation")
+@login_required
+def stock_valuation():
+    stock_rows = (
         Product.query
-        .order_by(Product.current_stock.asc(), Product.product_name.asc())
+        .outerjoin(PurchaseItem, PurchaseItem.product_id == Product.id)
+        .with_entities(
+            Product,
+            func.coalesce(func.sum(PurchaseItem.remaining_qty), 0).label("batch_qty"),
+            func.coalesce(
+                func.sum(
+                    func.coalesce(PurchaseItem.remaining_qty, 0)
+                    * PurchaseItem.purchase_price
+                ),
+                0,
+            ).label("stock_value"),
+        )
+        .group_by(Product.id)
+        .order_by(Product.product_name.asc())
         .all()
     )
-    _attach_stock_status(products)
-    return render_template("reports/low_stock.html", products=products)
+    total_stock_value = round(sum(row.stock_value for row in stock_rows), 2)
+    return render_template(
+        "reports/stock_valuation.html",
+        stock_rows=stock_rows,
+        total_stock_value=total_stock_value,
+    )
 
 
 @reports_bp.route("/low-stock/export", methods=["POST"])

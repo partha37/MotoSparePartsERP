@@ -1,4 +1,6 @@
-from flask import request, url_for
+from datetime import date
+
+from flask import abort, request, url_for
 from sqlalchemy import String, cast, func, or_
 
 
@@ -38,12 +40,15 @@ class ServerTable:
     """
 
     def __init__(self, query, columns, search_keys=None, default_sort=None,
-                 default_dir="desc", per_page=50, extra_args=None):
+                 default_dir="desc", per_page=50, extra_args=None,
+                 filter_types=None, filter_options=None, total_columns=None):
         self.columns = {
             key: (tup[0], tup[1], tup[2] if len(tup) > 2 else tup[1])
             for key, tup in columns.items()
         }
         self.extra_args = extra_args or {}
+        self.filter_types = filter_types or {}
+        self.filter_options = filter_options or {}
         args = request.args
 
         self.q = args.get("q", "").strip()
@@ -58,8 +63,27 @@ class ServerTable:
         for key, (_label, _sort_expr, filter_expr) in self.columns.items():
             val = args.get(f"f_{key}", "").strip()
             self.filters[key] = val
-            if val and filter_expr is not None:
+            filter_type = self.filter_types.get(key, "text")
+            if val and filter_expr is not None and filter_type == "date":
+                try:
+                    filter_date = date.fromisoformat(val)
+                except ValueError:
+                    abort(400, description=f"Invalid date filter for {self.columns[key][0]}.")
+                query = query.filter(filter_expr == filter_date.strftime("%d-%m-%Y"))
+            elif val and filter_expr is not None and filter_type == "select":
+                query = query.filter(cast(filter_expr, String) == val)
+            elif val and filter_expr is not None:
                 query = query.filter(cast(filter_expr, String).ilike(f"%{val}%"))
+
+        self.total_columns = total_columns or {}
+        self.total_values = []
+        if self.total_columns:
+            labels = list(self.total_columns)
+            expressions = [func.sum(self.total_columns[label][0]) for label in labels]
+            values = query.order_by(None).with_entities(*expressions).first()
+            for label, value in zip(labels, values or []):
+                format_type = self.total_columns[label][1]
+                self.total_values.append((label, value or 0, format_type))
 
         self.sort = args.get("sort") or default_sort
         self.dir = args.get("dir") or default_dir

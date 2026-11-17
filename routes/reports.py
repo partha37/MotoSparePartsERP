@@ -728,10 +728,10 @@ def _compute_gst_report(date_from, date_to):
         by_product[key]["qty"] += item.qty
         by_product[key]["pre_gst"] += pre_gst_line
         by_product[key]["gst"] += item.gst_amount
-        by_product[key]["total"] += item.total
+        by_product[key]["total"] += item.unrounded_total
         total_pre_gst += pre_gst_line
         total_gst += item.gst_amount
-        total_spend += item.total
+        total_spend += item.unrounded_total
 
         item_rows.append({
             "date": item.purchase.date,
@@ -859,7 +859,7 @@ def _compute_distributor_margin(date_from, date_to):
         for item in p.items:
             mrp = item.effective_mrp or 0
             row["bought_qty"] += item.qty
-            row["spend"] += item.total
+            row["spend"] += item.unrounded_total
             row["mrp_value"] += mrp * item.qty
             row["discount_amount"] += round((mrp - item.purchase_price) * item.qty, 2) if mrp else 0
 
@@ -979,7 +979,7 @@ def _compute_supplier_detail(supplier_id, date_from, date_to, group_by):
 
         for item in p.items:
             mrp = item.effective_mrp or 0
-            line_spend = item.total
+            line_spend = item.unrounded_total
             line_discount = round((mrp - item.purchase_price) * item.qty, 2) if mrp else 0
             product_key = f"{item.product.part_no} - {item.product.product_name}"
 
@@ -1184,7 +1184,7 @@ def _compute_brand_purchases(date_from, date_to):
     """Purchase spend per brand. Purchases have no return-netting analogue, so
     this uses gross item.qty throughout — unlike the sales-side brand report.
 
-    Spend here is goods-only (the sum of PurchaseItem.total). Invoice-level
+    Spend here is goods-only (quantity times the GST-inclusive batch unit cost). Invoice-level
     charges — delivery, round off, incidental — belong to the invoice, not to
     any one brand on it, so they're excluded and returned separately. That is
     why this report's total is lower than the Supplier Purchase Summary's for
@@ -1208,7 +1208,7 @@ def _compute_brand_purchases(date_from, date_to):
         by_brand[key]["name"] = brand.name if brand else "No brand"
         by_brand[key]["brand_type"] = brand.brand_type if brand else "none"
         by_brand[key]["qty"] += item.qty
-        by_brand[key]["spend"] += item.total
+        by_brand[key]["spend"] += item.unrounded_total
         by_brand[key]["mrp_value"] += mrp * item.qty
         by_brand[key]["discount_amount"] += round((mrp - item.purchase_price) * item.qty, 2) if mrp else 0
 

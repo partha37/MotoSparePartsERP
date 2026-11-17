@@ -329,7 +329,7 @@ class Purchase(db.Model):
     @property
     def items_total(self):
         """Goods-only subtotal — what the stock itself cost, before delivery/incidental charges."""
-        return round(sum(item.total for item in self.items), 2)
+        return round(sum(item.unrounded_total for item in self.items), 2)
 
     @property
     def charges_total(self):
@@ -398,7 +398,12 @@ class PurchaseItem(db.Model):
 
     @property
     def total(self):
-        return round(self.qty * self.purchase_price, 2)
+        return round(self.unrounded_total, 2)
+
+    @property
+    def unrounded_total(self):
+        """Extended batch cost before currency rounding, used for invoice subtotals."""
+        return self.qty * self.purchase_price
 
     @property
     def gst_amount_per_unit(self):
@@ -408,7 +413,7 @@ class PurchaseItem(db.Model):
         with no tax added on top)."""
         if self.price_before_gst is None:
             return 0
-        return round(self.purchase_price - self.price_before_gst, 2)
+        return self.purchase_price - self.price_before_gst
 
     @property
     def gst_amount(self):

@@ -27,7 +27,6 @@ import sys
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 QA_DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
 REAL_DB = os.path.join(REPO_ROOT, "instance", "erp.db")
-QA_DB = os.path.join(QA_DATA_DIR, "erp.db")
 
 sys.path.insert(0, REPO_ROOT)
 
@@ -38,28 +37,34 @@ def main():
     )
     parser.add_argument("--port", type=int, default=5099, help="Port to run on (default: 5099)")
     parser.add_argument(
+        "--data-dir", default=QA_DATA_DIR,
+        help="Isolated directory for the copied database and Excel mirror (default: qa/data)",
+    )
+    parser.add_argument(
         "--keep", action="store_true",
         help="Reuse the existing qa/data/erp.db as-is instead of refreshing it from the real DB",
     )
     args = parser.parse_args()
 
-    os.makedirs(QA_DATA_DIR, exist_ok=True)
+    qa_data_dir = os.path.abspath(args.data_dir)
+    qa_db = os.path.join(qa_data_dir, "erp.db")
+    os.makedirs(qa_data_dir, exist_ok=True)
 
-    if args.keep and os.path.exists(QA_DB):
-        print(f"Reusing existing QA database: {QA_DB}")
+    if args.keep and os.path.exists(qa_db):
+        print(f"Reusing existing QA database: {qa_db}")
     else:
         if not os.path.exists(REAL_DB):
             print(f"Real database not found at {REAL_DB} — nothing to copy.")
             sys.exit(1)
-        shutil.copy2(REAL_DB, QA_DB)
-        print(f"Copied {REAL_DB}\n     -> {QA_DB}")
+        shutil.copy2(REAL_DB, qa_db)
+        print(f"Copied {REAL_DB}\n     -> {qa_db}")
 
     # Step 1/3: override the DB URI on the Config class BEFORE create_app()
     # runs — Flask-SQLAlchemy binds its engine eagerly inside db.init_app(),
     # so setting app.config[...] afterward is a silent no-op (see the
     # qa-db-isolation-bug memory for the incident that established this).
     import config
-    config.Config.SQLALCHEMY_DATABASE_URI = "sqlite:///" + QA_DB.replace("\\", "/")
+    config.Config.SQLALCHEMY_DATABASE_URI = "sqlite:///" + qa_db.replace("\\", "/")
     # Step 2/3: never let a QA session's data reach the real cloud backup
     # folder — independent of the DB URI override above.
     config.Config.CLOUD_BACKUP_DIR = ""
@@ -73,7 +78,7 @@ def main():
     # Excel mirror (erp_data.xlsx) — independent of SQLALCHEMY_DATABASE_URI,
     # so it needs its own override or every sync_to_excel() call during this
     # session overwrites the real instance/erp_data.xlsx.
-    app.instance_path = QA_DATA_DIR
+    app.instance_path = qa_data_dir
     app.debug = False
 
     @app.route("/qa-auto-login")

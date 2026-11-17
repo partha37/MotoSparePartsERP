@@ -133,18 +133,6 @@ def _validate_purchase_form(form):
     if errors:
         return errors, None
 
-    # "Prices include GST" means the owner typed the invoice's GST-inclusive
-    # figure into the price column instead of the pre-tax one, so back the
-    # pre-GST price out of it here — callers then recompute purchase_price
-    # from that exactly as they always have. Kept at 4dp rather than 2 so
-    # that recomputation lands back on the amount actually typed instead of
-    # drifting a paisa (100.00 incl @18% -> 84.7458 -> 100.00, not 100.01).
-    if form.get("prices_include_gst"):
-        rows = [
-            (pid, qty, round(float(price) / (1 + (float(gst) if gst else 18.0) / 100), 4), mrp, gst)
-            for pid, qty, price, mrp, gst in rows
-        ]
-
     delivery_charge_raw = form.get("delivery_charge", "").strip()
     delivery_charge = float(delivery_charge_raw) if delivery_charge_raw else 0.0
 
@@ -161,6 +149,7 @@ def _validate_purchase_form(form):
         "purchase_date": purchase_date,
         "invoice_no": invoice_no,
         "rows": rows,
+        "prices_include_gst": bool(form.get("prices_include_gst")),
         "delivery_charge": delivery_charge,
         "extra_charges": extra_charges,
     }
@@ -222,10 +211,15 @@ def new_purchase():
 
         for pid, qty, price, mrp, gst in parsed["rows"]:
             qty = int(qty)
-            price_before_gst = float(price)
             mrp = float(mrp)
             gst_rate = float(gst) if gst else 18.0
-            purchase_price = round(price_before_gst * (1 + gst_rate / 100), 2)
+            entered_price = float(price)
+            if parsed["prices_include_gst"]:
+                price_before_gst = entered_price / (1 + gst_rate / 100)
+                purchase_price = entered_price
+            else:
+                price_before_gst = entered_price
+                purchase_price = price_before_gst * (1 + gst_rate / 100)
             product = Product.query.get(int(pid))
             if not product:
                 continue
@@ -338,10 +332,15 @@ def edit_purchase(purchase_id):
 
         for pid, qty, price, mrp, gst in parsed["rows"]:
             qty = int(qty)
-            price_before_gst = float(price)
             mrp = float(mrp)
             gst_rate = float(gst) if gst else 18.0
-            purchase_price = round(price_before_gst * (1 + gst_rate / 100), 2)
+            entered_price = float(price)
+            if parsed["prices_include_gst"]:
+                price_before_gst = entered_price / (1 + gst_rate / 100)
+                purchase_price = entered_price
+            else:
+                price_before_gst = entered_price
+                purchase_price = price_before_gst * (1 + gst_rate / 100)
             product = Product.query.get(int(pid))
             if not product:
                 continue

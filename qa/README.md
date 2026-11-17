@@ -13,6 +13,7 @@ Every real QA pass on this app needs the exact same isolation: a fresh DB copy, 
 python qa/qa_server.py                # fresh copy of erp.db, runs on port 5099
 python qa/qa_server.py --port 5100    # use a different port (e.g. to run two QA servers side by side)
 python qa/qa_server.py --keep         # reuse qa/data/erp.db as-is instead of re-copying from the real DB
+python qa/qa_server.py --port 5100 --data-dir C:\temp\erp-qa-2  # separate DB/mirror for parallel QA
 ```
 
 Then open **http://127.0.0.1:5099/qa-auto-login** — logs in as whichever shop-owner account exists in the QA copy, no password needed, then links through to the dashboard.
@@ -22,7 +23,7 @@ Stop it the normal way (Ctrl+C, or however the process was launched — e.g. a b
 ## What it guarantees
 
 - `instance/erp.db` (the real data) is **read once, to copy it** — this script never writes to it.
-- The QA copy lives at `qa/data/erp.db`, gitignored, fully separate from the real `instance/` folder — including its own Excel mirror at `qa/data/erp_data.xlsx`, which never touches the real `instance/erp_data.xlsx`.
+- The QA copy lives at `qa/data/erp.db` by default, gitignored, fully separate from the real `instance/` folder — including its own Excel mirror at `qa/data/erp_data.xlsx`, which never touches the real `instance/erp_data.xlsx`. Use `--data-dir` when another QA server already uses the default directory or needs to stay undisturbed.
 - `CLOUD_BACKUP_DIR` is force-set to `""`, so QA data can never leak into the real cloud backup folder configured in `.env`.
 - Runs with `debug=False` — same template-caching behavior as production `serve.py`. **If you edit a template while this server is already running, restart it to see the change** — this is a known Flask gotcha (Jinja only checks template mtimes when `debug=True`), also documented in `.claude/skills/ui-visual-conventions/SKILL.md`.
 

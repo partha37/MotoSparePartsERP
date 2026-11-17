@@ -15,6 +15,18 @@ Just double-click **`start.bat`** in the project folder.
 - Reachable from this PC at `http://127.0.0.1:5000`, and also from other
   devices on the same WiFi/hotspot — see below.
 
+## Form drafts and multiple tabs
+
+- While you work in a form, the browser saves a draft locally. If the page
+  reloads before you save, the form offers to restore that draft; review it
+  and submit it yourself. Drafts are kept in the current browser profile and
+  are not shared with other browsers or devices.
+- When you save a change in one tab, other open app tabs check for updates and
+  refresh automatically. Unsaved form data is drafted first so it can be
+  restored after the refresh.
+- The dedicated Chrome profile is separate from your regular Chrome profile,
+  so drafts and login state in one profile are not available in the other.
+
 ## Access from other devices on the network
 
 `serve.py` binds to all network interfaces, not just this PC, so a phone or

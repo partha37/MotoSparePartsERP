@@ -8,7 +8,8 @@ two ways to start it; use the daily-use one unless you're actively changing code
 Just double-click **`start.bat`** in the project folder.
 
 - It activates the venv, starts the app using `serve.py` (a proper production
-  server, not the dev one), and opens your browser to it automatically.
+  server, not the dev one), and opens it in a dedicated Chrome profile under
+  `%TEMP%\MotoSparePartsERP-Chrome`, separate from your regular Chrome profile.
 - A console window titled "MotoSpareParts ERP Server" opens and stays open
   while the app runs — **closing that window stops the app**.
 - Reachable from this PC at `http://127.0.0.1:5000`, and also from other

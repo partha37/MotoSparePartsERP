@@ -13,6 +13,8 @@ load_dotenv(os.path.join(BASE_DIR, ".env"))
 
 class Config:
     SECRET_KEY = os.environ.get("SECRET_KEY", "dev-secret-change-me")
+    # Keep forms usable through a full workday; Flask-WTF defaults to one hour.
+    WTF_CSRF_TIME_LIMIT = 24 * 60 * 60
     SQLALCHEMY_DATABASE_URI = "sqlite:///" + os.path.join(BASE_DIR, "instance", "erp.db")
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     # Folder to mirror erp.db/erp_data.xlsx into after every change — point this

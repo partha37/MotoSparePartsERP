@@ -21,7 +21,9 @@
   <script src="{{ url_for('static', filename='js/table-tools.js') }}"></script>
   <script src="{{ url_for('static', filename='js/print-bill.js') }}"></script>
 </head>
-<body class="{{ 'has-side-pane' if current_user.is_authenticated else '' }}">
+<body class="{{ 'has-side-pane' if current_user.is_authenticated else '' }}"
+      data-database-version="{{ database_version }}"
+      data-version-url="{{ url_for('data_version_endpoint') if current_user.is_authenticated else '' }}">
 {% if current_user.is_authenticated %}
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4 no-print sticky-top">
   <div class="container-fluid">
@@ -107,6 +109,9 @@
 </div>
 
 <script src="{{ url_for('static', filename='vendor/bootstrap/js/bootstrap.bundle.min.js') }}"></script>
+{% if current_user.is_authenticated %}
+<script src="{{ url_for('static', filename='js/tab-sync.js') }}"></script>
+{% endif %}
 <script>
 // Enter key advances to the next field instead of submitting the form early —
 // only submits once there's no field left (so single-field forms like search

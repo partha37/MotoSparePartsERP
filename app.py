@@ -2,7 +2,8 @@ import os
 from datetime import timedelta, timezone
 from functools import lru_cache
 
-from flask import Flask
+from flask import Flask, g, jsonify
+from flask_login import login_required
 from markupsafe import Markup
 
 from config import Config
@@ -63,6 +64,33 @@ def create_app():
     migrate.init_app(app, db)
     login_manager.init_app(app)
     csrf.init_app(app)
+
+    def database_version():
+        database_path = db.engine.url.database
+        parts = []
+        for path in (database_path, database_path + "-wal"):
+            try:
+                stat = os.stat(path)
+            except FileNotFoundError:
+                parts.append("missing")
+            else:
+                parts.append(f"{stat.st_mtime_ns}:{stat.st_size}")
+        return "|".join(parts)
+
+    @app.before_request
+    def capture_database_version():
+        g.database_version = database_version()
+
+    @app.get("/_data-version")
+    @login_required
+    def data_version_endpoint():
+        response = jsonify(version=database_version())
+        response.headers["Cache-Control"] = "no-store"
+        return response
+
+    @app.context_processor
+    def inject_database_version():
+        return {"database_version": getattr(g, "database_version", "")}
 
     @login_manager.user_loader
     def load_user(user_id):
